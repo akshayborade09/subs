@@ -13,7 +13,7 @@ import type { Icon } from 'phosphor-react-native';
 import type { LifecycleDefinition, LifecycleStateId } from './lifecycleStateMachine';
 
 const nextState: Partial<Record<LifecycleStateId, LifecycleStateId>> = {
-  E: 'D', F: 'G', H: 'J', I: 'J', J: 'K', L: 'K', M: 'K', N: 'K', O: 'J', P: 'K', Q: 'K', R: 'K', S: 'K', T: 'U', U: 'F',
+  E: 'D', F: 'G', H: 'J', I: 'J', J: 'K', L: 'K', M: 'K', N: 'K', O: 'J', P: 'K', Q: 'K', R: 'K', S: 'K', T: 'U', U: 'F', Y: 'K', Z: 'K', AA: 'Y',
 };
 
 function Glyph({ icon: GlyphIcon, color = '#078a4b' }: { icon: Icon; color?: string }) {
@@ -53,11 +53,17 @@ function WeekTracker() {
 }
 
 function PaymentRecovery({ definition, confirmed = false }: { definition: LifecycleDefinition; confirmed?: boolean }) {
-  const failed = definition.id === 'E';
+  const subscription = definition.id === 'Y' || definition.id === 'Z' || definition.id === 'AA';
+  const failed = definition.id === 'E' || definition.id === 'AA';
   const rotation = useRef(new NativeAnimated.Value(0)).current;
   useEffect(() => { if (failed || confirmed) return; const animation = NativeAnimated.loop(NativeAnimated.timing(rotation, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true })); animation.start(); return () => animation.stop(); }, [confirmed, failed, rotation]);
   const pendingColor = '#d97706';
-  return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><View className={`h-16 w-16 items-center justify-center rounded-full ${confirmed ? 'bg-accent' : failed ? 'bg-[#FDECEC] dark:bg-[#3A1717]' : 'bg-white'}`}>{!failed && !confirmed ? <NativeAnimated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }], borderColor: pendingColor, borderTopColor: 'transparent' }} className="absolute h-16 w-16 rounded-full border-[3px]" /> : null}{confirmed ? <Glyph icon={CheckIcon} color="#ffffff" /> : <Glyph icon={CreditCardIcon} color={failed ? '#dc2626' : pendingColor} />}</View><Text className="mt-5 font-semibold text-xl text-foreground">{confirmed ? 'Your payment is confirmed' : failed ? 'Payment could not be completed' : 'We are confirming your payment'}</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{confirmed ? 'Your five-day trial is ready to be scheduled. We are taking you to Home.' : failed ? 'No amount has been applied to your trial. Retry safely or choose another payment method.' : 'Your bank has received the request. Your trial will start only after payment is confirmed.'}</Text><View className="my-5 h-px bg-border" /><View className="gap-3"><MetaRow label="Amount" value="₹899" strong /><MetaRow label="Method" value="UPI" /><MetaRow label="Reference" value="TRIAL-260721" /><MetaRow label="Status" value={confirmed ? 'Confirmed' : failed ? 'Failed' : 'Pending'} /></View></View></>;
+  const description = confirmed
+    ? subscription ? 'Your subscription is active. Your meals and nutrition tools are ready.' : 'Your five-day trial is ready to be scheduled. We are taking you to Home.'
+    : failed
+      ? subscription ? 'Your plan and preferences are saved. Retry payment safely when you are ready.' : 'No amount has been applied to your trial. Retry safely or choose another payment method.'
+      : subscription ? 'Your bank has received the request. Your subscription starts only after payment is confirmed.' : 'Your bank has received the request. Your trial will start only after payment is confirmed.';
+  return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><View className={`h-16 w-16 items-center justify-center rounded-full ${confirmed ? 'bg-accent' : failed ? 'bg-[#FDECEC] dark:bg-[#3A1717]' : 'bg-white'}`}>{!failed && !confirmed ? <NativeAnimated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }], borderColor: pendingColor, borderTopColor: 'transparent' }} className="absolute h-16 w-16 rounded-full border-[3px]" /> : null}{confirmed ? <Glyph icon={CheckIcon} color="#ffffff" /> : <Glyph icon={CreditCardIcon} color={failed ? '#dc2626' : pendingColor} />}</View><Text className="mt-5 font-semibold text-xl text-foreground">{confirmed ? subscription ? 'Your subscription is active' : 'Your payment is confirmed' : failed ? 'Payment could not be completed' : 'We are confirming your payment'}</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{description}</Text><View className="my-5 h-px bg-border" /><View className="gap-3"><MetaRow label="Amount" value={subscription ? '₹2,499' : '₹899'} strong /><MetaRow label="Method" value="UPI" /><MetaRow label="Reference" value={subscription ? 'SUB-260722' : 'TRIAL-260721'} /><MetaRow label="Status" value={confirmed ? 'Confirmed' : failed ? 'Failed' : 'Pending'} /></View></View></>;
 }
 
 function TrialState({ id }: { id: LifecycleStateId }) {
@@ -108,7 +114,7 @@ export default function LifecycleExperience({ definition, onBack, onTransition, 
       <StatusPill text={`STATE ${id}`} tone={definition.tone} />
       <Text className="mt-4 font-semibold text-[24px] leading-8 tracking-[-0.5px] text-foreground">{definition.title}</Text>
       <Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{definition.summary}</Text>
-      {(id === 'D' || id === 'E' || id === 'T' || id === 'U') ? <PaymentRecovery definition={definition} confirmed={paymentConfirmed} /> : null}
+      {(id === 'D' || id === 'E' || id === 'T' || id === 'U' || id === 'Y' || id === 'Z' || id === 'AA') ? <PaymentRecovery definition={definition} confirmed={paymentConfirmed || id === 'Z'} /> : null}
       {(['F','H','I'] as LifecycleStateId[]).includes(id) ? <TrialState id={id} /> : null}
       {(['J','K','L','M','N','O'] as LifecycleStateId[]).includes(id) ? <SubscriberState id={id} /> : null}
       {(['P','Q','R','S'] as LifecycleStateId[]).includes(id) ? <RecoveryState id={id} /> : null}

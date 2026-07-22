@@ -1,9 +1,11 @@
 export type LifecycleStateId =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
-  | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U';
+  | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U'
+  | 'V' | 'W' | 'X' | 'Y' | 'Z' | 'AA' | 'AB' | 'AC' | 'AD' | 'AE'
+  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM';
 
-export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery';
-export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview';
+export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
+export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview' | 'commerce_profile';
 
 export type LifecycleDefinition = {
   id: LifecycleStateId;
@@ -39,6 +41,24 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'Q', group: 'Recovery and delivery', title: 'Delivery delayed', summary: 'An active delivery is running behind schedule.', entry: 'Subscriber Home with delayed meal', primaryAction: 'Track Update', secondaryAction: 'Contact Support', destination: 'trial_home', tone: 'warning' },
   { id: 'R', group: 'Recovery and delivery', title: 'Delivery failed or address issue', summary: 'Delivery needs an address fix or support resolution.', entry: 'Subscriber Home with issue card', primaryAction: 'Fix Address', secondaryAction: 'Contact Support', destination: 'trial_home', tone: 'danger' },
   { id: 'S', group: 'Recovery and delivery', title: 'Offline', summary: 'Cached information is available without connectivity.', entry: 'Last cached Home state', primaryAction: 'Try Again', destination: 'trial_home', tone: 'neutral' },
+  { id: 'V', group: 'Checkout and coupons', title: 'Checkout review', summary: 'Review plan, address, preferences, coupon and payable total.', entry: 'Review subscription', primaryAction: 'Continue to payment', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'W', group: 'Checkout and coupons', title: 'Apply coupon', summary: 'Enter a code or choose an eligible available offer.', entry: 'Coupon selection', primaryAction: 'Apply coupon', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'X', group: 'Checkout and coupons', title: 'Coupon applied', summary: 'A valid offer updates savings and the final payable amount.', entry: 'Checkout with discount', primaryAction: 'Continue to payment', destination: 'commerce_profile', tone: 'success' },
+  { id: 'Y', group: 'Checkout and coupons', title: 'Subscription payment pending', summary: 'Payment is being confirmed without allowing duplicate submission.', entry: 'Shared payment status', primaryAction: 'Go to home', destination: 'state_preview', tone: 'warning' },
+  { id: 'Z', group: 'Checkout and coupons', title: 'Subscription payment success', summary: 'The paid subscription is active or scheduled and ready to explore.', entry: 'Shared payment confirmation', primaryAction: 'Explore My Plan', destination: 'state_preview', tone: 'success' },
+  { id: 'AA', group: 'Checkout and coupons', title: 'Subscription payment failed', summary: 'The selection is preserved so payment can be retried safely.', entry: 'Shared payment recovery', primaryAction: 'Retry payment', secondaryAction: 'Change payment method', destination: 'state_preview', tone: 'danger' },
+  { id: 'AB', group: 'Profile and settings', title: 'Profile', summary: 'Account-level plan, rewards, addresses, transactions and settings.', entry: 'Profile home', primaryAction: 'Open destination', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'AC', group: 'Profile and settings', title: 'Edit profile', summary: 'Update personal information while preserving verified identity.', entry: 'Personal information', primaryAction: 'Save changes', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'AD', group: 'Profile and settings', title: 'Saved addresses', summary: 'Manage delivery addresses, defaults and serviceability.', entry: 'Address book', primaryAction: 'Add address', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'AE', group: 'Profile and settings', title: 'Transactions', summary: 'Review payments, refunds, credits, rewards and receipts.', entry: 'Transaction history', primaryAction: 'View transaction', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'AF', group: 'Profile and settings', title: 'Account settings', summary: 'Manage account, appearance, privacy, help and logout.', entry: 'Settings', primaryAction: 'Manage settings', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'AG', group: 'Profile and settings', title: 'Notifications', summary: 'Control operational, nutrition, reward and promotional messages.', entry: 'Notification preferences', primaryAction: 'Save preferences', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'AH', group: 'Profile and settings', title: 'App permissions', summary: 'Review location and notification access without surprise prompts.', entry: 'Permission settings', primaryAction: 'Manage permissions', destination: 'commerce_profile', tone: 'neutral' },
+  { id: 'AI', group: 'Loyalty and referrals', title: 'Refer and earn', summary: 'Share a referral code and follow qualified reward progress.', entry: 'Referral centre', primaryAction: 'Share invite', destination: 'commerce_profile', tone: 'success' },
+  { id: 'AJ', group: 'Loyalty and referrals', title: 'Healthy Streak progress', summary: 'Track progress toward one guaranteed free meal day.', entry: 'Loyalty programme', primaryAction: 'View reward details', destination: 'commerce_profile', tone: 'success' },
+  { id: 'AK', group: 'Loyalty and referrals', title: 'Monthly leaderboard', summary: 'View friendly monthly points without affecting guaranteed rewards.', entry: 'Leaderboard', primaryAction: 'View my rank', destination: 'commerce_profile', tone: 'success' },
+  { id: 'AL', group: 'Loyalty and referrals', title: 'Free meal earned', summary: 'A qualifying paid month has unlocked one free meal day.', entry: 'Reward earned', primaryAction: 'Choose free meal day', destination: 'commerce_profile', tone: 'success' },
+  { id: 'AM', group: 'Loyalty and referrals', title: 'Redeem free meal', summary: 'Select an eligible date and confirm address and meal configuration.', entry: 'Reward redemption', primaryAction: 'Confirm free meal', destination: 'commerce_profile', tone: 'success' },
 ];
 
 export type LifecycleMachineState = {
