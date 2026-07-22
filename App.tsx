@@ -193,11 +193,11 @@ function LoadingDot({ index }: { index: number }) {
 function SplashScreen() {
   return (
     <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(250)} className="flex-1 items-center justify-center bg-accent px-8">
-      <Animated.View entering={FadeInUp.delay(80).springify().damping(19)} className="h-44 w-44 items-center justify-center rounded-full bg-white/95">
+      <Animated.View entering={FadeInUp.delay(80).springify().damping(19)} className="h-44 w-44 items-center justify-center">
         <RotatingThali subtle />
       </Animated.View>
       <Animated.View entering={FadeInDown.delay(220).duration(450)} className="mt-7 items-center">
-        <Text numberOfLines={1} allowFontScaling={false} className="text-center text-[38px] text-accent-foreground light:text-white" style={{ fontFamily: Platform.select({ ios: 'Kohinoor Devanagari', android: 'sans-serif', default: 'sans-serif' }), fontWeight: '700', lineHeight: 54 }}>शिवराय टिफिन</Text>
+        <Text numberOfLines={1} allowFontScaling={false} className="font-bold text-center text-[38px] leading-[54px] text-accent-foreground light:text-white">Healthy Tiffins</Text>
         <Text className="mt-2 max-w-[290px] font-medium text-center text-sm leading-5 text-accent-foreground/75 light:text-white/75">Wholesome meals, made for everyday life.</Text>
         <LoadingDots />
       </Animated.View>
@@ -512,12 +512,14 @@ function AppFlow() {
   return (
     <View className="flex-1 bg-canvas">
       <StatusBar style={statusStyle} translucent backgroundColor="transparent" />
-      {screen === 'selector' ? <LifecycleStateSelector onSelect={chooseState} /> : null}
+      <View style={{ display: screen === 'selector' ? 'flex' : 'none' }} className="flex-1">
+        <LifecycleStateSelector onSelect={chooseState} />
+      </View>
       {screen === 'splash' ? <SplashScreen /> : null}
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
       {screen === 'complete' ? <TrialFlow /> : null}
-      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" lifecycleVariant={(({ F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} /> : null}
-      {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} /> : null}
+      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} onPaymentStatusPress={() => setScreen('preview')} /> : null}
+      {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
       {screen !== 'selector' && screen !== 'preview' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-semibold text-xs text-foreground">States</Text></Pressable> : null}
     </View>

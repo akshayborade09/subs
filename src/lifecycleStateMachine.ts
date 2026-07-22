@@ -1,6 +1,6 @@
 export type LifecycleStateId =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
-  | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S';
+  | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U';
 
 export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery';
 export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview';
@@ -21,7 +21,9 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'A', group: 'Entry and onboarding', title: 'New user, signed out', summary: 'First launch before authentication.', entry: 'Splash and onboarding stories', primaryAction: 'Get Started', destination: 'stories', tone: 'neutral' },
   { id: 'B', group: 'Entry and onboarding', title: 'Authentication incomplete', summary: 'Phone or OTP verification must resume.', entry: 'Create Account or Verify Number', primaryAction: 'Continue authentication', destination: 'auth', tone: 'warning' },
   { id: 'C', group: 'Entry and onboarding', title: 'Onboarding incomplete', summary: 'Resume the last incomplete setup step.', entry: 'Last incomplete onboarding screen', primaryAction: 'Continue setup', destination: 'onboarding', tone: 'warning' },
-  { id: 'D', group: 'Trial', title: 'Trial payment pending', summary: 'Payment was initiated but is not confirmed.', entry: 'Trial payment recovery', primaryAction: 'Check Payment Status', secondaryAction: 'Choose Another Payment Method', destination: 'state_preview', tone: 'warning' },
+  { id: 'D', group: 'Trial', title: 'Trial payment pending', summary: 'Payment was initiated but is not confirmed.', entry: 'Trial payment recovery', primaryAction: 'Go to Home', destination: 'state_preview', tone: 'warning' },
+  { id: 'T', group: 'Trial', title: 'Trial payment pending + success', summary: 'Preview the pending payment loader resolving into confirmation.', entry: 'Payment status transition', primaryAction: 'Checking Payment', destination: 'state_preview', tone: 'warning' },
+  { id: 'U', group: 'Trial', title: 'Trial payment success', summary: 'Payment is confirmed and the trial can be scheduled.', entry: 'Payment success confirmation', primaryAction: 'Continue to Home', destination: 'state_preview', tone: 'success' },
   { id: 'E', group: 'Trial', title: 'Trial payment failed', summary: 'Payment failed and the trial has not started.', entry: 'Payment recovery', primaryAction: 'Retry Payment', secondaryAction: 'Change Payment Method', destination: 'state_preview', tone: 'danger' },
   { id: 'F', group: 'Trial', title: 'Trial scheduled', summary: 'Payment succeeded and the first meal is in the future.', entry: 'Pre-trial Home', primaryAction: 'Review Trial', destination: 'trial_home', tone: 'success' },
   { id: 'G', group: 'Trial', title: 'Trial active, no subscription', summary: 'Five-day trial is running with conversion available.', entry: 'Trial Home', primaryAction: 'Avail Subscription', destination: 'trial_home', tone: 'success' },

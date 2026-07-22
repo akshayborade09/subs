@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated as NativeAnimated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useUniwind } from 'uniwind';
@@ -13,7 +13,7 @@ import type { Icon } from 'phosphor-react-native';
 import type { LifecycleDefinition, LifecycleStateId } from './lifecycleStateMachine';
 
 const nextState: Partial<Record<LifecycleStateId, LifecycleStateId>> = {
-  D: 'F', E: 'D', F: 'G', H: 'J', I: 'J', J: 'K', L: 'K', M: 'K', N: 'K', O: 'J', P: 'K', Q: 'K', R: 'K', S: 'K',
+  E: 'D', F: 'G', H: 'J', I: 'J', J: 'K', L: 'K', M: 'K', N: 'K', O: 'J', P: 'K', Q: 'K', R: 'K', S: 'K', T: 'U', U: 'F',
 };
 
 function Glyph({ icon: GlyphIcon, color = '#078a4b' }: { icon: Icon; color?: string }) {
@@ -52,9 +52,12 @@ function WeekTracker() {
   return <View className="mt-4 flex-row justify-between">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map((day, index) => <View key={day} className="items-center gap-2"><Text className="font-medium text-[10px] text-muted">{day}</Text><View className={`h-9 w-9 items-center justify-center rounded-full ${index < 2 ? 'bg-accent' : index === 2 ? 'border-2 border-accent bg-success-soft' : 'bg-surface-raised'}`}>{index < 2 ? <Glyph icon={CheckIcon} color="#ffffff" /> : <Text className={`font-semibold text-xs ${index === 2 ? 'text-accent' : 'text-foreground'}`}>{21 + index}</Text>}</View></View>)}</View>;
 }
 
-function PaymentRecovery({ definition }: { definition: LifecycleDefinition }) {
+function PaymentRecovery({ definition, confirmed = false }: { definition: LifecycleDefinition; confirmed?: boolean }) {
   const failed = definition.id === 'E';
-  return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><View className="h-11 w-11 items-center justify-center rounded-full bg-icon-surface"><Glyph icon={CreditCardIcon} color={failed ? '#dc2626' : '#a16207'} /></View><Text className="mt-5 font-semibold text-xl text-foreground">{failed ? 'Payment could not be completed' : 'We are confirming your payment'}</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{failed ? 'No amount has been applied to your trial. Retry safely or choose another payment method.' : 'Your bank has received the request. Your trial will start only after payment is confirmed.'}</Text><View className="my-5 h-px bg-border" /><View className="gap-3"><MetaRow label="Amount" value="₹899" strong /><MetaRow label="Method" value="UPI" /><MetaRow label="Reference" value="TRIAL-260721" /><MetaRow label="Status" value={failed ? 'Failed' : 'Pending'} /></View></View></>;
+  const rotation = useRef(new NativeAnimated.Value(0)).current;
+  useEffect(() => { if (failed || confirmed) return; const animation = NativeAnimated.loop(NativeAnimated.timing(rotation, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true })); animation.start(); return () => animation.stop(); }, [confirmed, failed, rotation]);
+  const pendingColor = '#d97706';
+  return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><View className={`h-16 w-16 items-center justify-center rounded-full ${confirmed ? 'bg-accent' : failed ? 'bg-[#FDECEC] dark:bg-[#3A1717]' : 'bg-white'}`}>{!failed && !confirmed ? <NativeAnimated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }], borderColor: pendingColor, borderTopColor: 'transparent' }} className="absolute h-16 w-16 rounded-full border-[3px]" /> : null}{confirmed ? <Glyph icon={CheckIcon} color="#ffffff" /> : <Glyph icon={CreditCardIcon} color={failed ? '#dc2626' : pendingColor} />}</View><Text className="mt-5 font-semibold text-xl text-foreground">{confirmed ? 'Your payment is confirmed' : failed ? 'Payment could not be completed' : 'We are confirming your payment'}</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{confirmed ? 'Your five-day trial is ready to be scheduled. We are taking you to Home.' : failed ? 'No amount has been applied to your trial. Retry safely or choose another payment method.' : 'Your bank has received the request. Your trial will start only after payment is confirmed.'}</Text><View className="my-5 h-px bg-border" /><View className="gap-3"><MetaRow label="Amount" value="₹899" strong /><MetaRow label="Method" value="UPI" /><MetaRow label="Reference" value="TRIAL-260721" /><MetaRow label="Status" value={confirmed ? 'Confirmed' : failed ? 'Failed' : 'Pending'} /></View></View></>;
 }
 
 function TrialState({ id }: { id: LifecycleStateId }) {
@@ -84,11 +87,17 @@ function RecoveryState({ id }: { id: LifecycleStateId }) {
   return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><View className="h-11 w-11 items-center justify-center rounded-full bg-icon-surface"><Glyph icon={config.icon} color={config.color} /></View><Text className="mt-5 font-semibold text-xl text-foreground">{config.title}</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{config.body}</Text>{id !== 'S' ? <View className="mt-5 gap-3"><MetaRow label="Affected meal" value="Lunch · 23 July" /><MetaRow label="Current address" value="Home · Baner" /><MetaRow label="Credit status" value={id === 'R' ? 'Pending review' : 'Not applicable'} /></View> : null}</View>{id !== 'S' ? <View className="mt-4 rounded-[16px] border border-border bg-sheet p-5"><Text className="font-semibold text-lg text-foreground">Upcoming deliveries</Text><WeekTracker /></View> : null}</>;
 }
 
-export default function LifecycleExperience({ definition, onBack, onTransition }: { definition: LifecycleDefinition; onBack: () => void; onTransition: (id: LifecycleStateId) => void }) {
+export default function LifecycleExperience({ definition, onBack, onTransition, onPaymentCheck }: { definition: LifecycleDefinition; onBack: () => void; onTransition: (id: LifecycleStateId) => void; onPaymentCheck?: () => void }) {
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(definition.id === 'U');
   const id = definition.id;
+  useEffect(() => {
+    if (id === 'T') { const confirmedTimer = setTimeout(() => setPaymentConfirmed(true), 2200); const routeTimer = setTimeout(() => onTransition('U'), 3400); return () => { clearTimeout(confirmedTimer); clearTimeout(routeTimer); }; }
+    if (id === 'U') { const routeTimer = setTimeout(() => onTransition('F'), 1800); return () => clearTimeout(routeTimer); }
+  }, [id, onTransition]);
   const primary = () => {
+    if (id === 'D' && onPaymentCheck) { onPaymentCheck(); return; }
     const target = nextState[id];
     if (target) onTransition(target);
     else setExpanded(true);
@@ -99,14 +108,14 @@ export default function LifecycleExperience({ definition, onBack, onTransition }
       <StatusPill text={`STATE ${id}`} tone={definition.tone} />
       <Text className="mt-4 font-semibold text-[24px] leading-8 tracking-[-0.5px] text-foreground">{definition.title}</Text>
       <Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{definition.summary}</Text>
-      {(id === 'D' || id === 'E') ? <PaymentRecovery definition={definition} /> : null}
+      {(id === 'D' || id === 'E' || id === 'T' || id === 'U') ? <PaymentRecovery definition={definition} confirmed={paymentConfirmed} /> : null}
       {(['F','H','I'] as LifecycleStateId[]).includes(id) ? <TrialState id={id} /> : null}
       {(['J','K','L','M','N','O'] as LifecycleStateId[]).includes(id) ? <SubscriberState id={id} /> : null}
       {(['P','Q','R','S'] as LifecycleStateId[]).includes(id) ? <RecoveryState id={id} /> : null}
       {expanded ? <View className="mt-4 flex-row items-start gap-3 rounded-[16px] bg-success-soft p-4"><Glyph icon={CheckIcon} /><Text className="flex-1 font-sans text-[15px] leading-6 text-foreground">Action completed locally for this preview state.</Text></View> : null}
       <View className="mt-auto gap-3 pt-8">
-        <PrimaryButton label={definition.primaryAction} onPress={primary} />
-        {definition.secondaryAction ? <SecondaryButton label={definition.secondaryAction} onPress={() => setExpanded(true)} /> : null}
+        {id !== 'T' && id !== 'U' ? <PrimaryButton label={definition.primaryAction} onPress={primary} /> : null}
+        {definition.secondaryAction && id !== 'T' && id !== 'U' ? <SecondaryButton label={definition.secondaryAction} onPress={() => setExpanded(true)} /> : null}
       </View>
     </View>
   </ScrollView>;
