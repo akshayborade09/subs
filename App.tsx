@@ -1,5 +1,5 @@
 import './global.css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   FlatList,
@@ -47,9 +47,18 @@ import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 import TrialFlow from './src/TrialFlow';
+import TrialHome from './src/TrialHome';
+import { LifecycleStateSelector } from './src/LifecycleStateSelector';
+import LifecycleExperience from './src/LifecycleExperience';
+import { getLifecycleDefinition, initialLifecycleMachineState, lifecycleMachineReducer, type LifecycleStateId } from './src/lifecycleStateMachine';
 
 const foodThali = require('./assets/food-thali.png');
 const MOCK_OTP = '123456';
+
+// Keep system text-size accessibility without allowing extreme multipliers to
+// overflow compact mobile cards, buttons and form controls.
+(Text as any).defaultProps = { ...(Text as any).defaultProps, maxFontSizeMultiplier: 1.2 };
+(TextInput as any).defaultProps = { ...(TextInput as any).defaultProps, maxFontSizeMultiplier: 1.2 };
 
 function AppGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foreground' }: { icon: Icon; size?: number; weight?: IconWeight; tone?: 'foreground' | 'success' }) {
   const { theme } = useUniwind();
@@ -156,7 +165,7 @@ function ActionButton({ label, onPress, enabled = true, loading = false }: { lab
         className={`h-14 items-center justify-center overflow-hidden rounded-xl ${enabled ? 'opacity-100' : 'opacity-40'}`}
       >
         {width > 0 ? <Svg pointerEvents="none" width={width} height={56} preserveAspectRatio="none" style={StyleSheet.absoluteFill}><Defs><LinearGradient id="actionButtonGradient" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={dark ? '#FFFFFF' : '#4D4D4D'} /><Stop offset="1" stopColor={dark ? '#888888' : '#000000'} /></LinearGradient></Defs><Rect width={width} height={56} fill="url(#actionButtonGradient)" /></Svg> : null}
-        <Text style={{ zIndex: 1 }} className={`font-bold text-base ${dark ? 'text-black' : 'text-white'}`}>{loading ? 'Please wait…' : label}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.76} style={{ zIndex: 1, paddingHorizontal: 16 }} className={`w-full text-center font-bold text-base ${dark ? 'text-black' : 'text-white'}`}>{loading ? 'Please wait…' : label}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -466,24 +475,51 @@ function OnboardingPlaceholder() {
   );
 }
 
-type Screen = 'splash' | 'stories' | 'complete';
+type Screen = 'selector' | 'splash' | 'stories' | 'complete' | 'trial_home' | 'preview';
 
 function AppFlow() {
-  const [screen, setScreen] = useState<Screen>('splash');
+  const insets = useSafeAreaInsets();
+  const [machine, dispatch] = useReducer(lifecycleMachineReducer, initialLifecycleMachineState);
+  const [screen, setScreen] = useState<Screen>('selector');
   const [sheetOpen, setSheetOpen] = useState(false);
   const { theme } = useUniwind();
-  useEffect(() => { const timer = setTimeout(() => setScreen('stories'), 1800); return () => clearTimeout(timer); }, []);
+  useEffect(() => {
+    if (screen !== 'splash') return;
+    const timer = setTimeout(() => setScreen('stories'), 1800);
+    return () => clearTimeout(timer);
+  }, [screen]);
   useEffect(() => {
     if (Platform.OS !== 'web') void Location.requestForegroundPermissionsAsync();
   }, []);
   const statusStyle = screen === 'splash' ? (theme === 'dark' ? 'dark' : 'light') : (theme === 'dark' ? 'light' : 'dark');
+  const definition = getLifecycleDefinition(machine.selectedState);
+  const chooseState = (stateId: LifecycleStateId) => {
+    const selected = getLifecycleDefinition(stateId);
+    if (!selected) return;
+    dispatch({ type: 'SELECT_STATE', stateId });
+    setSheetOpen(false);
+    if (selected.destination === 'stories') setScreen('splash');
+    else if (selected.destination === 'auth') { setScreen('stories'); setSheetOpen(true); }
+    else if (selected.destination === 'onboarding') setScreen('complete');
+    else if (selected.destination === 'trial_home') setScreen('trial_home');
+    else setScreen('preview');
+  };
+  const openSelector = () => {
+    dispatch({ type: 'OPEN_SELECTOR' });
+    setSheetOpen(false);
+    setScreen('selector');
+  };
   return (
     <View className="flex-1 bg-canvas">
       <StatusBar style={statusStyle} translucent backgroundColor="transparent" />
+      {screen === 'selector' ? <LifecycleStateSelector onSelect={chooseState} /> : null}
       {screen === 'splash' ? <SplashScreen /> : null}
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
       {screen === 'complete' ? <TrialFlow /> : null}
+      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" lifecycleVariant={(({ F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} /> : null}
+      {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
+      {screen !== 'selector' && screen !== 'preview' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-semibold text-xs text-foreground">States</Text></Pressable> : null}
     </View>
   );
 }
