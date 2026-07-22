@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+@theme {
+  --font-sans: 'Geist_400Regular';
+  --font-medium: 'Geist_500Medium';
+  --font-semibold: 'Geist_600SemiBold';
+  --font-bold: 'Geist_700Bold';
+  --radius-card: 16px;
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      --color-canvas: #ffffff;
+      --color-sheet: #ffffff;
+      --color-icon-surface: #eeeeee;
+      --color-surface: #f6f6f6;
+      --color-field: #f6f6f6;
+      --color-surface-2: #eeeeee;
+      --color-surface-raised: #eeeeee;
+      --color-foreground: #101010;
+      --color-muted: #5e5e5e;
+      --color-border: #dedede;
+      --color-control-border: #dedede;
+      --color-accent: #078a4b;
+      --color-accent-foreground: #ffffff;
+      --color-success: #078a4b;
+      --color-success-soft: #e7f7ee;
+    }
+
+    @variant dark {
+      --color-canvas: #000000;
+      --color-sheet: #101010;
+      --color-icon-surface: #1c1c1c;
+      --color-surface: #0d0d0d;
+      --color-field: #080808;
+      --color-surface-2: #202020;
+      --color-surface-raised: #202020;
+      --color-foreground: #ffffff;
+      --color-muted: #ababab;
+      --color-border: #292929;
+      --color-control-border: #303030;
+      --color-accent: #55c986;
+      --color-accent-foreground: #07140c;
+      --color-success: #55c986;
+      --color-success-soft: #173624;
+    }
+  }
+}

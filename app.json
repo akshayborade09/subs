@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Astryx Native",
+    "slug": "astryx-native",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.example.astryxnative"
+    },
+    "android": {
+      "package": "com.example.astryxnative",
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "backgroundColor": "#F5F4F0"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Astryx Native to use your location to choose a tiffin delivery address."
+        }
+      ]
+    ]
+  }
+}
