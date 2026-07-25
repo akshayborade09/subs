@@ -22,6 +22,7 @@ import { Geist_400Regular } from '@expo-google-fonts/geist/400Regular';
 import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
 import { Geist_600SemiBold } from '@expo-google-fonts/geist/600SemiBold';
 import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
+import { AbrilFatface_400Regular } from '@expo-google-fonts/abril-fatface/400Regular';
 import Animated, {
   Easing,
   FadeIn,
@@ -530,7 +531,7 @@ function AppFlow() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold });
+  const [fontsLoaded] = useFonts({ Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold, AbrilFatface_400Regular });
   if (!fontsLoaded) return <View className="flex-1 bg-canvas" />;
   return <SafeAreaProvider className="bg-canvas"><AppFlow /></SafeAreaProvider>;
 }

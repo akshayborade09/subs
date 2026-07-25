@@ -13,6 +13,7 @@
     "doctor": "expo-doctor"
   },
   "dependencies": {
+    "@expo-google-fonts/abril-fatface": "^0.4.1",
     "@expo-google-fonts/geist": "^0.4.2",
     "expo": "~54.0.36",
     "expo-blur": "~15.0.8",
