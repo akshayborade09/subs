@@ -1,0 +1,4 @@
+# pnpm 11 reads build-script allowlists from here rather than package.json.
+# esbuild backs tsx and vitest; without its postinstall the native binary is missing.
+allowBuilds:
+  esbuild: true
