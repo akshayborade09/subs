@@ -53,6 +53,19 @@ export const policy = {
   subscription: {
     /** Rolling window; a full quarter would make one preference change a 90-row rewrite. */
     materializationHorizonDays: 21,
+    /**
+     * UNDECIDED BY PRODUCT — flagged for Akshay.
+     *
+     * Does a plan's mealCount count days of service, or individual meals?
+     * "Monthly · 4 weeks · 20 meals" is exactly 20 weekdays, which implies days —
+     * so a "both" subscriber gets lunch and dinner on each of 20 days (40 meals).
+     * Under 'individual_meals' that same subscriber would get only 10 days.
+     *
+     * The distinction changes what people are actually sold, so it must not be
+     * left implicit. Defaulting to 'meal_days' because it matches the app's copy
+     * and its per-meal price arithmetic.
+     */
+    mealCountUnit: 'meal_days' as 'meal_days' | 'individual_meals',
     autoRenew: true,
     /** Renewal is charged this many days before the period ends. */
     renewChargeLeadDays: 1,

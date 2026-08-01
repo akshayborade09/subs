@@ -1,7 +1,8 @@
 import { db, type Tx } from '../../platform/db/index.js';
 import { logger } from '../../platform/logger.js';
 import { emit, emitMany } from '../../platform/outbox.js';
-import { transactionTimestamp } from '../../platform/time.js';
+import { todayIn, transactionTimestamp } from '../../platform/time.js';
+import { materializeSubscriptionOrders } from '../subscription/service.js';
 import { materializeTrialOrders } from '../trial/service.js';
 import type { PaymentStatus } from '../../platform/db/types.js';
 import type { NormalizedEvent } from './provider.js';
@@ -160,6 +161,50 @@ export async function handleProviderEvent(
             payload: { mealOrdersCreated: created },
           },
         ]);
+      } else {
+        await tx
+          .updateTable('subscriptions')
+          .set({ status: 'paid', paid_at: new Date() })
+          .where('id', '=', checkout.source_id)
+          .execute();
+
+        // Only the first horizon; the daily reconciler extends the rolling window.
+        const created = await materializeSubscriptionOrders(
+          tx,
+          checkout.source_id,
+          todayIn(new Date()),
+        );
+
+        await tx
+          .insertInto('transactions')
+          .values({
+            user_id: payment.user_id,
+            type: 'payment',
+            title: 'Subscription',
+            subtitle: transactionTimestamp(new Date()),
+            amount_paise: payment.amount_paise,
+            status: 'succeeded',
+            payment_id: payment.id,
+            reference: `SUB-${payment.id.slice(0, 8).toUpperCase()}`,
+          })
+          .execute();
+
+        await emitMany(tx, [
+          {
+            eventName: 'subscription.payment.succeeded',
+            aggregateType: 'subscription',
+            aggregateId: checkout.source_id,
+            userId: payment.user_id,
+            payload: { amountPaise: payment.amount_paise, mealOrdersCreated: created },
+          },
+          {
+            eventName: 'subscription.activated',
+            aggregateType: 'subscription',
+            aggregateId: checkout.source_id,
+            userId: payment.user_id,
+            payload: { mealOrdersCreated: created },
+          },
+        ]);
       }
     } else if (event.status === 'failed') {
       await tx
@@ -175,9 +220,12 @@ export async function handleProviderEvent(
           .where('id', '=', checkout.source_id)
           .execute();
       }
+      // A failed subscription payment leaves the subscription in pending_payment,
+      // so the user's selection survives for a retry (spec §5.12).
 
       await emit(tx, {
-        eventName: 'trial.payment.failed',
+        eventName:
+          checkout.source_type === 'trial' ? 'trial.payment.failed' : 'subscription.payment.failed',
         aggregateType: 'payment',
         aggregateId: payment.id,
         userId: payment.user_id,

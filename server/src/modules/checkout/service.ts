@@ -266,6 +266,12 @@ export async function getPaymentStatus(userId: string, checkoutSessionId: string
     amountPaise: checkout.total_payable_paise,
     failureCode: payment?.failure_code ?? null,
     failureReason: payment?.failure_reason ?? null,
-    reference: payment ? `TRIAL-${payment.id.slice(0, 8).toUpperCase()}` : null,
+    reference: payment ? paymentReference(checkout.kind, payment.id) : null,
   };
+}
+
+/** Matches the transaction rows written by the webhook, so support can cross-refer. */
+export function paymentReference(kind: string, paymentId: string): string {
+  const prefix = kind === 'trial' ? 'TRIAL' : 'SUB';
+  return `${prefix}-${paymentId.slice(0, 8).toUpperCase()}`;
 }

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "worker": "tsx watch src/worker.ts",
+    "jobs:run": "tsx src/jobs/run-once.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
