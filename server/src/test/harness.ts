@@ -1,6 +1,7 @@
 import { sql } from 'kysely';
 import { buildApp } from '../http/app.js';
 import { db } from '../platform/db/index.js';
+import { env } from '../platform/config/env.js';
 import { signMockPayload, type MockScenario } from '../modules/payments/provider.js';
 
 /**
@@ -24,11 +25,33 @@ export async function getApp(): Promise<App> {
 }
 
 /**
+ * Refuses to run against anything that is not obviously a throwaway database.
+ *
+ * This exists because it already went wrong: the unit-test glob matched
+ * `*.integration.test.ts`, so `resetData()` ran with the default .env and
+ * TRUNCATEd the development database. The vitest config now excludes them, but a
+ * config is easy to get wrong twice — making the destructive statement itself
+ * refuse is the guarantee that actually holds.
+ */
+function assertThrowawayDatabase(): void {
+  const url = env.DATABASE_URL;
+  const database = (url.slice(url.lastIndexOf('/') + 1).split('?')[0] ?? '').trim();
+  if (!/(test|_ci|scratch)/i.test(database)) {
+    throw new Error(
+      `Refusing to TRUNCATE "${database}": integration tests must point at a database ` +
+        `whose name contains "test". e.g. ` +
+        `DATABASE_URL=postgres://tiffins:tiffins@localhost:5432/tiffins_test`,
+    );
+  }
+}
+
+/**
  * Wipes user-owned data between tests while leaving seeded reference data (plans,
  * pincodes, coupons) intact. TRUNCATE ... CASCADE on users pulls everything that
  * hangs off a user; the rest are standalone ledgers.
  */
 export async function resetData(): Promise<void> {
+  assertThrowawayDatabase();
   await sql`
     TRUNCATE users, otp_challenges, provider_events, outbox_events,
              outbox_deliveries, audit_logs, leaderboard_periods
