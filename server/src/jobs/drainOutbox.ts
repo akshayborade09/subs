@@ -1,6 +1,7 @@
 import { sql } from 'kysely';
 import { db } from '../platform/db/index.js';
 import { logger } from '../platform/logger.js';
+import { awardPoints } from '../modules/leaderboard/service.js';
 
 /**
  * Subscribers are deliberately dumb for now: notifications and analytics are
@@ -40,6 +41,46 @@ const NOTIFIABLE = new Set([
 ]);
 
 const SUBSCRIBERS: Subscriber[] = [
+  {
+    /**
+     * Leaderboard points. Runs here rather than inline in the payment or ops path
+     * so scoring cannot fail a business transaction, and so the (user, event,
+     * source) unique index makes a redelivered event a no-op.
+     */
+    name: 'leaderboard',
+    handles: (name) =>
+      name === 'meal.delivered' || name === 'referral.qualified' || name === 'reward.earned',
+    handle: async (event) => {
+      if (!event.user_id) return;
+      if (event.event_name === 'meal.delivered') {
+        await awardPoints(db, {
+          userId: event.user_id,
+          eventKind: 'meal_delivered',
+          sourceType: 'meal_order',
+          sourceId: event.aggregate_id,
+        });
+        return;
+      }
+      if (event.event_name === 'referral.qualified') {
+        await awardPoints(db, {
+          userId: event.user_id,
+          eventKind: 'referral_qualified',
+          sourceType: 'reward',
+          sourceId: event.aggregate_id,
+        });
+        return;
+      }
+      // reward.earned from the loyalty reconciler means a month was completed.
+      if (event.payload['source'] === 'loyalty') {
+        await awardPoints(db, {
+          userId: event.user_id,
+          eventKind: 'monthly_streak',
+          sourceType: 'reward',
+          sourceId: event.aggregate_id,
+        });
+      }
+    },
+  },
   {
     name: 'notifications',
     handles: (name) => NOTIFIABLE.has(name),
@@ -112,7 +153,11 @@ export async function drainOutbox(batchSize = 100): Promise<number> {
       .selectFrom('outbox_events')
       .select(['id', 'event_name', 'aggregate_type', 'aggregate_id', 'user_id', 'payload'])
       .where('published_at', 'is', null)
-      .where('available_at', '<=', new Date())
+      // Compare against the database clock, not the Node process clock. available_at
+      // is set by Postgres `now()`, so testing it against a client-side `new Date()`
+      // lets a just-emitted event fall outside the window on any skew and sit
+      // undrained until the next tick.
+      .where('available_at', '<=', sql<Date>`now()`)
       .orderBy('id')
       .limit(batchSize)
       .forUpdate()

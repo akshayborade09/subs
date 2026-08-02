@@ -3,6 +3,7 @@ import { logger } from '../platform/logger.js';
 import { emit, emitMany } from '../platform/outbox.js';
 import { todayIn } from '../platform/time.js';
 import { materializeSubscriptionOrders } from '../modules/subscription/service.js';
+export { evaluateLoyalty } from '../modules/loyalty/service.js';
 
 /**
  * Every job here is a RECONCILER, not a scheduled state transition: it asks the

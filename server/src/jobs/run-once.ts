@@ -10,6 +10,7 @@
 import { closeDb } from '../platform/db/index.js';
 import { drainOutbox } from './drainOutbox.js';
 import {
+  evaluateLoyalty,
   emitSubscriptionExpired,
   emitTrialCompleted,
   expireRewards,
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
       mealOrdersCreated: await materializeMealOrders(),
       trialsCompleted: await emitTrialCompleted(),
       subscriptionsExpired: await emitSubscriptionExpired(),
+      loyaltyRewardsMinted: await evaluateLoyalty(),
       rewardsExpired: await expireRewards(),
       outboxDrained: await drainOutbox(),
     };

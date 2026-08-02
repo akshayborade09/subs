@@ -3,6 +3,7 @@ import { getBoss, JOB, stopBoss } from './platform/jobs.js';
 import { logger } from './platform/logger.js';
 import { drainOutbox } from './jobs/drainOutbox.js';
 import {
+  evaluateLoyalty,
   emitSubscriptionExpired,
   emitTrialCompleted,
   expireRewards,
@@ -21,6 +22,8 @@ const SCHEDULE: Array<{ name: string; cron: string; run: () => Promise<number> }
   { name: JOB.materializeMealOrders, cron: '35 18 * * *', run: materializeMealOrders },
   { name: JOB.emitTrialCompleted, cron: '40 18 * * *', run: emitTrialCompleted },
   { name: JOB.emitSubscriptionExpired, cron: '40 18 * * *', run: emitSubscriptionExpired },
+  // 01:00 IST -> 19:30 UTC
+  { name: JOB.evaluateLoyalty, cron: '30 19 * * *', run: evaluateLoyalty },
   { name: JOB.expireRewards, cron: '0 20 * * *', run: expireRewards },
 ];
 

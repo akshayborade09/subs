@@ -34,6 +34,7 @@ export const JOB = {
   materializeMealOrders: 'materialize-meal-orders',
   emitTrialCompleted: 'emit-trial-completed',
   emitSubscriptionExpired: 'emit-subscription-expired',
+  evaluateLoyalty: 'evaluate-loyalty',
   expireRewards: 'expire-rewards',
   drainOutbox: 'drain-outbox',
 } as const;

@@ -4,6 +4,7 @@ import { emit, emitMany } from '../../platform/outbox.js';
 import { todayIn, transactionTimestamp } from '../../platform/time.js';
 import { materializeSubscriptionOrders } from '../subscription/service.js';
 import { materializeTrialOrders } from '../trial/service.js';
+import { qualifyReferral } from '../referral/service.js';
 import type { PaymentStatus } from '../../platform/db/types.js';
 import type { NormalizedEvent } from './provider.js';
 
@@ -120,6 +121,11 @@ export async function handleProviderEvent(
         .set({ step: 'payment_success' })
         .where('id', '=', checkout.id)
         .execute();
+
+      // A referral qualifies on the referred user's FIRST captured payment, never
+      // on signup (spec 13.1). Harmless to call again: it only matches referrals
+      // still awaiting qualification.
+      await qualifyReferral(tx, payment.user_id);
 
       // Burn the coupon. Usage limits are counted from consumed redemptions, so
       // without this a one-per-user offer could be redeemed indefinitely. Only
