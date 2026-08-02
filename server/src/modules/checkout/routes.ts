@@ -11,6 +11,7 @@ import {
   scheduleMockWebhooks,
 } from './service.js';
 import { getProvider, MOCK_SCENARIOS, type MockScenario } from '../payments/provider.js';
+import { applyCoupon, removeCoupon } from '../coupons/service.js';
 import { handleProviderEvent } from '../payments/webhook.js';
 
 const PriceBreakdown = z.object({
@@ -130,6 +131,49 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const auth = requireAuth(request, reply);
       return getPaymentStatus(auth.userId, request.params.checkoutSessionId);
+    },
+  );
+
+  const CouponResponse = z.object({
+    couponStatus: z.string(),
+    couponCode: z.string().nullable(),
+    message: z.string(),
+    priceBreakdown: PriceBreakdown,
+  });
+
+  route.post(
+    '/me/checkout/:checkoutSessionId/apply-coupon',
+    {
+      schema: {
+        tags: ['checkout'],
+        summary: 'Validate and apply a coupon. Totals come back recomputed.',
+        description:
+          'A rejection returns 200 with an explicit couponStatus and the unchanged ' +
+          'totals, so the client can show the reason without clearing the entered code.',
+        params: z.object({ checkoutSessionId: z.string().uuid() }),
+        body: z.object({ code: z.string().min(1).max(40) }),
+        response: { 200: CouponResponse },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return applyCoupon(auth.userId, request.params.checkoutSessionId, request.body.code);
+    },
+  );
+
+  route.post(
+    '/me/checkout/:checkoutSessionId/remove-coupon',
+    {
+      schema: {
+        tags: ['checkout'],
+        summary: 'Remove the applied coupon and restore the original total',
+        params: z.object({ checkoutSessionId: z.string().uuid() }),
+        response: { 200: CouponResponse },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return removeCoupon(auth.userId, request.params.checkoutSessionId);
     },
   );
 
