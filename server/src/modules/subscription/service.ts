@@ -197,10 +197,20 @@ async function defaultStartDate(tx: Executor, userId: string, today: PlainDate):
 export type SubscriptionQuote = {
   planCode: string;
   planName: string;
-  mealCount: number;
+  /** Service days included — the unit mealCount is measured in. */
+  mealDays: number;
+  /** Actual deliveries: doubled for a "both" subscriber. */
+  mealsIncluded: number;
   durationDays: number;
   startsOn: string;
   endsOn: string;
+  /**
+   * Derived from mealsIncluded, not from the plan's static column. Product
+   * confirmed mealCount means service days, so a "both" subscriber receives two
+   * deliveries per day and their true per-meal price is half the plan's headline
+   * figure. Quoting the static column would overstate it.
+   */
+  effectivePricePerMealPaise: number;
   priceBreakdown: PriceBreakdown;
 };
 
@@ -209,6 +219,7 @@ export async function quoteSubscription(
   planCode: 'weekly' | 'monthly' | 'quarterly',
   today: PlainDate,
   tx: Executor = db,
+  mealPreference: MealPreference = 'lunch',
 ): Promise<SubscriptionQuote> {
   const plan = await tx
     .selectFrom('subscription_plans')
@@ -225,13 +236,17 @@ export async function quoteSubscription(
     trialCreditPaise: await trialCreditFor(tx, userId),
   });
 
+  const mealsIncluded = plan.meal_count * (mealPreference === 'both' ? 2 : 1);
+
   return {
     planCode: plan.code,
     planName: plan.name,
-    mealCount: plan.meal_count,
+    mealDays: plan.meal_count,
+    mealsIncluded,
     durationDays: plan.duration_days,
     startsOn,
     endsOn: addDays(startsOn, plan.duration_days - 1),
+    effectivePricePerMealPaise: Math.round(priceBreakdown.totalPayablePaise / mealsIncluded),
     priceBreakdown,
   };
 }
@@ -281,7 +296,7 @@ export async function createSubscriptionCheckout(
     throw new AppError('PINCODE_NOT_SERVICEABLE', `We do not deliver to ${address.pincode} yet.`);
   }
 
-  const quote = await quoteSubscription(userId, input.planCode, today, tx);
+  const quote = await quoteSubscription(userId, input.planCode, today, tx, input.mealPreference);
   const plan = await tx
     .selectFrom('subscription_plans')
     .select(['id', 'price_paise', 'discount_paise'])

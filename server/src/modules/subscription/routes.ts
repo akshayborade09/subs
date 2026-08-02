@@ -74,15 +74,20 @@ export async function subscriptionRoutes(app: FastifyInstance): Promise<void> {
       schema: {
         tags: ['subscription'],
         summary: 'Price a plan for this user, including any trial credit',
-        body: z.object({ planCode: PlanCode }),
+        body: z.object({
+          planCode: PlanCode,
+          mealPreference: z.enum(['lunch', 'dinner', 'both']).default('lunch'),
+        }),
         response: {
           200: z.object({
             planCode: z.string(),
             planName: z.string(),
-            mealCount: z.number().int(),
+            mealDays: z.number().int(),
+            mealsIncluded: z.number().int(),
             durationDays: z.number().int(),
             startsOn: z.string(),
             endsOn: z.string(),
+            effectivePricePerMealPaise: z.number().int(),
             priceBreakdown: PriceBreakdown,
           }),
         },
@@ -90,7 +95,13 @@ export async function subscriptionRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const auth = requireAuth(request, reply);
-      return quoteSubscription(auth.userId, request.body.planCode, todayIn(new Date()));
+      return quoteSubscription(
+        auth.userId,
+        request.body.planCode,
+        todayIn(new Date()),
+        undefined,
+        request.body.mealPreference,
+      );
     },
   );
 

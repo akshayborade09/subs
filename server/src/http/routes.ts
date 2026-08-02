@@ -6,6 +6,7 @@ import { db } from '../platform/db/index.js';
 import { appStateRoutes } from '../modules/appstate/routes.js';
 import { authRoutes } from '../modules/auth/routes.js';
 import { checkoutRoutes } from '../modules/checkout/routes.js';
+import { mealRoutes } from '../modules/meals/routes.js';
 import { meRoutes } from '../modules/me/routes.js';
 import { subscriptionRoutes } from '../modules/subscription/routes.js';
 import { trialRoutes } from '../modules/trial/routes.js';
@@ -36,6 +37,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(authRoutes);
   await app.register(meRoutes);
   await app.register(trialRoutes);
+  await app.register(mealRoutes);
   await app.register(subscriptionRoutes);
   await app.register(checkoutRoutes);
   await app.register(appStateRoutes);
