@@ -184,7 +184,7 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
       schema: {
         tags: ['webhooks'],
         summary: 'Provider payment webhook (signed, idempotent, order-tolerant)',
-        params: z.object({ provider: z.enum(['mock']) }),
+        params: z.object({ provider: z.enum(['mock', 'razorpay']) }),
         response: { 200: z.object({ outcome: z.string() }) },
       },
     },

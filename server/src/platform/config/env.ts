@@ -22,6 +22,16 @@ const EnvSchema = z.object({
   MOCK_WEBHOOK_SECRET: z.string().min(16).default('mock-webhook-secret-dev-only'),
 
   /**
+   * Razorpay. Optional until the commercial agreement is signed — the provider
+   * scaffold refuses loudly rather than half-working when these are absent.
+   * Setting PAYMENT_PROVIDER=razorpay without them fails at boot, on purpose.
+   */
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  PAYMENT_PROVIDER: z.enum(['mock', 'razorpay']).default('mock'),
+
+  /**
    * Shared key for the ops/admin endpoints. A deliberate stopgap: real staff
    * accounts with per-operator identity and roles are their own piece of work.
    * Until then every admin mutation records the operator name sent alongside it,
@@ -55,6 +65,18 @@ function load(): Env {
   const value = parsed.data;
   if (value.NODE_ENV === 'production' && value.ENABLE_DEV_ENDPOINTS) {
     throw new Error('ENABLE_DEV_ENDPOINTS must be false when NODE_ENV=production');
+  }
+  // Fail at boot rather than at the first customer's payment.
+  if (value.PAYMENT_PROVIDER === 'razorpay') {
+    const missing = (
+      ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'] as const
+    ).filter((key) => !value[key]);
+    if (missing.length > 0) {
+      throw new Error(`PAYMENT_PROVIDER=razorpay requires: ${missing.join(', ')}`);
+    }
+  }
+  if (value.NODE_ENV === 'production' && value.PAYMENT_PROVIDER === 'mock') {
+    throw new Error('PAYMENT_PROVIDER must not be "mock" when NODE_ENV=production');
   }
   return value;
 }

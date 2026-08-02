@@ -3,6 +3,7 @@ import { env } from '../../platform/config/env.js';
 import { AppError } from '../../platform/errors.js';
 import { logger } from '../../platform/logger.js';
 import type { PaymentStatus } from '../../platform/db/types.js';
+import { razorpayProvider } from './razorpay.js';
 
 export type NormalizedEvent = {
   providerEventId: string;
@@ -179,6 +180,8 @@ export class MockPaymentProvider implements PaymentProvider {
 export const mockProvider = new MockPaymentProvider();
 
 export function getProvider(): PaymentProvider {
-  // Only the mock exists today; Razorpay slots in here behind the same interface.
-  return mockProvider;
+  // The Razorpay implementation is a scaffold: selecting it compiles and routes
+  // correctly, but its methods throw until the credentials and API calls land.
+  // See razorpay.ts. Boot already refuses PAYMENT_PROVIDER=razorpay without keys.
+  return env.PAYMENT_PROVIDER === 'razorpay' ? razorpayProvider : mockProvider;
 }
