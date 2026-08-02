@@ -13,13 +13,16 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest",
     "migrate": "node-pg-migrate --envPath .env up",
     "migrate:down": "node-pg-migrate --envPath .env down",
     "migrate:create": "node-pg-migrate create --migration-file-language sql",
     "seed": "tsx src/platform/db/seed.ts",
-    "db:reset": "tsx src/platform/db/reset.ts"
+    "db:reset": "tsx src/platform/db/reset.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "pnpm test && pnpm test:integration",
+    "db:test:setup": "node-pg-migrate up && tsx src/platform/db/seed.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

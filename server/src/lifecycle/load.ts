@@ -5,7 +5,9 @@ import type { AuthContext } from '../http/auth-plugin.js';
 
 /** How much of the calendar the Home screen can possibly need. */
 const WINDOW_BEFORE_DAYS = 7;
-const WINDOW_AFTER_DAYS = 14;
+// Must exceed the subscription materialization horizon (21d) so a freshly
+// materialized week is fully visible, and leave room for a meal moved further out.
+const WINDOW_AFTER_DAYS = 30;
 
 /**
  * Four queries, no cross-module joins. Everything after this point is a pure

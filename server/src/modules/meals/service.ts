@@ -222,6 +222,14 @@ export async function changeMealDate(
       .where('id', '=', order.id)
       .execute();
 
+    // The trial's date columns are a denormalization of its orders and drive the
+    // scheduled/active/completed derivation, so a move has to maintain them.
+    // Without this, Home renders the original selection and a meal moved past the
+    // old end date would read as "completed" while still pending (handoff §9.2).
+    if (order.source_type === 'trial') {
+      await syncTrialDates(tx, order.source_id);
+    }
+
     await tx
       .insertInto('audit_logs')
       .values({
@@ -393,4 +401,32 @@ export async function selectableDates(
     if (permissions.canChangeDate) dates.push(date);
   }
   return dates;
+}
+
+/**
+ * Recomputes a trial's date summary from its actual meal orders. Called after any
+ * move so the stored columns cannot drift from the schedule they describe.
+ */
+async function syncTrialDates(tx: Tx, trialId: string): Promise<void> {
+  const rows = await tx
+    .selectFrom('meal_orders')
+    .select('service_date')
+    .distinct()
+    .where('source_type', '=', 'trial')
+    .where('source_id', '=', trialId)
+    .orderBy('service_date')
+    .execute();
+
+  const dates = rows.map((row) => row.service_date);
+  if (dates.length === 0) return;
+
+  await tx
+    .updateTable('trials')
+    .set({
+      service_dates: dates,
+      first_service_date: dates[0]!,
+      last_service_date: dates[dates.length - 1]!,
+    })
+    .where('id', '=', trialId)
+    .execute();
 }
