@@ -6,6 +6,7 @@ import { buildHome } from '../../lifecycle/home.js';
 import { loadSnapshot } from '../../lifecycle/load.js';
 import { resolveCondition } from '../../lifecycle/rules.js';
 import { AppError } from '../../platform/errors.js';
+import { reportIssue, submitFeedback } from './feedback.js';
 import {
   changeMealAddress,
   changeMealDate,
@@ -145,6 +146,59 @@ export async function mealRoutes(app: FastifyInstance): Promise<void> {
       } catch (error) {
         return conflictWithFreshHome(request, error);
       }
+    },
+  );
+
+  route.post(
+    '/me/meals/:mealOrderId/feedback',
+    {
+      schema: {
+        tags: ['meals'],
+        summary: 'Rate a delivered meal. Scores leaderboard points exactly once.',
+        params: z.object({ mealOrderId: z.string().uuid() }),
+        body: z.object({
+          rating: z.number().int().min(1).max(5),
+          tags: z.array(z.string().max(40)).max(8).optional(),
+          note: z.string().max(500).optional(),
+        }),
+        response: {
+          200: z.object({
+            mealOrderId: z.string().uuid(),
+            rating: z.number().int(),
+            pointsAwarded: z.boolean(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return submitFeedback(auth.userId, request.params.mealOrderId, request.body);
+    },
+  );
+
+  route.post(
+    '/me/meals/:mealOrderId/report-issue',
+    {
+      schema: {
+        tags: ['meals'],
+        summary: 'Raise a support issue about a delivery',
+        params: z.object({ mealOrderId: z.string().uuid() }),
+        body: z.object({
+          category: z.string().min(2).max(60),
+          description: z.string().max(1000).optional(),
+        }),
+        response: {
+          200: z.object({
+            issueId: z.string().uuid(),
+            status: z.string(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return reportIssue(auth.userId, request.params.mealOrderId, request.body);
     },
   );
 

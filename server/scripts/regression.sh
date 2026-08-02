@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Full Phase 1-3 regression. Safe to run repeatedly.
+# Full Phase 1-5 regression. Safe to run repeatedly.
 #
 #   ./scripts/regression.sh            # db + unit + integration + typechecks
 #   LIVE=1 ./scripts/regression.sh     # also drive the shell walkthroughs (needs pnpm dev)
@@ -21,7 +21,18 @@ head_ "Migrations rebuild from an empty database"
 psql -U tiffins -d tiffins_test -q -c "drop schema public cascade; create schema public;" >/dev/null 2>&1
 DATABASE_URL="$TEST_DB" pnpm exec node-pg-migrate --envPath /dev/null up >/dev/null 2>&1
 TABLES=$(psql -U tiffins -d tiffins_test -tAc "select count(*) from information_schema.tables where table_schema='public'")
-check "32 tables created" "$TABLES" "32"
+[ "$TABLES" -ge 33 ] && ok "schema built ($TABLES tables)" || bad "schema build" "only $TABLES tables"
+
+# Named rather than counted: a bare number goes stale on every migration and says
+# nothing about WHICH table vanished.
+MISSING=$(psql -U tiffins -d tiffins_test -tAc "
+  select string_agg(t, ', ') from unnest(ARRAY[
+    'users','sessions','addresses','trials','subscriptions','meal_orders',
+    'checkout_sessions','payments','provider_events','transactions','coupons',
+    'rewards','loyalty_periods','referrals','leaderboard_points','support_issues',
+    'outbox_events','idempotency_keys','audit_logs'
+  ]) t where to_regclass('public.'||t) is null")
+check "no core table missing" "${MISSING:-none}" "none"
 
 NAIVE=$(psql -U tiffins -d tiffins_test -tAc "select count(*) from information_schema.columns where table_schema='public' and data_type='timestamp without time zone' and table_name<>'pgmigrations'")
 check "no naive timestamps" "$NAIVE" "0"

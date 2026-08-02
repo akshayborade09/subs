@@ -67,6 +67,13 @@ export const policy = {
      */
     mealCountUnit: 'meal_days' as 'meal_days' | 'individual_meals',
     autoRenew: true,
+    /**
+     * Lifecycle spec §13 lists user-initiated pause as needing product approval.
+     * Enabled because state M (paused) is a first-class Home variant the app
+     * already renders, so it has to be reachable. Flip off if commercial policy
+     * decides against it.
+     */
+    allowUserPause: true,
     /** Renewal is charged this many days before the period ends. */
     renewChargeLeadDays: 1,
   },

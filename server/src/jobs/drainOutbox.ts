@@ -2,6 +2,7 @@ import { sql } from 'kysely';
 import { db } from '../platform/db/index.js';
 import { logger } from '../platform/logger.js';
 import { awardPoints } from '../modules/leaderboard/service.js';
+import { getNotificationChannel } from '../modules/notification/channel.js';
 
 /**
  * Subscribers are deliberately dumb for now: notifications and analytics are
@@ -86,17 +87,38 @@ const SUBSCRIBERS: Subscriber[] = [
     handles: (name) => NOTIFIABLE.has(name),
     handle: async (event) => {
       if (!event.user_id) return;
-      // Real push/WhatsApp delivery is Phase 3. Recording the notification is
-      // enough to prove the outbox path and gives the in-app centre its rows.
+
+      const notification = {
+        userId: event.user_id,
+        category: categoryFor(event.event_name),
+        title: titleFor(event.event_name),
+        body: bodyFor(event.event_name),
+      };
+
+      // The in-app centre is the durable record and is written regardless of
+      // whether an external channel exists yet.
       await db
         .insertInto('notifications')
         .values({
-          user_id: event.user_id,
-          category: categoryFor(event.event_name),
-          title: titleFor(event.event_name),
-          body: bodyFor(event.event_name),
+          user_id: notification.userId,
+          category: notification.category,
+          title: notification.title,
+          body: notification.body,
         })
         .execute();
+
+      // Push/WhatsApp goes through the channel port. A dispatch failure must not
+      // lose the notification the user can already see in the app.
+      const channel = getNotificationChannel();
+      if (channel.supports(notification)) {
+        const result = await channel.send(notification).catch((error: unknown) => {
+          logger.warn({ err: error, channel: channel.name }, 'notification dispatch failed');
+          return { channel: channel.name, delivered: false };
+        });
+        if (!result.delivered) {
+          logger.warn({ channel: result.channel }, 'notification not delivered');
+        }
+      }
     },
   },
 ];

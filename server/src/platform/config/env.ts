@@ -22,6 +22,14 @@ const EnvSchema = z.object({
   MOCK_WEBHOOK_SECRET: z.string().min(16).default('mock-webhook-secret-dev-only'),
 
   /**
+   * Shared key for the ops/admin endpoints. A deliberate stopgap: real staff
+   * accounts with per-operator identity and roles are their own piece of work.
+   * Until then every admin mutation records the operator name sent alongside it,
+   * so the audit trail is still attributable.
+   */
+  ADMIN_API_KEY: z.string().min(16).default('admin-key-dev-only-change-me'),
+
+  /**
    * Enables ?simulateState=, mock payment scenario overrides and OTP echo.
    * Must never be true in production; enforced below.
    */

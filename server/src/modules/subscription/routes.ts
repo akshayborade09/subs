@@ -6,6 +6,12 @@ import { db } from '../../platform/db/index.js';
 import { withIdempotency } from '../../platform/idempotency.js';
 import { todayIn } from '../../platform/time.js';
 import {
+  cancelSubscription,
+  pauseSubscription,
+  resubscribe,
+  resumeSubscription,
+} from './manage.js';
+import {
   createSubscriptionCheckout,
   getCurrentSubscription,
   listPlans,
@@ -152,6 +158,86 @@ export async function subscriptionRoutes(app: FastifyInstance): Promise<void> {
         },
       });
       return value;
+    },
+  );
+
+  route.post(
+    '/me/subscriptions/cancel',
+    {
+      schema: {
+        tags: ['subscription'],
+        summary: 'Cancel at period end — already-paid meals still arrive',
+        body: z.object({ reason: z.string().max(300).optional() }),
+        response: {
+          200: z.object({
+            status: z.literal('cancelled_at_period_end'),
+            activeUntil: z.string(),
+            remainingMeals: z.number().int(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return cancelSubscription(auth.userId, request.body.reason);
+    },
+  );
+
+  route.post(
+    '/me/subscriptions/resubscribe',
+    {
+      schema: {
+        tags: ['subscription'],
+        summary: 'Reactivate a cancelled plan while its period is still running',
+        response: { 200: z.object({ status: z.literal('paid'), activeUntil: z.string() }) },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return resubscribe(auth.userId);
+    },
+  );
+
+  route.post(
+    '/me/subscriptions/pause',
+    {
+      schema: {
+        tags: ['subscription'],
+        summary: 'Pause deliveries for a window. Paused days do not consume plan meals.',
+        body: z.object({
+          from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+        }),
+        response: {
+          200: z.object({
+            pauseFrom: z.string(),
+            pauseTo: z.string().nullable(),
+            mealsRemoved: z.number().int(),
+            resumesOn: z.string().nullable(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return pauseSubscription(auth.userId, request.body.from, request.body.to);
+    },
+  );
+
+  route.post(
+    '/me/subscriptions/resume',
+    {
+      schema: {
+        tags: ['subscription'],
+        summary: 'Resume paused deliveries',
+        response: { 200: z.object({ status: z.literal('resumed') }) },
+      },
+    },
+    async (request, reply) => {
+      const auth = requireAuth(request, reply);
+      return resumeSubscription(auth.userId);
     },
   );
 

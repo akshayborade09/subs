@@ -473,6 +473,21 @@ export interface NotificationsTable {
   created_at: Generated<Date>;
 }
 
+export interface SupportIssuesTable {
+  id: Generated<string>;
+  user_id: string;
+  meal_order_id: string | null;
+  category: string;
+  description: string | null;
+  status: Generated<'open' | 'investigating' | 'resolved' | 'rejected'>;
+  resolution: string | null;
+  credit_paise: number | null;
+  resolved_at: InstantNull;
+  resolved_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface IdempotencyKeysTable {
   user_id: string;
   key: string;
@@ -546,6 +561,7 @@ export interface Database {
   leaderboard_points: LeaderboardPointsTable;
   notification_preferences: NotificationPreferencesTable;
   notifications: NotificationsTable;
+  support_issues: SupportIssuesTable;
   idempotency_keys: IdempotencyKeysTable;
   outbox_events: OutboxEventsTable;
   outbox_deliveries: OutboxDeliveriesTable;
