@@ -240,3 +240,110 @@ describe('transactions', () => {
     expect(response.statusCode).toBe(404);
   });
 });
+
+describe('coupon usage limits are actually enforced', () => {
+  /**
+   * Regression: coupon_redemptions.consumed_at was never set, and the usage
+   * counter only counts consumed rows — so per-user limits silently did nothing.
+   * The eligibility unit tests could not catch it, because they are handed the
+   * usage count rather than deriving it.
+   */
+  async function weeklyCheckout(session: Session): Promise<string> {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/me/subscriptions/checkout',
+      headers: { ...session.headers, 'idempotency-key': `k-${Math.round(performance.now() * 1000)}` },
+      payload: {
+        planCode: 'weekly',
+        mealPreference: 'lunch',
+        foodPreference: 'vegetarian',
+        breadPreference: 'bhakri',
+        ricePreference: 'jeera_rice',
+      },
+    });
+    return response.json<{ checkoutSessionId: string }>().checkoutSessionId;
+  }
+
+  it('marks a redemption consumed once the payment captures', async () => {
+    const session = await signIn(app);
+    await addAddress(app, session);
+    const checkoutId = await weeklyCheckout(session);
+
+    await app.inject({
+      method: 'POST',
+      url: `/v1/me/checkout/${checkoutId}/apply-coupon`,
+      headers: session.headers,
+      payload: { code: 'WELCOME10' },
+    });
+
+    const before = await db
+      .selectFrom('coupon_redemptions')
+      .select('consumed_at')
+      .where('checkout_session_id', '=', checkoutId)
+      .executeTakeFirstOrThrow();
+    expect(before.consumed_at).toBeNull();
+
+    const { paymentId } = await pay(app, session, checkoutId);
+    await deliverWebhook(app, paymentId);
+
+    const after = await db
+      .selectFrom('coupon_redemptions')
+      .select('consumed_at')
+      .where('checkout_session_id', '=', checkoutId)
+      .executeTakeFirstOrThrow();
+    expect(after.consumed_at).not.toBeNull();
+  });
+
+  it('refuses the same coupon a second time for that user', async () => {
+    const session = await signIn(app);
+    await addAddress(app, session);
+
+    const first = await weeklyCheckout(session);
+    await app.inject({
+      method: 'POST',
+      url: `/v1/me/checkout/${first}/apply-coupon`,
+      headers: session.headers,
+      payload: { code: 'WELCOME10' },
+    });
+    const { paymentId } = await pay(app, session, first);
+    await deliverWebhook(app, paymentId);
+
+    // Terminate the paid subscription so a second checkout is allowed.
+    await db.updateTable('subscriptions').set({ status: 'terminated' }).where('user_id', '=', session.userId).execute();
+
+    const second = await weeklyCheckout(session);
+    const retry = await app.inject({
+      method: 'POST',
+      url: `/v1/me/checkout/${second}/apply-coupon`,
+      headers: session.headers,
+      payload: { code: 'WELCOME10' },
+    });
+
+    expect(retry.json()).toMatchObject({
+      couponStatus: 'already_used',
+      message: 'This coupon has already been used.',
+    });
+  });
+
+  it('leaves the coupon reusable when the payment fails', async () => {
+    const session = await signIn(app);
+    await addAddress(app, session);
+    const checkoutId = await weeklyCheckout(session);
+
+    await app.inject({
+      method: 'POST',
+      url: `/v1/me/checkout/${checkoutId}/apply-coupon`,
+      headers: session.headers,
+      payload: { code: 'WELCOME10' },
+    });
+    const { paymentId } = await pay(app, session, checkoutId);
+    await deliverWebhook(app, paymentId, { status: 'failed', failureCode: 'card_declined' });
+
+    const row = await db
+      .selectFrom('coupon_redemptions')
+      .select('consumed_at')
+      .where('checkout_session_id', '=', checkoutId)
+      .executeTakeFirstOrThrow();
+    expect(row.consumed_at).toBeNull();
+  });
+});

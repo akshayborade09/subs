@@ -121,6 +121,16 @@ export async function handleProviderEvent(
         .where('id', '=', checkout.id)
         .execute();
 
+      // Burn the coupon. Usage limits are counted from consumed redemptions, so
+      // without this a one-per-user offer could be redeemed indefinitely. Only
+      // capture consumes it — a failed payment must leave the coupon reusable.
+      await tx
+        .updateTable('coupon_redemptions')
+        .set({ consumed_at: new Date() })
+        .where('checkout_session_id', '=', checkout.id)
+        .where('consumed_at', 'is', null)
+        .execute();
+
       if (checkout.source_type === 'trial') {
         await tx
           .updateTable('trials')
