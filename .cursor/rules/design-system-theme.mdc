@@ -28,8 +28,8 @@ Uniwind generates utilities from namespaces: `--color-accent` → `bg-accent`, `
 |---|---|---|
 | accent | `#2563eb` | `#60a5fa` |
 | success | `#078a4b` | `#55c986` |
-| canvas / surface / field | white / `#f6f6f6` / `#f6f6f6` *(light field: tune independently)* | black / `#0d0d0d` / `#0a0a0a` *(field = surface − 1 step)* |
-| foreground / muted | `#101010` / `#5e5e5e` | white / `#ababab` |
+| canvas / surface / field | white / `#f6f6f6` / `#f6f6f6` *(light field: tune independently)* | black / `#0d0d0d` / `#0c0c0c` |
+| foreground / muted / subtle | `#101010` / `#5e5e5e` / `#949494` | white / `#ababab` / `#808080` |
 
 ## Auth spacing/radius tokens (in `@theme`)
 

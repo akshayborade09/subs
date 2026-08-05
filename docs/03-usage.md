@@ -52,21 +52,25 @@ If a design calls for a color that has no token yet, that's a signal to go add t
 
 ## 3. Buttons
 
-| Variant | Classes |
+| Variant | Classes / component |
 |---|---|
-| Primary | `bg-primary` `text-primary-foreground` `rounded-[--radius]` (or `rounded-lg` if intentionally larger) |
-| Secondary | `bg-secondary` `text-secondary-foreground` `border border-border` |
+| Primary | `PrimaryShimmerButton` / `AuthPrimaryButton` — flat `bg-foreground`, double-border shell, shimmer when enabled |
+| Ghost on white | `GhostCanvasButton` — `bg-canvas` fill, `border-foreground` shell (use on canvas/sheet) |
+| Ghost on gray | `GhostFieldButton` — `bg-ghost-on-field` fill, same shell (use on `bg-field` / `bg-surface` cards) |
 | Destructive | `bg-destructive` `text-destructive-foreground` |
-| Ghost / text | `bg-transparent` `text-primary` (no fill, no border) |
+
+Pick ghost by **parent surface**, not by importance: white page/sheet → `GhostCanvasButton`; gray card → `GhostFieldButton`.
 
 States:
-- Pressed → `active:opacity-[--opacity-pressed]` (or `Pressable`'s `style={({pressed}) => ...}` if Uniwind's `active:` variant doesn't cover a given prop)
-- Disabled → `opacity-[--opacity-disabled]` + `pointerEvents="none"`, never a separate "disabled gray" — reuse the existing surface with reduced opacity so it stays theme-correct.
+- Pressed → spring scale (~0.98) on the shared pressable
+- Disabled (primary only) → `opacity-40`, shimmer off
 
 ```tsx
-<Pressable className="bg-primary rounded-lg px-4 py-3 active:opacity-70 disabled:opacity-40">
-  <Text className="font-body text-body-md font-medium text-primary-foreground text-center">Continue</Text>
-</Pressable>
+{/* On a gray meal card */}
+<GhostFieldButton label="View meal details" onPress={openDetails} />
+
+{/* On a white sheet footer */}
+<GhostCanvasButton label="Skip to subscribe" onPress={skip} />
 ```
 
 ## 4. Cards / surfaces
@@ -119,7 +123,50 @@ Phone input and OTP cells share one pattern via **`CenteredFieldInput`** (`src/c
 />
 ```
 
-**Typography:** field *values* use **`font-body-medium`** + `text-body-md` + `tracking-body-md`. Sheet titles stay `font-heading`; subtitles and legal copy stay `font-body` regular.
+**Typography:** field *values* use **`font-body-medium`** + `text-body-md` + `tracking-body-md`. Sheet titles stay `font-heading`; **subtitles under headings** use `headingDescriptionClass` from `src/typographyClasses.ts` (`text-subtle`, two steps toward canvas — lighter in light mode, dimmer in dark); legal/footer copy stays `font-body` + `text-muted`.
+
+## 5b. Form layout templates (`src/formLayout.tsx`)
+
+Use these for any sheet or page that follows **header → fields → button → footer** rhythm.
+
+**Spacing (two levels only):**
+
+| Between | Token | px |
+|---------|--------|-----|
+| title + description (header block) | `FormHeader` internal `gap-auth-block` | 9 |
+| field ↔ validation | `FormFieldStack` / `gap-auth-block` | 9 |
+| subheading ↔ cards/fields (page body) | `FormPageSection` / `gap-sheet-gap` | 24 |
+| header block ↔ fields ↔ button ↔ footer (sheets) | `FormSheetLayout` / `gap-sheet-gap` | 24 |
+
+**Bottom sheets** — `FormSheetLayout`:
+
+```tsx
+<FormSheetLayout
+  title="Create your account"
+  subtitle="Use your WhatsApp number to securely continue."
+  fields={<><CenteredFieldInput ... />{showError ? <FormValidationText>...</FormValidationText> : null}</>}
+  primaryAction={<AuthPrimaryButton ... />}
+  footer={<FormFooterCopy>{AUTH_LEGAL_COPY}</FormFooterCopy>}
+/>
+```
+
+Custom toolbar header (OTP): pass `header={<AuthSheetInlineHeader ... />}` instead of `title`/`subtitle`. Optional `extra` slot for mid content (e.g. resend row) at sheet-gap.
+
+**Full pages** — `Shell` renders **title only** in the fixed header. Content subheadings (the line above choice cards, fields, or summary blocks) belong in the scroll body via `FormPageSection`, not paired with the page title in the header.
+
+```tsx
+<Shell title="What do you enjoy eating?" onBack={back}>
+  <FormPageSection subheading="Choose one preference for your trial.">
+    <ChoiceCards ... />
+  </FormPageSection>
+</Shell>
+```
+
+Rhythm: page title → `mt-8` (Shell content offset) → subheading → `gap-sheet-gap` → cards/fields. Multi-field steps wrap fields in `gap-sheet-gap` inside `FormPageSection`. CTA stays in `Shell` `footer`.
+
+**Auth sheets & modals** — title + description stay paired in `FormHeader` / `FormModalLayout` (subtitle is part of the sheet header, not a content lead).
+
+**Primitives:** `FormHeader`, `FormPageSection`, `FormFieldStack`, `FormValidationText`, `FormFooterCopy`.
 
 **Vertical centering (iOS):** keep every row child at one line tall (`h-6` / 24px leading). Center the row with `items-center` on the 52px shell — do **not** `self-stretch` the input column; iOS top-aligns text inside a stretched `TextInput`. Render visible digits with `Text`; stack a transparent `TextInput` (`color: 'transparent'`, `StyleSheet.absoluteFillObject`) on top for keyboard/caret. Match `fontFamily`, `fontSize`, `lineHeight`, and `letterSpacing` exactly between the two.
 

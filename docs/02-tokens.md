@@ -22,8 +22,8 @@ Components consume these classes only — never primitives from `01-primitives.m
 | `--color-foreground` | `gray-900` | `gray-50` | `text-foreground` |
 | `--color-card` | `gray-50` | `gray-900` | `bg-card` |
 | `--color-card-foreground` | `gray-900` | `gray-50` | `text-card-foreground` |
-| `--color-muted` | `gray-100` | `gray-800` | `bg-muted` |
-| `--color-muted-foreground` | `gray-500` | `gray-400` | `text-muted-foreground` |
+| `--color-muted` | `#5e5e5e` | `#ababab` | `text-muted` — labels, meta, hints |
+| `--color-subtle` | `#949494` *(toward canvas)* | `#808080` *(toward canvas)* | `text-subtle` — description under page/sheet/modal headings |
 | `--color-border` | `gray-200` | `gray-800` | `border-border` |
 | `--color-overlay` | `black/50` | `black/50` | `bg-overlay` |
 
@@ -55,15 +55,16 @@ Borrowed from Astryx: their whole accent system generates from a single `color.a
 
 ### App surface ladder (auth + onboarding)
 
-Progressive gray in light, progressive lift in dark. **`field` is always one shade darker than `surface`** in dark mode; in light mode tune `--color-field` independently (typically one step darker than the sheet/canvas it sits on).
+Progressive gray in light, progressive lift in dark. In light mode tune `--color-field` independently (typically one step darker than the sheet/canvas it sits on). In dark mode `--color-field` sits slightly below `--color-surface` — adjust in `global.css` if fields read too dark on the sheet.
 
 | Token | Light | Dark | Class | Role |
 |---|---|---|---|---|
 | `--color-canvas` | `#ffffff` | `#000000` | `bg-canvas` | sheet fill when focused, app base |
 | `--color-sheet` | `#ffffff` | `#101010` | `bg-sheet` | bottom sheet container |
 | `--color-surface` | `#f6f6f6` | `#0d0d0d` | `bg-surface` | chips, secondary panels |
-| `--color-field` | `#f6f6f6` *(tune in light)* | `#0a0a0a` *(surface − 1 step)* | `bg-field` | **text field fill** — phone input, OTP cells |
+| `--color-field` | `#f6f6f6` *(tune in light)* | `#0c0c0c` *(slightly below surface)* | `bg-field` | **text field fill** — phone input, OTP cells |
 | `--color-icon-surface` | `#eeeeee` | `#1c1c1c` | `bg-icon-surface` | circular icon buttons |
+| `--color-ghost-on-field` | `#e0e0e0` | `#262626` | `bg-ghost-on-field` | ghost CTA fill on gray `field`/`surface` cards |
 
 **Light vs dark rule:** edit `--color-field` under `@variant light` when adjusting field contrast on white sheets. Dark mode keeps `--color-field` one step below `--color-surface` automatically — do not copy the light hex into dark.
 

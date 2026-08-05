@@ -30,6 +30,8 @@ Read **`docs/03-usage.md`** when writing or reviewing JSX.
 | Error field | `border-destructive` |
 | Links / actions | `text-accent` |
 | Timers / hints | `text-muted` |
+| Heading descriptions | `text-subtle` via `headingDescriptionClass` |
+| Form sheets / pages | `FormSheetLayout` / `FormPageSection` / `FormPageBody` from `src/formLayout.tsx` — page titles in `Shell` header only; content subheadings via `FormPageSection` at `gap-sheet-gap` (24px) to content; `gap-auth-block` (9px) only inside header/field stacks |
 | Primary button (auth) | `bg-foreground text-white` via `AuthPrimaryButton` |
 
 ## Inputs (web)

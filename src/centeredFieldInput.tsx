@@ -1,5 +1,6 @@
 import { useRef, type ReactNode, type RefObject } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useFieldPlaceholderColor, useForegroundColor } from './themeColors';
 
 export const FIELD_LINE_HEIGHT = 24;
 export const fieldValueTextClass = 'font-body-medium text-body-md leading-6 tracking-body-md';
@@ -53,6 +54,8 @@ export function CenteredFieldInput({
 }: CenteredFieldInputProps) {
   const localRef = useRef<TextInput>(null);
   const focusInput = () => (inputRef?.current ?? localRef.current)?.focus();
+  const placeholderColor = useFieldPlaceholderColor();
+  const foregroundColor = useForegroundColor();
 
   return (
     <Pressable
@@ -66,7 +69,8 @@ export function CenteredFieldInput({
         <Text
           pointerEvents="none"
           numberOfLines={1}
-          className={`${fieldValueTextClass} ${value ? 'text-foreground' : 'text-muted'}`}
+          className={`${fieldValueTextClass} ${value ? 'text-foreground' : ''}`}
+          style={value ? undefined : { color: placeholderColor }}
         >
           {value || placeholder}
         </Text>

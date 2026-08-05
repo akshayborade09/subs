@@ -36,7 +36,8 @@ src/themeColors.ts     →  JS hex mirror for native APIs only (Switch, icon col
 
 - **Accent** (`text-accent`, `bg-accent`) — brand blue, links, selected UI
 - **Success** (`text-success`, `bg-success-soft`) — delivered, rewards, veg markers — stays green
-- **Muted** (`text-muted`) — secondary/disabled copy (e.g. countdown text)
+- **Muted** (`text-muted`) — secondary/disabled copy (e.g. countdown text, meta labels)
+- **Subtle** (`text-subtle`) — description under page/sheet/modal headings (2 steps toward canvas: lighter gray in light, dimmer gray in dark)
 - **Destructive** (`text-destructive`) — errors
 
 ## Auth / sheet patterns (reference: `App.tsx`)

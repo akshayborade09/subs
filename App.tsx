@@ -31,7 +31,6 @@ import { GeistMono_700Bold } from '@expo-google-fonts/geist-mono/700Bold';
 import Animated, {
   Easing,
   FadeIn,
-  FadeInDown,
   FadeInUp,
   FadeOut,
   SlideInDown,
@@ -40,7 +39,6 @@ import Animated, {
   useAnimatedKeyboard,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
   withSequence,
   withSpring,
@@ -56,6 +54,12 @@ import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 import TrialFlow from './src/TrialFlow';
 import { CenteredFieldInput, fieldValueTextClass } from './src/centeredFieldInput';
+import {
+  FormFooterCopy,
+  FormSheetLayout,
+  FormValidationText,
+} from './src/formLayout';
+import { headingDescriptionClass } from './src/typographyClasses';
 import TrialHome from './src/TrialHome';
 import { LifecycleStateSelector } from './src/LifecycleStateSelector';
 import LifecycleExperience from './src/LifecycleExperience';
@@ -63,8 +67,8 @@ import CommerceProfileExperience from './src/CommerceProfileExperience';
 import { BlurInText } from './src/BlurInText';
 import { getLifecycleDefinition, initialLifecycleMachineState, lifecycleMachineReducer, type LifecycleStateId } from './src/lifecycleStateMachine';
 import { themePalette } from './src/themeColors';
+import { PrimaryShimmerButton } from './src/primaryButton';
 
-const foodThali = require('./assets/food-thali.png');
 const onboardingImages = {
   everydayMeals: require('./assets/onboarding/everyday-meals.webp'),
   knowWhatGoes: require('./assets/onboarding/know-what-goes.webp'),
@@ -161,29 +165,6 @@ function useReducedMotionPreference() {
   return reduced;
 }
 
-function RotatingThali({ size = 164, subtle = false }: { size?: number; subtle?: boolean }) {
-  const rotation = useSharedValue(0);
-  const float = useSharedValue(0);
-  const reduced = useReducedMotionPreference();
-  const style = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }, { translateY: float.value }],
-  }));
-
-  useEffect(() => {
-    if (!reduced) {
-      rotation.value = withRepeat(withTiming(360, { duration: 22000, easing: Easing.linear }), -1, false);
-      if (subtle) float.value = withRepeat(withSequence(withTiming(-4, { duration: 1100 }), withTiming(3, { duration: 1100 })), -1, true);
-    }
-    return () => { cancelAnimation(rotation); cancelAnimation(float); };
-  }, [float, reduced, rotation, subtle]);
-
-  return (
-    <Animated.View style={[style, { width: size, height: size }]}>
-      <Image source={foodThali} accessibilityLabel="Traditional Indian tiffin meal" resizeMode="contain" className="h-full w-full" />
-    </Animated.View>
-  );
-}
-
 function ActionButton({ label, onPress, enabled = true, loading = false }: { label: string; onPress: () => void; enabled?: boolean; loading?: boolean }) {
   const { theme } = useUniwind();
   const dark = theme === 'dark';
@@ -207,40 +188,6 @@ function ActionButton({ label, onPress, enabled = true, loading = false }: { lab
         {width > 0 ? <Svg pointerEvents="none" width={width} height={56} preserveAspectRatio="none" style={StyleSheet.absoluteFill}><Defs><LinearGradient id="actionButtonGradient" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={dark ? '#FFFFFF' : '#4D4D4D'} /><Stop offset="1" stopColor={dark ? '#888888' : '#000000'} /></LinearGradient></Defs><Rect width={width} height={56} fill="url(#actionButtonGradient)" /></Svg> : null}
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.76} style={{ zIndex: 1, paddingHorizontal: 16 }} className={`w-full text-center font-bold text-base ${dark ? 'text-black' : 'text-white'}`}>{loading ? 'Please wait…' : label}</Text>
       </Pressable>
-    </Animated.View>
-  );
-}
-
-function LoadingDots() {
-  return (
-    <View accessibilityLabel="Loading" className="mt-8 flex-row gap-2">
-      {[0, 1, 2].map((index) => <LoadingDot key={index} index={index} />)}
-    </View>
-  );
-}
-
-function LoadingDot({ index }: { index: number }) {
-  const opacity = useSharedValue(0.3);
-  const reduced = useReducedMotionPreference();
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  useEffect(() => {
-    if (!reduced) opacity.value = withDelay(index * 180, withRepeat(withSequence(withTiming(1, { duration: 420 }), withTiming(0.3, { duration: 420 })), -1, false));
-    return () => cancelAnimation(opacity);
-  }, [index, opacity, reduced]);
-  return <Animated.View style={style} className="h-2 w-2 rounded-full bg-accent-foreground light:bg-white" />;
-}
-
-function SplashScreen() {
-  return (
-    <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(250)} className="flex-1 items-center justify-center bg-accent px-8">
-      <Animated.View entering={FadeInUp.delay(80).springify().damping(19)} className="h-44 w-44 items-center justify-center">
-        <RotatingThali subtle />
-      </Animated.View>
-      <Animated.View entering={FadeInDown.delay(220).duration(450)} className="mt-7 items-center">
-        <Text numberOfLines={1} allowFontScaling={false} className="font-bold text-center text-[38px] leading-[54px] text-accent-foreground light:text-white">Healthy Tiffins</Text>
-        <Text className="mt-2 max-w-[290px] font-medium text-center text-sm leading-5 text-accent-foreground/75 light:text-white/75">Wholesome meals, made for everyday life.</Text>
-        <LoadingDots />
-      </Animated.View>
     </Animated.View>
   );
 }
@@ -449,9 +396,9 @@ function OnboardingScreen({ onComplete, sheetOpen = false }: { onComplete: () =>
       />
       <View pointerEvents="box-none" style={{ height: bottomPanelHeight, paddingBottom: insets.bottom }} className="absolute inset-x-0 bottom-0 z-10 justify-end">
         <OnboardingImageGradient width={width} height={bottomPanelHeight} />
-        <View className="w-full items-start gap-8 px-5 pb-5 pt-8">
+        <View className="w-full items-start gap-6 px-5 pb-5 pt-8">
           <OnboardingStoryTitle story={settledStory} animateKey={settledPage} />
-          <View className="w-full gap-8">
+          <View className="w-full gap-6">
             <OnboardingCtaButton label="Get started" onPress={onComplete} />
             <OnboardingLegalText />
           </View>
@@ -475,19 +422,6 @@ function normalizeIndianPhone(value: string) {
     numeric = numeric.slice(2);
   }
   return numeric.slice(0, 10);
-}
-
-function AuthLegalFooter() {
-  return <Text className="font-body text-body-xs text-center leading-5 text-foreground">{AUTH_LEGAL_COPY}</Text>;
-}
-
-function AuthSheetHeader({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <View className="gap-auth-block">
-      <Text className="font-heading text-heading-sm text-foreground">{title}</Text>
-      <Text className="font-body text-body-sm leading-5 tracking-body-sm text-foreground">{subtitle}</Text>
-    </View>
-  );
 }
 
 function AuthIconButton({ icon: Glyph, variant, onPress, accessibilityLabel }: { icon: Icon; variant: 'inverse' | 'surface'; onPress: () => void; accessibilityLabel: string }) {
@@ -540,26 +474,7 @@ function AuthSheetInlineHeader({ title, onBack, onClose }: { title: string; onBa
 }
 
 function AuthPrimaryButton({ label, onPress, enabled = true, loading = false }: { label: string; onPress: () => void; enabled?: boolean; loading?: boolean }) {
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return (
-    <Animated.View style={style}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ disabled: !enabled, busy: loading }}
-        disabled={!enabled || loading}
-        onPress={onPress}
-        onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
-        className={`w-full rounded-button-outer border border-foreground p-button-wrap ${enabled ? 'opacity-100' : 'opacity-40'}`}
-      >
-        <View className="h-field items-center justify-center rounded-button-inner bg-foreground">
-          <Text className="font-mono-semibold text-body-md text-canvas">{loading ? 'Please wait…' : label}</Text>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
+  return <PrimaryShimmerButton label={label} onPress={onPress} enabled={enabled} loading={loading} />;
 }
 
 function PhoneForm({ phone, setPhone, onContinue }: { phone: string; setPhone: (value: string) => void; onContinue: () => void }) {
@@ -580,38 +495,45 @@ function PhoneForm({ phone, setPhone, onContinue }: { phone: string; setPhone: (
       ? 'border border-foreground bg-canvas'
       : 'border border-transparent bg-field';
   return (
-    <View className="gap-sheet-gap">
-      <View className="gap-auth-block">
-        <AuthSheetHeader title="Create your account" subtitle="Use your WhatsApp number to securely continue." />
-        <CenteredFieldInput
-          value={digits}
-          onChangeText={(value) => setPhone(normalizeIndianPhone(value))}
-          placeholder="10 digit number"
-          selectionColor={foregroundColor}
-          shellClassName={fieldClass}
-          inputRef={phoneInputRef}
-          autoFocus
-          keyboardType="phone-pad"
-          inputMode="numeric"
-          textContentType="telephoneNumber"
-          autoComplete="tel"
-          returnKeyType="done"
-          onSubmitEditing={() => { setTouched(true); if (valid) onContinue(); }}
-          onFocus={() => setFocused(true)}
-          onBlur={() => { setFocused(false); setTouched(true); }}
-          accessibilityLabel="Indian mobile number"
-          prefix={
-            <>
-              <Text className={`${fieldValueTextClass} text-foreground`}>+91</Text>
-              <View className="h-6 w-px bg-foreground/15" />
-            </>
-          }
-        />
-        {showError ? <Text accessibilityRole="alert" className="font-body text-body-xs text-destructive">Enter 10 digits starting with 6, 7, 8 or 9.</Text> : null}
-      </View>
-      <AuthPrimaryButton label="Get started" enabled={valid} onPress={() => { setTouched(true); onContinue(); }} />
-      <AuthLegalFooter />
-    </View>
+    <FormSheetLayout
+      title="Create your account"
+      subtitle="Use your WhatsApp number to securely continue."
+      fields={
+        <>
+          <CenteredFieldInput
+            value={digits}
+            onChangeText={(value) => setPhone(normalizeIndianPhone(value))}
+            placeholder="10 digit number"
+            selectionColor={foregroundColor}
+            shellClassName={fieldClass}
+            inputRef={phoneInputRef}
+            autoFocus
+            keyboardType="phone-pad"
+            inputMode="numeric"
+            textContentType="telephoneNumber"
+            autoComplete="tel"
+            returnKeyType="done"
+            onSubmitEditing={() => { setTouched(true); if (valid) onContinue(); }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => { setFocused(false); setTouched(true); }}
+            accessibilityLabel="Indian mobile number"
+            prefix={
+              <>
+                <Text className={`${fieldValueTextClass} text-foreground`}>+91</Text>
+                <View className="h-6 w-px bg-foreground/15" />
+              </>
+            }
+          />
+          {showError ? (
+            <FormValidationText>Enter 10 digits starting with 6, 7, 8 or 9.</FormValidationText>
+          ) : null}
+        </>
+      }
+      primaryAction={
+        <AuthPrimaryButton label="Get started" enabled={valid} onPress={() => { setTouched(true); onContinue(); }} />
+      }
+      footer={<FormFooterCopy>{AUTH_LEGAL_COPY}</FormFooterCopy>}
+    />
   );
 }
 
@@ -667,57 +589,67 @@ function OtpForm({ phone, onBack, onClose, onVerified }: { phone: string; onBack
     return 'border border-transparent bg-field';
   };
   return (
-    <View className="gap-sheet-gap">
-      <AuthSheetInlineHeader title="Verify your number" onBack={onBack} onClose={onClose} />
-      <View className="gap-otp-section">
-        <Text className="font-body text-body-sm leading-5 tracking-body-sm text-foreground">{`Enter the six-digit code sent to ${masked}.`}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Enter verification code" onPress={() => inputRef.current?.focus()}>
-          <Animated.View style={shakeStyle} className="flex-row gap-otp">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <View key={index} className={`h-otp-cell flex-1 items-center justify-center rounded-field ${cellClass(index)}`}>
-                {otp[index] ? (
-                  <Text className="font-body-medium text-body-md tracking-body-md text-foreground">{otp[index]}</Text>
-                ) : activeCell === index ? (
-                  <OtpCursor />
-                ) : null}
-              </View>
-            ))}
-          </Animated.View>
-          <TextInput
-            ref={inputRef}
-            autoFocus
-            accessibilityLabel="Six-digit verification code"
-            value={otp}
-            onChangeText={(value) => { setOtp(value.replace(/\D/g, '').slice(0, 6)); setStatus('idle'); }}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            keyboardType="number-pad"
-            inputMode="numeric"
-            textContentType="oneTimeCode"
-            autoComplete="sms-otp"
-            maxLength={6}
-            caretHidden
-            className="absolute h-px w-px opacity-0"
-          />
-        </Pressable>
-        {status === 'invalid' ? <Text accessibilityRole="alert" className="font-body text-body-xs text-destructive">That code is not correct. Try 123456 for this preview.</Text> : null}
-        {status === 'expired' ? <Text accessibilityRole="alert" className="font-body text-body-xs text-destructive">That code has expired. Request a new one below.</Text> : null}
-      </View>
-      <View className="flex-row items-center justify-between">
-        <Pressable accessibilityRole="button" onPress={onBack} hitSlop={8}>
-          <Text className="font-body text-body-sm tracking-body-sm text-accent">Change number</Text>
-        </Pressable>
-        {seconds > 0 ? (
-          <Text className="font-body text-body-sm tracking-body-sm text-muted">Resend in 0:{String(seconds).padStart(2, '0')}</Text>
-        ) : (
-          <Pressable accessibilityRole="button" onPress={() => { setSeconds(30); setStatus('idle'); }} hitSlop={8}>
-            <Text className="font-body text-body-sm tracking-body-sm text-accent">Resend code</Text>
+    <FormSheetLayout
+      header={<AuthSheetInlineHeader title="Verify your number" onBack={onBack} onClose={onClose} />}
+      fields={
+        <View className="gap-otp-section">
+          <Text className={headingDescriptionClass}>{`Enter the six-digit code sent to ${masked}.`}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Enter verification code" onPress={() => inputRef.current?.focus()}>
+            <Animated.View style={shakeStyle} className="flex-row gap-otp">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <View key={index} className={`h-otp-cell flex-1 items-center justify-center rounded-field ${cellClass(index)}`}>
+                  {otp[index] ? (
+                    <Text className="font-body-medium text-body-md tracking-body-md text-foreground">{otp[index]}</Text>
+                  ) : activeCell === index ? (
+                    <OtpCursor />
+                  ) : null}
+                </View>
+              ))}
+            </Animated.View>
+            <TextInput
+              ref={inputRef}
+              autoFocus
+              accessibilityLabel="Six-digit verification code"
+              value={otp}
+              onChangeText={(value) => { setOtp(value.replace(/\D/g, '').slice(0, 6)); setStatus('idle'); }}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              keyboardType="number-pad"
+              inputMode="numeric"
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
+              maxLength={6}
+              caretHidden
+              className="absolute h-px w-px opacity-0"
+            />
           </Pressable>
-        )}
-      </View>
-      <AuthPrimaryButton label="Verify and continue" enabled={otp.length === 6} loading={status === 'loading'} onPress={verify} />
-      <AuthLegalFooter />
-    </View>
+          {status === 'invalid' ? (
+            <FormValidationText>That code is not correct. Try 123456 for this preview.</FormValidationText>
+          ) : null}
+          {status === 'expired' ? (
+            <FormValidationText>That code has expired. Request a new one below.</FormValidationText>
+          ) : null}
+        </View>
+      }
+      extra={
+        <View className="flex-row items-center justify-between">
+          <Pressable accessibilityRole="button" onPress={onBack} hitSlop={8}>
+            <Text className="font-body text-body-sm tracking-body-sm text-accent">Change number</Text>
+          </Pressable>
+          {seconds > 0 ? (
+            <Text className="font-body text-body-sm tracking-body-sm text-muted">Resend in 0:{String(seconds).padStart(2, '0')}</Text>
+          ) : (
+            <Pressable accessibilityRole="button" onPress={() => { setSeconds(30); setStatus('idle'); }} hitSlop={8}>
+              <Text className="font-body text-body-sm tracking-body-sm text-accent">Resend code</Text>
+            </Pressable>
+          )}
+        </View>
+      }
+      primaryAction={
+        <AuthPrimaryButton label="Verify and continue" enabled={otp.length === 6} loading={status === 'loading'} onPress={verify} />
+      }
+      footer={<FormFooterCopy>{AUTH_LEGAL_COPY}</FormFooterCopy>}
+    />
   );
 }
 
@@ -763,7 +695,7 @@ function OnboardingPlaceholder() {
   );
 }
 
-type Screen = 'selector' | 'splash' | 'stories' | 'complete' | 'trial_home' | 'preview' | 'commerce_profile';
+type Screen = 'selector' | 'stories' | 'complete' | 'trial_home' | 'preview' | 'commerce_profile';
 
 function AppFlow() {
   const insets = useSafeAreaInsets();
@@ -772,21 +704,16 @@ function AppFlow() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const { theme } = useUniwind();
   useEffect(() => {
-    if (screen !== 'splash') return;
-    const timer = setTimeout(() => setScreen('stories'), 1800);
-    return () => clearTimeout(timer);
-  }, [screen]);
-  useEffect(() => {
     if (Platform.OS !== 'web') void Location.requestForegroundPermissionsAsync();
   }, []);
-  const statusStyle = screen === 'splash' ? (theme === 'dark' ? 'dark' : 'light') : screen === 'stories' ? 'light' : (theme === 'dark' ? 'light' : 'dark');
+  const statusStyle = screen === 'stories' ? 'light' : (theme === 'dark' ? 'light' : 'dark');
   const definition = getLifecycleDefinition(machine.selectedState);
   const chooseState = (stateId: LifecycleStateId) => {
     const selected = getLifecycleDefinition(stateId);
     if (!selected) return;
     dispatch({ type: 'SELECT_STATE', stateId });
     setSheetOpen(false);
-    if (selected.destination === 'stories') setScreen('splash');
+    if (selected.destination === 'stories') setScreen('stories');
     else if (selected.destination === 'auth') { setScreen('stories'); setSheetOpen(true); }
     else if (selected.destination === 'onboarding') setScreen('complete');
     else if (selected.destination === 'trial_home') setScreen('trial_home');
@@ -804,7 +731,6 @@ function AppFlow() {
       <View style={{ display: screen === 'selector' ? 'flex' : 'none' }} className="flex-1">
         <LifecycleStateSelector onSelect={chooseState} />
       </View>
-      {screen === 'splash' ? <SplashScreen /> : null}
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
       {screen === 'complete' ? <TrialFlow /> : null}
       {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} onPaymentStatusPress={() => setScreen('preview')} /> : null}

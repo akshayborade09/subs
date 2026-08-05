@@ -72,10 +72,12 @@ textarea:focus {
       --color-icon-surface: #eeeeee;
       --color-surface: #f6f6f6;
       --color-field: #f6f6f6; /* tune independently — one step darker than sheet/canvas when ready */
+      --color-ghost-on-field: #e0e0e0; /* ghost CTA fill on gray field/surface cards */
       --color-surface-2: #eeeeee;
       --color-surface-raised: #eeeeee;
       --color-foreground: #101010;
       --color-muted: #5e5e5e;
+      --color-subtle: #949494; /* 2 steps toward canvas — softer than muted in light */
       --color-border: #dedede;
       --color-control-border: #dedede;
       --color-accent: #2563eb;
@@ -92,11 +94,13 @@ textarea:focus {
       --color-sheet: #101010;
       --color-icon-surface: #1c1c1c;
       --color-surface: #0d0d0d;
-      --color-field: #0a0a0a; /* one step darker than surface */
+      --color-field: #141414; /* one step lighter than surface for input contrast */
+      --color-ghost-on-field: #262626; /* ghost CTA fill on gray field/surface cards */
       --color-surface-2: #202020;
       --color-surface-raised: #202020;
       --color-foreground: #ffffff;
       --color-muted: #ababab;
+      --color-subtle: #808080; /* 2 steps toward canvas — softer than muted in dark */
       --color-border: #292929;
       --color-control-border: #303030;
       --color-accent: #60a5fa;

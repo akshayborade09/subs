@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUniwind } from 'uniwind';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import type { Icon } from 'phosphor-react-native';
+import { headingDescriptionClass } from './typographyClasses';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { CalendarIcon } from 'phosphor-react-native/src/icons/Calendar';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
@@ -58,7 +59,7 @@ function Header({ title, description, onBack, eyebrow }: { title: string; descri
     <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} className="mb-6 h-10 w-10 items-center justify-center rounded-full border border-border"><Glyph icon={CaretLeftIcon} /></Pressable>
     {eyebrow ? <Text className="mb-2 font-medium text-sm uppercase tracking-[0.4px] text-accent">{eyebrow}</Text> : null}
     <Text className="font-semibold text-[24px] leading-8 tracking-[-0.5px] text-foreground">{title}</Text>
-    {description ? <Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{description}</Text> : null}
+    {description ? <Text className={`mt-2 ${headingDescriptionClass}`}>{description}</Text> : null}
   </View>;
 }
 
@@ -185,7 +186,7 @@ function ReferralPage({ onBack, toast }: { onBack: () => void; toast: (message: 
 function ProgressBar({ value }: { value: number }) { return <View className="h-3 overflow-hidden rounded-full bg-field"><View style={{ width: `${Math.min(100, value)}%` }} className="h-full rounded-full bg-accent" /></View>; }
 
 function LoyaltyPage({ onBack, go }: { onBack: () => void; go: (route: Route) => void }) {
-  return <><Header onBack={onBack} eyebrow="HEALTHY STREAK" title="Your loyalty progress" description="Complete one continuous paid subscription month to earn one free meal day." /><Section><Card tone="success"><View className="flex-row items-end justify-between"><View><Text className="font-bold text-3xl text-foreground">18 of 28</Text><Text className="mt-1 font-sans text-sm text-muted">active days completed</Text></View><Glyph icon={GiftIcon} tone="success" /></View><View className="mt-5"><ProgressBar value={(18 / 28) * 100} /></View><Text className="mt-3 font-sans text-sm text-muted">Expected reward: 1 August 2026</Text></Card></Section><Section title="Your reward"><Card><Text className="font-semibold text-lg text-foreground">One free meal day</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Your reward matches your active plan: one free lunch and dinner day.</Text></Card></Section><Section title="Progress rules"><ListContainer><ListMetaRow label="Required active days" value="28" /><ListMetaRow label="Required fulfilled meal days" value="20" /><ListMetaRow label="Paused days" value="Extend the end date" showDivider={false} /></ListContainer></Section><View className="mt-6 gap-3"><PrimaryButton label="View monthly leaderboard" onPress={() => go('leaderboard')} /><SecondaryButton label="Preview earned reward" onPress={() => go('reward')} /></View></>;
+  return <><Header onBack={onBack} eyebrow="HEALTHY STREAK" title="Your loyalty progress" description="Complete one continuous paid subscription month to earn one free meal day." /><Section><Card tone="success"><View className="flex-row items-end justify-between"><View><Text className="font-bold text-3xl text-foreground">18 of 28</Text><Text className="mt-1 font-sans text-sm text-muted">active days completed</Text></View><Glyph icon={GiftIcon} tone="success" /></View><View className="mt-5"><ProgressBar value={(18 / 28) * 100} /></View><Text className="mt-3 font-sans text-sm text-muted">Expected reward: 1 August 2026</Text></Card></Section><Section title="Your reward"><Card><Text className="font-semibold text-lg text-foreground">One free meal day</Text><Text className={`mt-2 ${headingDescriptionClass}`}>Your reward matches your active plan: one free lunch and dinner day.</Text></Card></Section><Section title="Progress rules"><ListContainer><ListMetaRow label="Required active days" value="28" /><ListMetaRow label="Required fulfilled meal days" value="20" /><ListMetaRow label="Paused days" value="Extend the end date" showDivider={false} /></ListContainer></Section><View className="mt-6 gap-3"><PrimaryButton label="View monthly leaderboard" onPress={() => go('leaderboard')} /><SecondaryButton label="Preview earned reward" onPress={() => go('reward')} /></View></>;
 }
 
 function LeaderboardPage({ onBack }: { onBack: () => void; toast: (message: string) => void }) {
