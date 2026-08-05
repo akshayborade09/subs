@@ -11,13 +11,16 @@ import { WarningCircleIcon } from 'phosphor-react-native/src/icons/WarningCircle
 import { WifiSlashIcon } from 'phosphor-react-native/src/icons/WifiSlash';
 import type { Icon } from 'phosphor-react-native';
 import type { LifecycleDefinition, LifecycleStateId } from './lifecycleStateMachine';
+import { themePalette } from './themeColors';
 
 const nextState: Partial<Record<LifecycleStateId, LifecycleStateId>> = {
   E: 'D', F: 'G', H: 'J', I: 'J', J: 'K', L: 'K', M: 'K', N: 'K', O: 'J', P: 'K', Q: 'K', R: 'K', S: 'K', T: 'U', U: 'F', Y: 'K', Z: 'K', AA: 'Y',
 };
 
-function Glyph({ icon: GlyphIcon, color = '#078a4b' }: { icon: Icon; color?: string }) {
-  return <GlyphIcon size={20} weight="bold" color={color} />;
+function Glyph({ icon: GlyphIcon, color }: { icon: Icon; color?: string }) {
+  const { theme } = useUniwind();
+  const palette = themePalette[theme === 'dark' ? 'dark' : 'light'];
+  return <GlyphIcon size={20} weight="bold" color={color ?? palette.accent} />;
 }
 
 function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
@@ -49,7 +52,7 @@ function TrialDates({ completed = 2 }: { completed?: number }) {
 }
 
 function WeekTracker() {
-  return <View className="mt-4 flex-row justify-between">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map((day, index) => <View key={day} className="items-center gap-2"><Text className="font-medium text-[10px] text-muted">{day}</Text><View className={`h-9 w-9 items-center justify-center rounded-full ${index < 2 ? 'bg-accent' : index === 2 ? 'border-2 border-accent bg-success-soft' : 'bg-surface-raised'}`}>{index < 2 ? <Glyph icon={CheckIcon} color="#ffffff" /> : <Text className={`font-semibold text-xs ${index === 2 ? 'text-accent' : 'text-foreground'}`}>{21 + index}</Text>}</View></View>)}</View>;
+  return <View className="mt-4 flex-row justify-between">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map((day, index) => <View key={day} className="items-center gap-2"><Text className="font-medium text-[10px] text-muted">{day}</Text><View className={`h-9 w-9 items-center justify-center rounded-full ${index < 2 ? 'bg-accent' : index === 2 ? 'border-2 border-accent bg-accent-soft' : 'bg-surface-raised'}`}>{index < 2 ? <Glyph icon={CheckIcon} color="#ffffff" /> : <Text className={`font-semibold text-xs ${index === 2 ? 'text-accent' : 'text-foreground'}`}>{21 + index}</Text>}</View></View>)}</View>;
 }
 
 function PaymentRecovery({ definition, confirmed = false }: { definition: LifecycleDefinition; confirmed?: boolean }) {
@@ -59,7 +62,7 @@ function PaymentRecovery({ definition, confirmed = false }: { definition: Lifecy
   useEffect(() => { if (failed || confirmed) return; const animation = NativeAnimated.loop(NativeAnimated.timing(rotation, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true })); animation.start(); return () => animation.stop(); }, [confirmed, failed, rotation]);
   const pendingColor = '#d97706';
   const description = confirmed
-    ? subscription ? 'Your subscription is active. Your meals and nutrition tools are ready.' : 'Your five-day trial is ready to be scheduled. We are taking you to Home.'
+    ? subscription ? 'Your subscription is active. Your meals and nutrition tools are ready.' : 'Your three-day trial is ready to be scheduled. We are taking you to Home.'
     : failed
       ? subscription ? 'Your plan and preferences are saved. Retry payment safely when you are ready.' : 'No amount has been applied to your trial. Retry safely or choose another payment method.'
       : subscription ? 'Your bank has received the request. Your subscription starts only after payment is confirmed.' : 'Your bank has received the request. Your trial will start only after payment is confirmed.';
@@ -69,7 +72,7 @@ function PaymentRecovery({ definition, confirmed = false }: { definition: Lifecy
 function TrialState({ id }: { id: LifecycleStateId }) {
   if (id === 'F') return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><StatusPill text="STARTS SOON" tone="success" /><Text className="mt-4 font-semibold text-xl text-foreground">Your trial starts Monday</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Your first home-style lunch is scheduled for 27 July.</Text><View className="mt-5 gap-3"><MetaRow label="Trial dates" value="27–31 July" /><MetaRow label="Meals" value="Lunch" /><MetaRow label="Address" value="Home · Baner" /></View></View><TrialDates completed={-1} /></>;
   if (id === 'H') return <><TrialDates /><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><StatusPill text="SUBSCRIPTION READY" tone="success" /><Text className="mt-4 font-semibold text-xl text-foreground">Your Monthly plan starts next</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Finish your trial first. Your subscription begins automatically on 26 July.</Text><View className="mt-5 gap-3"><MetaRow label="Plan" value="Monthly" /><MetaRow label="Meal" value="Lunch & Dinner" /><MetaRow label="Starts" value="26 July" /></View></View></>;
-  return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><StatusPill text="TRIAL COMPLETE" tone="success" /><Text className="mt-4 font-semibold text-xl text-foreground">Five meals delivered</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Continue the routine with a plan that fits your week.</Text><View className="mt-5 gap-3"><MetaRow label="Delivered" value="5 of 5 meals" /><MetaRow label="Preference" value="Mix of both" /><MetaRow label="Saved address" value="Home · Baner" /></View></View><View className="mt-4 rounded-[16px] bg-surface p-5"><Text className="font-semibold text-lg text-foreground">Your trial nutrition</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Average 710 kcal and 27 g protein per meal.</Text></View></>;
+  return <><View className="mt-7 rounded-[16px] border border-border bg-sheet p-5"><StatusPill text="TRIAL COMPLETE" tone="success" /><Text className="mt-4 font-semibold text-xl text-foreground">Three meals delivered</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Continue the routine with a plan that fits your week.</Text><View className="mt-5 gap-3"><MetaRow label="Delivered" value="3 of 3 meals" /><MetaRow label="Preference" value="Mix of both" /><MetaRow label="Saved address" value="Home · Baner" /></View></View><View className="mt-4 rounded-[16px] bg-surface p-5"><Text className="font-semibold text-lg text-foreground">Your trial nutrition</Text><Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Average 710 kcal and 27 g protein per meal.</Text></View></>;
 }
 
 function SubscriberState({ id }: { id: LifecycleStateId }) {

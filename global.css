@@ -9,12 +9,58 @@
   display: none;
 }
 
+input,
+textarea {
+  caret-color: var(--color-foreground);
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 @theme {
   --font-sans: 'Geist_400Regular';
   --font-medium: 'Geist_500Medium';
   --font-semibold: 'Geist_600SemiBold';
   --font-bold: 'Geist_700Bold';
+  --font-heading: 'AbrilFatface_400Regular';
+  --font-body: 'GeistMono_400Regular';
+  --font-body-medium: 'GeistMono_500Medium';
   --font-display: 'AbrilFatface_400Regular';
+  --font-mono: 'GeistMono_400Regular';
+  --font-mono-medium: 'GeistMono_500Medium';
+  --font-mono-semibold: 'GeistMono_600SemiBold';
+  --font-mono-bold: 'GeistMono_700Bold';
+  --text-heading-xl: 48px;
+  --text-heading-xl--line-height: 52px;
+  --text-heading-sm: 20px;
+  --text-heading-sm--line-height: 28px;
+  --text-heading-md: 24px;
+  --text-heading-md--line-height: 33px;
+  --text-body-xs: 12px;
+  --text-body-xs--line-height: 18px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --radius-sheet: 20px;
+  --radius-field: 14px;
+  --radius-button-outer: 18px;
+  --radius-button-inner: 12px;
+  --spacing-sheet: 16px;
+  --spacing-sheet-gap: 24px;
+  --spacing-auth-block: 9px;
+  --spacing-field-inline: 10px;
+  --spacing-otp: 8px;
+  --spacing-otp-section: 12px;
+  --spacing-button-wrap: 6px;
+  --spacing-field: 52px;
+  --spacing-otp-cell: 50px;
+  --spacing-icon-button: 36px;
+  --tracking-body-sm: -0.28px;
+  --tracking-body-md: -0.32px;
   --radius-card: 16px;
 }
 
@@ -25,17 +71,20 @@
       --color-sheet: #ffffff;
       --color-icon-surface: #eeeeee;
       --color-surface: #f6f6f6;
-      --color-field: #f6f6f6;
+      --color-field: #f6f6f6; /* tune independently — one step darker than sheet/canvas when ready */
       --color-surface-2: #eeeeee;
       --color-surface-raised: #eeeeee;
       --color-foreground: #101010;
       --color-muted: #5e5e5e;
       --color-border: #dedede;
       --color-control-border: #dedede;
-      --color-accent: #078a4b;
+      --color-accent: #2563eb;
       --color-accent-foreground: #ffffff;
+      --color-accent-soft: #eff6ff;
       --color-success: #078a4b;
       --color-success-soft: #e7f7ee;
+      --color-destructive: #ef4444;
+      --color-placeholder: rgba(16, 16, 16, 0.2);
     }
 
     @variant dark {
@@ -43,17 +92,20 @@
       --color-sheet: #101010;
       --color-icon-surface: #1c1c1c;
       --color-surface: #0d0d0d;
-      --color-field: #080808;
+      --color-field: #0a0a0a; /* one step darker than surface */
       --color-surface-2: #202020;
       --color-surface-raised: #202020;
       --color-foreground: #ffffff;
       --color-muted: #ababab;
       --color-border: #292929;
       --color-control-border: #303030;
-      --color-accent: #55c986;
-      --color-accent-foreground: #07140c;
+      --color-accent: #60a5fa;
+      --color-accent-foreground: #ffffff;
+      --color-accent-soft: #172554;
       --color-success: #55c986;
       --color-success-soft: #173624;
+      --color-destructive: #f87171;
+      --color-placeholder: rgba(255, 255, 255, 0.2);
     }
   }
 }

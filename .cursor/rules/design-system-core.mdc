@@ -1,0 +1,47 @@
+---
+description: Design system core — tokens only, progressive layers, no raw values in components
+alwaysApply: true
+---
+
+# Design system (always)
+
+Stack: **React Native + Expo + Uniwind (Tailwind v4)**. Theme lives in `global.css`.
+
+## Progressive layers (never skip)
+
+```
+docs/01-primitives.md  →  raw values (only when editing global.css)
+docs/02-tokens.md      →  semantic tokens (names + meaning)
+global.css             →  runtime implementation (light + dark)
+docs/03-usage.md       →  component patterns (JSX / className)
+src/themeColors.ts     →  JS hex mirror for native APIs only (Switch, icon color)
+```
+
+**Before styling UI:** read `docs/02-tokens.md`. **Before new patterns:** read `docs/03-usage.md`.
+
+## Golden rules
+
+- Components use **semantic token classes only** — `bg-canvas`, `text-accent`, `border-border`, `rounded-field`.
+- **Never** in components: raw hex (`#2563eb`), arbitrary brackets (`bg-[#…]`), or Tailwind primitives (`bg-gray-950`).
+- Need a new meaning? Add to `docs/02-tokens.md` + `global.css` (@variant light **and** dark). Then use the class.
+- Need JS color (Switch, Phosphor `color`)? Use `src/themeColors.ts` hooks — keep in sync with `global.css`.
+
+## Typography pairs
+
+- Headings: `font-heading` + `text-heading-*` (Abril Fatface)
+- Everything else: `font-body` + `text-body-*` (Geist Mono)
+- Never cross pairs (`font-heading text-body-sm` is invalid)
+
+## Color roles in this app
+
+- **Accent** (`text-accent`, `bg-accent`) — brand blue, links, selected UI
+- **Success** (`text-success`, `bg-success-soft`) — delivered, rewards, veg markers — stays green
+- **Muted** (`text-muted`) — secondary/disabled copy (e.g. countdown text)
+- **Destructive** (`text-destructive`) — errors
+
+## Auth / sheet patterns (reference: `App.tsx`)
+
+- Sheet: `rounded-sheet bg-canvas p-sheet gap-sheet-gap`
+- Fields: `rounded-field h-field bg-field`; focused → `border-foreground bg-canvas`; values → `font-body-medium text-body-md tracking-body-md`
+- OTP cells: `h-otp-cell rounded-field`; active → `border-foreground bg-canvas`
+- Primary CTA: `AuthPrimaryButton` — `rounded-button-outer`, black fill (not accent)
