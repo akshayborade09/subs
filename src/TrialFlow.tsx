@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Image, Keyboard, KeyboardAvoidingView, Pla
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
-import Animated, { Easing, FadeIn, FadeInUp, Keyframe, LinearTransition, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, Extrapolation, FadeIn, FadeInUp, interpolate, interpolateColor, Keyframe, LinearTransition, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import { type Icon, type IconWeight } from 'phosphor-react-native';
 import { CalendarBlankIcon } from 'phosphor-react-native/src/icons/CalendarBlank';
@@ -868,24 +868,86 @@ function Row({ label, value, bold = false }: { label: string; value: string; bol
 
 function TrialConfirmation({ data, total, onContinue }: { data: State; total: number; onContinue: () => void }) {
   const insets = useSafeAreaInsets();
+  const { theme } = useUniwind();
   const address = `${data.address.number}, ${data.address.society}, Baner Road, Pune 411045`;
   const dishImage = foodImages[data.food as keyof typeof foodImages] ?? foodImages.Vegetarian;
+
+  const headerTop = insets.top + 8;
+  const headerRowHeight = 52;
+  const heroHeight = 186;
+  const closeIconSize = 36;
+  const dockGap = 12;
+  const initialSheetTop = headerTop + headerRowHeight + heroHeight;
+  const dockedSheetTop = headerTop + closeIconSize + dockGap;
+  const collapseRange = initialSheetTop - dockedSheetTop;
+  const surfaceColor = theme === 'dark' ? '#0d0d0d' : '#f6f6f6';
+  const canvasColor = theme === 'dark' ? '#000000' : '#ffffff';
+  const footerHeight = 88 + (Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8));
+
+  const contentRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = Math.max(0, event.contentOffset.y);
+    },
+    onEndDrag: (event) => {
+      if (event.contentOffset.y < 0) scrollTo(contentRef, 0, 0, true);
+    },
+    onMomentumEnd: (event) => {
+      if (event.contentOffset.y < 0) scrollTo(contentRef, 0, 0, true);
+    },
+  });
+
+  const rootBgStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(scrollY.value, [0, collapseRange], [surfaceColor, canvasColor]),
+  }));
+
+  const heroAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, collapseRange * 0.85], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(scrollY.value, [0, collapseRange], [0, -heroHeight * 0.75], Extrapolation.CLAMP) },
+      { scale: interpolate(scrollY.value, [0, collapseRange], [1, 0.5], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const sheetPositionStyle = useAnimatedStyle(() => ({
+    top: initialSheetTop - Math.min(scrollY.value, collapseRange),
+    borderTopLeftRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
+    borderTopRightRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
+  }));
+
+  const contentLiftStyle = useAnimatedStyle(() => ({
+    marginTop: -collapseRange + Math.min(scrollY.value, collapseRange),
+  }));
+
   return (
-    <View className="flex-1 bg-surface">
-      <View style={{ paddingTop: insets.top + 8 }} className="flex-row items-center justify-between px-5 pb-4">
+    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, { overflow: 'visible' }]} className="flex-1">
+      <View style={{ paddingTop: headerTop }} className="absolute inset-x-0 top-0 z-20 flex-row items-center justify-between px-5 pb-4">
         <View className="size-icon-button" />
         <Text className="font-body text-body-sm tracking-body-sm text-foreground">sora kitchen</Text>
       </View>
 
-      <View className="h-[186px] w-full items-center overflow-hidden">
-        <View className="size-[314px] overflow-hidden rounded-full">
+      <View style={{ top: headerTop + headerRowHeight, height: heroHeight, overflow: 'visible' }} pointerEvents="none" className="absolute inset-x-0 z-0 items-center">
+        <Animated.View style={heroAnimatedStyle} className="size-[314px] overflow-hidden rounded-full">
           <Image source={dishImage} accessibilityLabel={`${data.food || 'Preferred'} meal`} resizeMode="cover" className="size-full" />
-        </View>
+        </Animated.View>
       </View>
 
-      <View className="flex-1 rounded-t-sheet bg-canvas">
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}>
-          <Animated.View entering={FadeInUp.duration(360)} className="px-5 pt-5 gap-sheet-gap">
+      <Animated.View style={[{ bottom: footerHeight, left: 0, right: 0, position: 'absolute' }, sheetPositionStyle]} className="z-10 bg-canvas">
+        <Animated.ScrollView
+          ref={contentRef}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24 }}
+        >
+          <View style={{ height: collapseRange }} />
+          <Animated.View style={contentLiftStyle} className="gap-sheet-gap">
             <FormHeader title="Your trial is confirmed" subtitle="Your payment is complete. Confirmation and important meal updates will be sent on WhatsApp." size="page" />
             <View>
               <Text className="font-body text-body-sm text-muted">Payment amount</Text>
@@ -915,12 +977,13 @@ function TrialConfirmation({ data, total, onContinue }: { data: State; total: nu
               </View>
             </View>
           </Animated.View>
-        </ScrollView>
-        <Animated.View entering={FadeInUp.delay(360).duration(280)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
-          <TrialAuthButton label="View trial tracker" onPress={onContinue} />
-        </Animated.View>
-      </View>
-    </View>
+        </Animated.ScrollView>
+      </Animated.View>
+
+      <Animated.View entering={FadeInUp.delay(360).duration(280)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 z-20 bg-canvas px-5 pt-2">
+        <TrialAuthButton label="View trial tracker" onPress={onContinue} />
+      </Animated.View>
+    </Animated.View>
   );
 }
 function LegacySummary({ data, meals, total, onBack, onEdit, onNext }: { data: State; meals: number; total: number; onBack: () => void; onEdit: (s: Step) => void; onNext: () => void }) {

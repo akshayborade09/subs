@@ -421,19 +421,18 @@ function Feedback({ meal, onSave, onFocusTellMore }: { meal: TrialMeal; onSave: 
 
   if (!editing && submittedRating > 0) {
     return (
-      <View className="rounded-field border border-border bg-accent-soft p-sheet">
-        <View className="flex-row items-start gap-3">
-          <View className="size-10 shrink-0 items-center justify-center rounded-full bg-canvas">
-            <HomeGlyph icon={CheckIcon} size={22} weight="bold" tone="success" />
+      <View className="rounded-field bg-accent-soft p-sheet">
+        <View className="flex-row items-center justify-between gap-3">
+          <View className="min-w-0 flex-1 flex-row items-center gap-2">
+            <HomeGlyph icon={CheckIcon} size={22} weight="bold" tone="accent" />
+            <Text className="flex-1 font-mono-semibold text-body-md text-foreground">{thanks.title}</Text>
           </View>
-          <View className="flex-1">
-            <Text className="font-mono-semibold text-body-md text-foreground">{thanks.title}</Text>
-            <Text className={`mt-1 ${headingDescriptionClass}`}>{thanks.body}</Text>
-          </View>
+          <Pressable accessibilityRole="button" onPress={() => setEditing(true)} className="shrink-0 flex-row items-center gap-1">
+            <HomeGlyph icon={PencilSimpleIcon} size={16} weight="bold" tone="accent" />
+            <Text className="font-mono-semibold text-body-sm text-accent">Edit feedback</Text>
+          </Pressable>
         </View>
-        <Pressable accessibilityRole="button" onPress={() => setEditing(true)} className="mt-4 min-h-11 justify-center">
-          <Text className="font-mono-semibold text-body-sm text-accent">Edit feedback</Text>
-        </Pressable>
+        <Text className={`mt-3 ${headingDescriptionClass}`}>{thanks.body}</Text>
       </View>
     );
   }
