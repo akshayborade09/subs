@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Image, Keyboard, KeyboardAvoidingView, Pla
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
-import Animated, { Easing, FadeIn, FadeInUp, LinearTransition, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInUp, Keyframe, LinearTransition, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import { type Icon, type IconWeight } from 'phosphor-react-native';
 import { CalendarBlankIcon } from 'phosphor-react-native/src/icons/CalendarBlank';
@@ -20,15 +20,11 @@ import TrialHome, { AdaptiveSheetFrame, TRIAL_DAY_COUNT } from './TrialHome';
 import { CenteredFieldInput, fieldValueTextClass } from './centeredFieldInput';
 import { FormChromeSheetLayout, FormFieldStack, FormHeader, FormModalLayout, FormPageSection, FormSheetLayout, FormValidationText } from './formLayout';
 import { headingDescriptionClass } from './typographyClasses';
+import { formatRupee } from './formatCurrency';
 import { themePalette, useFieldPlaceholderColor, useForegroundColor } from './themeColors';
-import { PrimaryShimmerButton } from './primaryButton';
+import { PrimaryShimmerButton, GhostFieldButton } from './primaryButton';
 
-const confirmationMeal = require('../assets/food-thali.png');
-const foodImages = {
-  Vegetarian: require('../assets/onboarding/veg.png'),
-  'Non-vegetarian': require('../assets/onboarding/nonveg.png'),
-  'Mix of both': require('../assets/onboarding/veg-nonveg.png'),
-} as const;
+import { foodImages } from './foodImages';
 const genderOptions = [
   { label: 'Male', icon: GenderMaleIcon },
   { label: 'Female', icon: GenderFemaleIcon },
@@ -119,18 +115,25 @@ function PersonalDateField({ value, onPress }: { value: string; onPress: () => v
 
 function PersonalGenderCard({ label, icon: Glyph, selected, onPress }: { label: string; icon: Icon; selected: boolean; onPress: () => void }) {
   const { theme } = useUniwind();
-  const palette = themePalette[theme === 'dark' ? 'dark' : 'light'];
-  const iconColor = selected ? palette.accentForeground : (theme === 'dark' ? '#ffffff' : '#101010');
+  const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       onPress={onPress}
-      className={`min-h-[86px] flex-1 justify-between rounded-field px-sheet py-3.5 ${selected ? 'bg-accent' : 'bg-field'}`}
+      className={`min-h-[86px] flex-1 overflow-hidden rounded-field border px-sheet py-3.5 ${selected ? 'border-2 border-accent' : 'border-border bg-canvas'}`}
     >
-      <Text className={`font-body text-body-md tracking-body-md ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{label}</Text>
-      <View className="items-end">
-        <Glyph size={24} weight="regular" color={iconColor} />
+      {selected ? (
+        <>
+          <BlurView intensity={Platform.OS === 'android' ? 12 : 28} tint="light" experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'} style={StyleSheet.absoluteFill} />
+          <View className="absolute inset-0 bg-accent-soft/85" />
+        </>
+      ) : null}
+      <View className="relative flex-1 justify-between">
+        <Text className="font-mono-semibold text-body-sm text-foreground">{label}</Text>
+        <View className="items-end">
+          <Glyph size={24} weight="regular" color={iconColor} />
+        </View>
       </View>
     </Pressable>
   );
@@ -164,20 +167,19 @@ const food: FoodChoice[] = [
   { title: 'Non-vegetarian', description: 'Home-style chicken, mutton and egg preparations.', image: foodImages['Non-vegetarian'] },
   { title: 'Mix of both', description: 'Enjoy vegetarian and non-vegetarian meals during your trial.', image: foodImages['Mix of both'] },
 ];
-const meal: Choice[] = [
-  { title: 'Lunch', description: 'Delivery between 11:00 AM and 1:00 PM' },
-  { title: 'Dinner', description: 'Delivery between 6:30 PM and 8:30 PM' },
-  { title: 'Both', description: 'Lunch and dinner every day' },
+const meal: FoodChoice[] = [
+  { title: 'Lunch', description: 'Delivery between 11:00 AM and 1:00 PM', image: foodImages.Lunch },
+  { title: 'Dinner', description: 'Delivery between 6:30 PM and 8:30 PM', image: foodImages.Dinner },
+  { title: 'Both', description: 'Lunch and dinner every day', image: foodImages.Both },
 ];
-const bread: Choice[] = [
-  { title: 'Chapati', description: 'Soft whole-wheat chapatis.' },
-  { title: 'Bhakri', description: 'Traditional Maharashtrian bhakri.' },
-  { title: 'Any', description: 'Let us serve chapati or bhakri based on the day’s meal.' },
+const bread: FoodChoice[] = [
+  { title: 'Chapati', description: 'Soft whole-wheat chapatis.', image: foodImages.Chapati },
+  { title: 'Bhakri', description: 'Traditional Maharashtrian bhakri.', image: foodImages.Bhakri },
+  { title: 'Any', description: 'Let us serve chapati or bhakri based on the day’s meal.', image: foodImages.Any },
 ];
-const rice: Choice[] = [
-  { title: 'Plain Rice', description: 'Simple steamed rice.' },
-  { title: 'Jeera Rice', description: 'Rice lightly tempered with cumin.' },
-  { title: 'Any', description: 'Let us serve plain or jeera rice based on the day’s meal.' },
+const rice: FoodChoice[] = [
+  { title: 'Plain Rice', description: 'Simple steamed rice.', image: foodImages['Plain Rice'] },
+  { title: 'Jeera Rice', description: 'Rice lightly tempered with cumin.', image: foodImages['Jeera Rice'] },
 ];
 
 function TrialPaymentButton({ total, enabled, onPress }: { total: number; enabled: boolean; onPress: () => void }) {
@@ -197,7 +199,7 @@ function TrialPaymentButton({ total, enabled, onPress }: { total: number; enable
       >
         <View className="h-field flex-row items-center justify-between rounded-button-inner bg-foreground px-5">
           <Text className="font-mono-semibold text-body-md text-canvas">Start trial</Text>
-          <Text className="font-mono-semibold text-body-md text-canvas">Pay ₹{total}</Text>
+          <Text className="font-mono-semibold text-body-md text-canvas">Pay {formatRupee(total)}</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -265,17 +267,56 @@ function Shell({ title, onBack, children, footer, footerDelay = 280, fixedHeader
         <Animated.View key={`${title}-content`} entering={animateContent ? FadeInUp.delay(170).duration(280) : undefined} className="mx-5 mt-4">{children}</Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
-      {footer ? <Animated.View key={`${title}-footer`} entering={animateContent ? FadeInUp.delay(footerDelay).duration(280) : undefined} style={{ paddingBottom: insets.bottom + 14 }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-3">{footer}</Animated.View> : null}
+      {footer ? <Animated.View key={`${title}-footer`} entering={animateContent ? FadeInUp.delay(footerDelay).duration(280) : undefined} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + 14 }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">{footer}</Animated.View> : null}
     </View>
     </FocusScrollContext.Provider>
   );
 }
 
-function ChoiceCards({ options, value, onChange }: { options: Choice[]; value: string; onChange: (value: string) => void }) {
-  return <View className="gap-4">{options.map((option) => { const selected = value === option.title; return <Pressable key={option.title} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => onChange(option.title)} className={`flex-row gap-3 overflow-hidden rounded-field p-3 ${selected ? 'bg-accent' : 'bg-field'}`}><View className="min-w-0 flex-1 gap-2"><Text className={`font-mono-semibold text-body-md ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{option.title}</Text><Text className={`font-body text-body-xs leading-[18px] ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{option.description}</Text></View><View className={`size-20 shrink-0 rounded-button-inner ${selected ? 'bg-canvas/25' : 'bg-canvas'}`} /></Pressable>; })}</View>;
+function selectionCardClass(selected: boolean) {
+  return `overflow-hidden rounded-field border bg-canvas ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`;
 }
 
-function FoodPreferenceCards({ options, value, onChange }: { options: FoodChoice[]; value: string; onChange: (value: string) => void }) {
+const mealImageBounceIn = new Keyframe({
+  0: {
+    opacity: 0,
+    transform: [{ scale: 0.72 }],
+  },
+  70: {
+    opacity: 1,
+    transform: [{ scale: 1.06 }],
+    easing: Easing.out(Easing.cubic),
+  },
+  100: {
+    opacity: 1,
+    transform: [{ scale: 1 }],
+    easing: Easing.inOut(Easing.quad),
+  },
+}).duration(480);
+
+function ChoiceCards({ options, value, onChange }: { options: Choice[]; value: string; onChange: (value: string) => void }) {
+  return (
+    <View className="gap-4">
+      {options.map((option) => {
+        const selected = value === option.title;
+        return (
+          <Pressable
+            key={option.title}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            onPress={() => onChange(option.title)}
+            className={`gap-2 p-sheet ${selectionCardClass(selected)}`}
+          >
+            <Text className="font-mono-semibold text-body-md text-foreground">{option.title}</Text>
+            <Text className="font-body text-body-xs leading-5 text-muted">{option.description}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function PreferenceCards({ options, value, onChange }: { options: FoodChoice[]; value: string; onChange: (value: string) => void }) {
   return (
     <View className="gap-4">
       {options.map((option, index) => {
@@ -286,27 +327,16 @@ function FoodPreferenceCards({ options, value, onChange }: { options: FoodChoice
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
             onPress={() => onChange(option.title)}
-            className={`flex-row items-stretch overflow-hidden rounded-card ${selected ? 'bg-accent' : 'bg-field'}`}
+            className={`flex-row items-stretch ${selectionCardClass(selected)}`}
           >
-            <View className="min-w-0 flex-1 justify-start gap-2 p-3">
-              <Text className={`font-mono-semibold text-body-md ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{option.title}</Text>
-              <Text className={`font-body text-body-xs leading-5 ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{option.description}</Text>
+            <View className="min-w-0 flex-1 justify-center gap-2 p-sheet">
+              <Text className="font-mono-semibold text-body-md text-foreground">{option.title}</Text>
+              <Text className="font-body text-body-xs leading-5 text-muted">{option.description}</Text>
             </View>
-            <View className="h-[116px] w-[161px] shrink-0 overflow-hidden pt-2">
-              <View className="relative h-full w-full overflow-hidden">
-                <Animated.View
-                  entering={FadeInUp.delay(360 + index * 120).duration(560).withInitialValues({
-                    opacity: 0,
-                    transform: [{ translateY: 72 }],
-                  })}
-                  style={{ position: 'absolute', top: 0, left: 0, width: 181, height: 181 }}
-                >
-                  <Image
-                    source={option.image}
-                    accessibilityLabel={`${option.title} meal`}
-                    resizeMode="cover"
-                    style={{ width: 181, height: 181 }}
-                  />
+            <View className="shrink-0 p-1">
+              <View className="h-[120px] w-[120px] overflow-hidden rounded-card">
+                <Animated.View entering={mealImageBounceIn.delay(360 + index * 120)} className="h-full w-full">
+                  <Image source={option.image} accessibilityLabel={`${option.title} meal`} resizeMode="cover" className="size-full" />
                 </Animated.View>
               </View>
             </View>
@@ -323,14 +353,14 @@ function DailyMealPlan({ meal, dates, value, onChange }: { meal: string; dates: 
     onChange(value.map((day, index) => index === dayIndex ? { ...day, [mealKey]: choice } : day));
   };
   return <View className="gap-4">{value.map((day, dayIndex) =>
-    <Animated.View key={`day-${dayIndex + 1}`} entering={FadeInUp.delay(190 + dayIndex * 55).duration(220)} className="rounded-field bg-field p-sheet">
+    <Animated.View key={`day-${dayIndex + 1}`} entering={FadeInUp.delay(190 + dayIndex * 55).duration(220)} className="rounded-field border border-border bg-canvas p-sheet">
       <Text className="font-mono-semibold text-body-md text-foreground">Day {dayIndex + 1}{dates[dayIndex] ? <Text className="font-body text-body-sm text-muted"> · {ordinalDateLabel(dates[dayIndex]!)} · {dateFromKey(dates[dayIndex]!).toLocaleDateString('en-IN', { weekday: 'short' })}</Text> : null}</Text>
       <View className="mt-3 gap-3">{mealRows.map((mealKey) =>
         <View key={mealKey} className="flex-row items-center gap-3">
           <Text className="w-14 font-body-medium text-body-sm capitalize text-foreground">{mealKey}</Text>
           <View className="flex-1 flex-row gap-2">{(['Vegetarian', 'Non-vegetarian'] as const).map((choice) => {
             const selected = day[mealKey] === choice;
-            return <Pressable key={choice} accessibilityRole="radio" accessibilityLabel={`Day ${dayIndex + 1} ${mealKey} ${choice}`} accessibilityState={{ checked: selected }} onPress={() => update(dayIndex, mealKey, choice)} className={`h-9 flex-1 items-center justify-center rounded-field ${selected ? 'bg-accent' : 'bg-canvas'}`}><Text className={`font-mono-semibold text-body-sm ${selected ? 'text-accent-foreground' : 'text-muted'}`}>{choice === 'Vegetarian' ? 'Veg' : 'Non-veg'}</Text></Pressable>;
+            return <Pressable key={choice} accessibilityRole="radio" accessibilityLabel={`Day ${dayIndex + 1} ${mealKey} ${choice}`} accessibilityState={{ checked: selected }} onPress={() => update(dayIndex, mealKey, choice)} className={`h-9 flex-1 items-center justify-center rounded-field border bg-canvas ${selected ? 'border-2 border-accent' : 'border-border'}`}><Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice === 'Vegetarian' ? 'Veg' : 'Non-veg'}</Text></Pressable>;
           })}</View>
         </View>
       )}</View>
@@ -354,18 +384,18 @@ function AddressFormField({ label, value, onChangeText, placeholder, multiline =
 }
 
 function AddressTabs({ value, onChange }: { value: AddressMode; onChange: (value: AddressMode) => void }) {
-  return <View accessibilityRole="tablist" className="flex-row rounded-field bg-field p-1">{(['weekday', 'weekend'] as const).map((mode) => { const active = value === mode; return <Pressable key={mode} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => onChange(mode)} className={`h-field flex-1 items-center justify-center rounded-field ${active ? 'bg-canvas' : ''}`}><Text className={`font-mono-semibold text-body-sm capitalize ${active ? 'text-foreground' : 'text-muted'}`}>{mode}</Text></Pressable>; })}</View>;
+  return <View accessibilityRole="tablist" className="flex-row gap-2">{(['weekday', 'weekend'] as const).map((mode) => { const active = value === mode; return <Pressable key={mode} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => onChange(mode)} className={`h-field flex-1 items-center justify-center rounded-field border bg-canvas ${active ? 'border-2 border-accent' : 'border-border'}`}><Text className={`font-mono-semibold text-body-sm capitalize ${active ? 'text-foreground' : 'text-muted'}`}>{mode}</Text></Pressable>; })}</View>;
 }
 
 function AddressLead({ mode, value }: { mode: AddressMode; value: string }) {
-  return <View className="mt-4 flex-row items-start rounded-field bg-field p-sheet"><View className="mr-3 mt-0.5 h-8 w-8 items-center justify-center rounded-full bg-icon-surface"><FlowGlyph icon={MapPinIcon} size={20} weight="bold" /></View><View className="flex-1"><Text className="font-body text-body-xs capitalize text-muted">{mode} address</Text><Text className="mt-1 font-body-medium text-body-md leading-6 text-foreground">{value}</Text></View></View>;
+  return <View className="mt-4 flex-row items-start rounded-field border border-border bg-canvas p-sheet"><View className="mr-3 mt-0.5 h-8 w-8 items-center justify-center rounded-full bg-icon-surface"><FlowGlyph icon={MapPinIcon} size={20} weight="bold" /></View><View className="min-w-0 flex-1"><Text className="font-body text-body-xs capitalize text-muted">{mode} address</Text><Text className="mt-1 font-body-medium text-body-md leading-6 text-foreground">{value}</Text></View></View>;
 }
 
 function LocationPanel({ addressText, onAddressChange, onOpenSearch }: { addressText: string; onAddressChange: (value: string) => void; onOpenSearch: () => void }) {
   const [query, setQuery] = useState(addressText);
   useEffect(() => setQuery(addressText), [addressText]);
   const updateFromMap = (value: string) => { setQuery(value); onAddressChange(value); };
-  return <><Pressable accessibilityRole="button" accessibilityLabel="Search location" onPress={onOpenSearch} className="h-field flex-row items-center gap-field-inline rounded-field bg-field px-sheet"><FlowGlyph icon={MagnifyingGlassIcon} size={22} weight="bold" /><Text numberOfLines={1} ellipsizeMode="tail" className="flex-1 font-body-medium text-body-md leading-6 tracking-body-md text-foreground">{query || 'Search area, landmark or address'}</Text></Pressable><View className="overflow-hidden rounded-field"><SelectableMap searchQuery={query} onAddressChange={updateFromMap} /></View><Text className="mt-2 font-body text-body-xs leading-[18px] text-muted">Move the map to adjust the pin. The address updates automatically.</Text></>;
+  return <><Pressable accessibilityRole="button" accessibilityLabel="Search location" onPress={onOpenSearch} className="h-field flex-row items-center gap-field-inline rounded-field border border-border bg-canvas px-sheet"><FlowGlyph icon={MagnifyingGlassIcon} size={22} weight="bold" /><Text numberOfLines={1} ellipsizeMode="tail" className="flex-1 font-body-medium text-body-md leading-6 tracking-body-md text-foreground">{query || 'Search area, landmark or address'}</Text></Pressable><View className="overflow-hidden rounded-field border border-border"><SelectableMap searchQuery={query} onAddressChange={updateFromMap} /></View><Text className="mt-2 font-body text-body-xs leading-[18px] text-muted">Move the map to adjust the pin. The address updates automatically.</Text></>;
 }
 
 function SearchLocationScreen({ initialValue, onBack, onSelect }: { initialValue: string; onBack: () => void; onSelect: (value: string) => void }) {
@@ -401,7 +431,21 @@ function SearchLocationScreen({ initialValue, onBack, onSelect }: { initialValue
 }
 
 function AddressForm({ address, setAddress, refs, topMargin = true }: { address: Address; setAddress: (key: keyof Address, value: string) => void; refs: { number: React.RefObject<TextInput | null>; society: React.RefObject<TextInput | null>; landmark: React.RefObject<TextInput | null>; instructions: React.RefObject<TextInput | null> }; topMargin?: boolean }) {
-  return <View className={`${topMargin ? 'mt-5' : ''} gap-sheet-gap`}><Animated.View entering={FadeInUp.delay(190).duration(240)} className="gap-2"><Text className="font-body text-body-sm tracking-body-sm text-foreground">Building type</Text><View className="flex-row flex-wrap gap-2">{['Apartment', 'House', 'Office', 'Other'].map((type) => <Pressable key={type} onPress={() => setAddress('type', type)} className={`h-field justify-center rounded-field px-4 ${address.type === type ? 'bg-accent' : 'bg-field'}`}><Text className={`font-mono-semibold text-body-sm ${address.type === type ? 'text-accent-foreground' : 'text-foreground'}`}>{type}</Text></Pressable>)}</View></Animated.View><AddressFormField animationDelay={260} label="Flat, house or office number" value={address.number} onChangeText={(v) => setAddress('number', v)} placeholder="B-704" inputRef={refs.number} onSubmitEditing={() => refs.society.current?.focus()} /><AddressFormField animationDelay={330} label="Building or society name" value={address.society} onChangeText={(v) => setAddress('society', v)} placeholder="Green View Apartments" inputRef={refs.society} onSubmitEditing={() => refs.landmark.current?.focus()} /><AddressFormField animationDelay={400} label="Nearby landmark (optional)" value={address.landmark} onChangeText={(v) => setAddress('landmark', v)} placeholder="Near Baner Road" inputRef={refs.landmark} onSubmitEditing={() => refs.instructions.current?.focus()} /><AddressFormField animationDelay={470} label="Delivery instructions (optional)" value={address.instructions} onChangeText={(v) => setAddress('instructions', v)} placeholder="Gate, floor or delivery notes" multiline inputRef={refs.instructions} returnKeyType="done" onSubmitEditing={Keyboard.dismiss} /></View>;
+  return <View className={`${topMargin ? 'mt-5' : ''} gap-sheet-gap`}><Animated.View entering={FadeInUp.delay(190).duration(240)} className="gap-2"><Text className="font-body text-body-sm tracking-body-sm text-foreground">Building type</Text><View className="flex-row flex-wrap gap-2">{['Apartment', 'House', 'Office', 'Other'].map((type) => <Pressable key={type} onPress={() => setAddress('type', type)} className={`h-field justify-center rounded-field border bg-canvas px-4 ${address.type === type ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}><Text className="font-mono-semibold text-body-sm text-foreground">{type}</Text></Pressable>)}</View></Animated.View><AddressFormField animationDelay={260} label="Flat, house or office number" value={address.number} onChangeText={(v) => setAddress('number', v)} placeholder="B-704" inputRef={refs.number} onSubmitEditing={() => refs.society.current?.focus()} /><AddressFormField animationDelay={330} label="Building or society name" value={address.society} onChangeText={(v) => setAddress('society', v)} placeholder="Green View Apartments" inputRef={refs.society} onSubmitEditing={() => refs.landmark.current?.focus()} /><AddressFormField animationDelay={400} label="Nearby landmark (optional)" value={address.landmark} onChangeText={(v) => setAddress('landmark', v)} placeholder="Near Baner Road" inputRef={refs.landmark} onSubmitEditing={() => refs.instructions.current?.focus()} /><AddressFormField animationDelay={470} label="Delivery instructions (optional)" value={address.instructions} onChangeText={(v) => setAddress('instructions', v)} placeholder="Gate, floor or delivery notes" multiline inputRef={refs.instructions} returnKeyType="done" onSubmitEditing={Keyboard.dismiss} /></View>;
+}
+
+function EditStrokeButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Edit"
+      hitSlop={8}
+      onPress={onPress}
+      className="self-start rounded-sheet border border-foreground bg-transparent px-3 py-1.5"
+    >
+      <Text className="font-mono-semibold text-body-sm text-foreground">Edit</Text>
+    </Pressable>
+  );
 }
 
 function EditAction({ onPress }: { onPress: () => void }) {
@@ -410,10 +454,29 @@ function EditAction({ onPress }: { onPress: () => void }) {
   return <Pressable accessibilityRole="button" accessibilityLabel="Edit" onPress={onPress} hitSlop={8} className="size-5 items-center justify-center"><PencilSimpleIcon size={20} weight="regular" color={iconColor} /></Pressable>;
 }
 
+function SummaryPreferenceCard({ caption, title, image, onEdit, animationDelay }: { caption: string; title: string; image: number; onEdit: () => void; animationDelay: number }) {
+  return (
+    <View className={`flex-row items-stretch ${selectionCardClass(false)}`}>
+      <View className="min-w-0 flex-1 justify-center gap-2 p-sheet">
+        <Text className="font-body text-body-sm tracking-body-sm text-muted">{caption}</Text>
+        <Text className="font-mono-semibold text-body-md text-foreground">{title}</Text>
+        <EditStrokeButton onPress={onEdit} />
+      </View>
+      <View className="shrink-0 p-1">
+        <View className="h-[120px] w-[120px] overflow-hidden rounded-card">
+          <Animated.View entering={mealImageBounceIn.delay(animationDelay)} className="h-full w-full">
+            <Image source={image} accessibilityLabel={title} resizeMode="cover" className="size-full" />
+          </Animated.View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function DeliverySummary({ data, onEdit }: { data: State; onEdit: () => void }) {
   const different = ENABLE_WEEKEND_ADDRESS_FLOW && data.weekendDelivery === 'different';
   const items = [{ label: 'Weekday', address: `${data.address.number}, ${data.address.society}, Pune 411045` }, { label: 'Weekend', address: `${data.weekendAddressDetails.number}, ${data.weekendAddressDetails.society}, ${data.weekendLocation}` }];
-  return <View className="rounded-field bg-field p-sheet"><View className="flex-row items-center justify-between"><Text className="font-heading text-body-md text-foreground">Delivery address</Text><EditAction onPress={onEdit} /></View>{different ? <View className="mt-4 gap-5">{items.map((item) => <View key={item.label}><View className="mb-2 flex-row items-center"><View className="mr-2 h-7 w-7 items-center justify-center rounded-full bg-icon-surface"><FlowGlyph icon={MapPinIcon} size={18} weight="bold" /></View><Text className="font-mono-semibold text-body-md text-foreground">{item.label} address</Text></View><View className="overflow-hidden rounded-field"><SelectableMap compact /></View><Text className="mt-3 font-body text-body-sm leading-5 text-muted">{item.address}</Text></View>)}</View> : <><View className="mt-3 overflow-hidden rounded-field"><SelectableMap compact /></View><Text className="mt-3 font-body-medium text-body-sm leading-5 text-foreground">{data.address.number}, {data.address.society}, Pune 411045</Text></>}</View>;
+  return <View className="rounded-field border border-border bg-canvas p-sheet"><View className="flex-row items-center justify-between"><Text className="font-heading text-body-md text-foreground">Delivery address</Text><EditAction onPress={onEdit} /></View>{different ? <View className="mt-4 gap-5">{items.map((item) => <View key={item.label}><View className="mb-2 flex-row items-center"><View className="mr-2 h-7 w-7 items-center justify-center rounded-full bg-icon-surface"><FlowGlyph icon={MapPinIcon} size={18} weight="bold" /></View><Text className="font-mono-semibold text-body-md text-foreground">{item.label} address</Text></View><View className="overflow-hidden rounded-field border border-border"><SelectableMap compact /></View><Text className="mt-3 font-body text-body-sm leading-5 text-muted">{item.address}</Text></View>)}</View> : <><View className="mt-3 overflow-hidden rounded-field border border-border"><SelectableMap compact /></View><Text className="mt-3 font-body-medium text-body-sm leading-5 text-foreground">{data.address.number}, {data.address.society}, Pune 411045</Text></>}</View>;
 }
 
 function ConfirmAddressSheet({ data, onClose, onConfirm, onEdit, usesDifferentWeekendAddress, sections }: { data: State; onClose: () => void; onConfirm: () => void; onEdit: () => void; usesDifferentWeekendAddress: boolean; sections: Array<{ mode: string; value: Address; text: string }> }) {
@@ -527,32 +590,30 @@ function TrialIntro({ onBack, onProceed, onSkipToSubscribe }: { onBack: () => vo
 
       <View className="h-[186px] w-full items-center overflow-hidden">
         <View className="size-[314px] overflow-hidden rounded-full">
-          <Image source={confirmationMeal} accessibilityLabel="Home-style tiffin meal" resizeMode="cover" className="size-full" />
+          <Image source={foodImages['Mix of both']} accessibilityLabel="Home-style tiffin meal" resizeMode="cover" className="size-full" />
         </View>
       </View>
 
       <View className="flex-1 rounded-t-sheet bg-canvas px-5 pt-5">
-        <View className="flex-1  gap-auth-block">
+        <View className="flex-1 gap-auth-block">
           <Animated.View entering={FadeInUp.delay(30).duration(260)}>
             <FormHeader size="page" title="Let's start your 3 day trial" />
           </Animated.View>
           <Animated.View entering={FadeInUp.delay(100).duration(260)}>
             <FormPageSection subheading="Your three-day trial comes at a discounted price.">
               <View className="gap-4 rounded-field bg-accent-soft p-sheet">
-            <Text className="font-body text-body-sm text-accent">Trial benefit</Text>
-            <Text className="font-body text-body-sm leading-5 tracking-body-sm text-foreground">
-              Your three-day trial comes at a discounted price.{'\n\n'}Choose your food, meals and delivery days next. You can review everything before payment.
-            </Text>
+                <Text className="font-mono-semibold text-body-sm text-accent">Trial benefit</Text>
+                <Text className="font-body text-body-sm leading-5 tracking-body-sm text-foreground">
+                  Choose your food, meals and delivery days next. You can review everything before payment.
+                </Text>
               </View>
             </FormPageSection>
           </Animated.View>
         </View>
 
-        <Animated.View entering={FadeInUp.delay(170).duration(260)} style={{ paddingBottom: Math.max(16, insets.bottom + 8) }} className="gap-4 pt-6">
+        <Animated.View entering={FadeInUp.delay(170).duration(260)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="gap-4 pt-6">
           <TrialAuthButton label={ready ? 'Choose my trial' : 'Preparing your trial…'} enabled={ready} onPress={onProceed} />
-          <Pressable accessibilityRole="button" onPress={onSkipToSubscribe} className="h-field items-center justify-center rounded-button-inner bg-surface">
-            <Text className="font-mono-semibold text-body-md text-foreground">Skip to subscribe</Text>
-          </Pressable>
+          <GhostFieldButton label="Skip to subscribe" onPress={onSkipToSubscribe} />
         </Animated.View>
       </View>
     </View>
@@ -738,7 +799,7 @@ function TrialCalendarSheet({ initialDays, initialWeekendDelivery, initialWeeken
         const key = dateKey(date);
         const selected = selectedKeys.has(key);
         const disabled = date < today || (!!anchor && (date < minDate || date > maxDate));
-        return <View key={key} className="w-[14.285%] items-center py-1.5"><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={() => toggleDate(date)} className={`h-8 w-8 items-center justify-center rounded-full ${selected ? 'bg-accent ring-2 ring-accent ring-offset-[3px] ring-offset-sheet' : 'bg-field'} ${disabled ? 'opacity-30' : ''}`}><Text className={`font-mono-semibold text-body-sm ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{date.getDate()}</Text></Pressable></View>;
+        return <View key={key} className="w-[14.285%] items-center py-1.5"><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={() => toggleDate(date)} className={`h-8 w-8 items-center justify-center rounded-full border ${selected ? 'border-2 border-accent bg-accent ring-2 ring-accent ring-offset-[3px] ring-offset-sheet' : 'border-border bg-canvas'} ${disabled ? 'opacity-30' : ''}`}><Text className={`font-mono-semibold text-body-sm ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{date.getDate()}</Text></Pressable></View>;
       })}</View>
     </View>;
   };
@@ -781,11 +842,11 @@ export default function TrialFlow() {
 
   if (step === 'personal') return <><Shell title="Tell us about you" onBack={undefined} footer={<TrialAuthButton label="Continue" enabled={data.name.trim().length > 1 && !!data.dob && !!data.gender} onPress={next} />}><FormPageSection subheading="A few details help us personalise your trial."><View className="gap-sheet-gap"><PersonalFormField label="Full name" autoFocus value={data.name} onChangeText={(value) => set('name', value)} placeholder="Your full name" onSubmitEditing={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><PersonalDateField value={data.dob} onPress={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><View className="gap-2"><Text className="font-body text-body-sm tracking-body-sm text-foreground">Gender</Text><View className="flex-row gap-otp">{genderOptions.map((option) => <PersonalGenderCard key={option.label} label={option.label} icon={option.icon} selected={data.gender === option.label} onPress={() => set('gender', option.label)} />)}</View></View></View></FormPageSection></Shell>{dateOpen ? <DateSheet value={data.dob} onClose={() => setDateOpen(false)} onConfirm={(value) => { set('dob', value); setDateOpen(false); }} /> : null}</>;
   if (step === 'intro') return <TrialIntro onBack={back} onProceed={next} onSkipToSubscribe={() => { setData((current) => ({ ...current, food: current.food || 'Vegetarian', meal: current.meal || 'Lunch', bread: current.bread || 'Chapati', rice: current.rice || 'Plain Rice' })); setOpenSubscriptionOnHome(true); setStep('tracker'); }} />;
-  if (step === 'food') return <><Shell title="What do you enjoy eating?" onBack={back}><FormPageSection subheading="Choose one preference for your trial."><FoodPreferenceCards options={food} value={data.food} onChange={(value) => { set('food', value); setCalendarOpen(true); }} /></FormPageSection></Shell>{calendarOpen ? <TrialCalendarSheet initialDays={data.trialDays} initialWeekendDelivery={data.weekendDelivery} initialWeekendLocation={data.weekendLocation} initialWeekendAddress={data.weekendAddress} onClose={() => setCalendarOpen(false)} onConfirm={(trialDays, weekendDelivery, weekendLocation, weekendAddress) => { setData((current) => ({ ...current, trialDays, weekendDelivery, weekendLocation, weekendAddress, dailyMeals: Array.from({ length: TRIAL_DAY_COUNT }, (_, index) => current.dailyMeals[index] ?? { lunch: '', dinner: '' }) })); setCalendarOpen(false); setTimeout(next, 160); }} /> : null}</>
-  if (step === 'meal') return <Shell title="Choose your meals" onBack={back}><FormPageSection subheading="Delivery windows are fixed so every day stays predictable."><ChoiceCards options={meal} value={data.meal} onChange={(v) => { set('meal', v); setTimeout(() => { if (data.food === 'Mix of both') setStep('mixMeals'); else if (returnToSummary) { setReturnToSummary(false); setStep('summary'); } else setStep('bread'); }, 160); }} /></FormPageSection></Shell>;
+  if (step === 'food') return <><Shell title="What do you enjoy eating?" onBack={back}><FormPageSection subheading="Choose one preference for your trial."><PreferenceCards options={food} value={data.food} onChange={(value) => { set('food', value); setCalendarOpen(true); }} /></FormPageSection></Shell>{calendarOpen ? <TrialCalendarSheet initialDays={data.trialDays} initialWeekendDelivery={data.weekendDelivery} initialWeekendLocation={data.weekendLocation} initialWeekendAddress={data.weekendAddress} onClose={() => setCalendarOpen(false)} onConfirm={(trialDays, weekendDelivery, weekendLocation, weekendAddress) => { setData((current) => ({ ...current, trialDays, weekendDelivery, weekendLocation, weekendAddress, dailyMeals: Array.from({ length: TRIAL_DAY_COUNT }, (_, index) => current.dailyMeals[index] ?? { lunch: '', dinner: '' }) })); setCalendarOpen(false); setTimeout(next, 160); }} /> : null}</>
+  if (step === 'meal') return <Shell title="Choose your meals" onBack={back}><FormPageSection subheading="Delivery windows are fixed so every day stays predictable."><PreferenceCards options={meal} value={data.meal} onChange={(v) => { set('meal', v); setTimeout(() => { if (data.food === 'Mix of both') setStep('mixMeals'); else if (returnToSummary) { setReturnToSummary(false); setStep('summary'); } else setStep('bread'); }, 160); }} /></FormPageSection></Shell>;
   if (step === 'mixMeals') return <Shell title="Plan your three days" onBack={back} footer={<TrialAuthButton label="Continue" enabled={dailyMealsComplete} onPress={next} />}><FormPageSection subheading="Choose vegetarian or non-vegetarian food for each selected meal."><DailyMealPlan meal={data.meal} dates={data.trialDays} value={data.dailyMeals} onChange={(value) => set('dailyMeals', value)} /></FormPageSection></Shell>;
-  if (step === 'bread') return <Shell title="Choose your bread" onBack={() => { if (returnToSummary) back(); else setStep(data.food === 'Mix of both' ? 'mixMeals' : 'meal'); }}><FormPageSection subheading="Pick what feels most familiar at home."><ChoiceCards options={bread} value={data.bread} onChange={(v) => { set('bread', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
-  if (step === 'rice') return <Shell title="Choose your rice" onBack={back}><FormPageSection subheading="You can change this later for upcoming meals."><ChoiceCards options={rice} value={data.rice} onChange={(v) => { set('rice', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
+  if (step === 'bread') return <Shell title="Choose your bread" onBack={() => { if (returnToSummary) back(); else setStep(data.food === 'Mix of both' ? 'mixMeals' : 'meal'); }}><FormPageSection subheading="Pick what feels most familiar at home."><PreferenceCards options={bread} value={data.bread} onChange={(v) => { set('bread', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
+  if (step === 'rice') return <Shell title="Choose your rice" onBack={back}><FormPageSection subheading="You can change this later for upcoming meals."><PreferenceCards options={rice} value={data.rice} onChange={(v) => { set('rice', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
   if (step === 'locate') return <Shell title="Where should we deliver?" onBack={back} footerDelay={390} footer={<TrialAuthButton label="Next" onPress={() => { if (usesDifferentWeekendAddress && addressMode === 'weekday') { setAddressMode('weekend'); } else { setAddressMode('weekday'); next(); } }} />}><FormPageSection subheading="Search for a location, then adjust the pin on the map."><View className="gap-sheet-gap">{usesDifferentWeekendAddress ? <AddressTabs value={addressMode} onChange={setAddressMode} /> : null}<LocationPanel addressText={activeAddressText} onAddressChange={updateActiveLocation} onOpenSearch={() => setLocationSearchOpen(true)} /></View></FormPageSection></Shell>;
   if (step === 'address') { const validAddress = !!activeAddress.type && !!activeAddress.number && !!activeAddress.society; const weekdayValid = !!data.address.type && !!data.address.number && !!data.address.society; return <><Shell title="Add address details" onBack={back} footerDelay={540} footer={<TrialAuthButton label={usesDifferentWeekendAddress ? `Save ${addressMode} address` : 'Save address'} enabled={validAddress && (!usesDifferentWeekendAddress || addressMode === 'weekday' || weekdayValid)} onPress={() => { if (usesDifferentWeekendAddress && addressMode === 'weekday') setAddressMode('weekend'); else { setAddressMode('weekday'); openConfirmAddress(); } }} />}><FormPageSection subheading={usesDifferentWeekendAddress ? undefined : data.deliveryLocation}>{usesDifferentWeekendAddress ? <><AddressTabs value={addressMode} onChange={setAddressMode} /><AddressLead mode={addressMode} value={activeAddressText} /><AddressForm address={activeAddress} setAddress={addressMode === 'weekday' ? setAddress : setWeekendAddressDetails} refs={addressRefs} /></> : <AddressForm address={data.address} setAddress={setAddress} refs={addressRefs} topMargin={false} />}</FormPageSection></Shell>{confirmAddressOpen ? <ConfirmAddressSheet data={data} onClose={() => setConfirmAddressOpen(false)} onConfirm={finishAddress} onEdit={() => setConfirmAddressOpen(false)} usesDifferentWeekendAddress={usesDifferentWeekendAddress} sections={confirmSections} /> : null}</>; }
   if (step === 'summary') return <Summary data={data} meals={meals} total={total} onBack={back} onEdit={(target) => { setReturnToSummary(true); setStep(target); }} onNext={next} />;
@@ -794,12 +855,73 @@ export default function TrialFlow() {
   return <TrialHome food={data.food} meal={data.meal} dailyMeals={data.dailyMeals} bread={data.bread} rice={data.rice} address={`${data.address.number || 'B-704'}, ${data.address.society || 'Green View Apartments'}, Baner Road, Pune 411045`} openSubscriptionOnLoad={openSubscriptionOnHome} />;
 }
 
-function Row({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) { return <View className="flex-row justify-between gap-4"><Text className="font-body text-body-sm text-muted">{label}</Text><Text className={`max-w-[60%] text-right font-body-medium text-body-md leading-6 text-foreground ${bold ? 'font-mono-semibold' : ''}`}>{value}</Text></View>; }
+function Row({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <View className="flex-row items-start justify-between gap-4">
+      <Text className="max-w-[40%] shrink-0 font-body text-body-sm text-muted">{label}</Text>
+      <View className="min-w-0 flex-1">
+        <Text className={`text-right font-body-medium text-body-md leading-6 text-foreground ${bold ? 'font-mono-semibold' : ''}`}>{value}</Text>
+      </View>
+    </View>
+  );
+}
 
 function TrialConfirmation({ data, total, onContinue }: { data: State; total: number; onContinue: () => void }) {
   const insets = useSafeAreaInsets();
   const address = `${data.address.number}, ${data.address.society}, Baner Road, Pune 411045`;
-  return <View className="flex-1 bg-canvas"><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 108 }}><Animated.View entering={FadeInUp.duration(360)}><View className="mx-5 h-[250px] items-center justify-center overflow-hidden rounded-sheet bg-success-soft"><Image source={confirmationMeal} accessibilityLabel="Confirmed home-style tiffin meal" resizeMode="contain" className="h-[220px] w-[220px]" /></View><View className="mt-7 px-5 gap-sheet-gap"><FormHeader title="Your trial is confirmed" subtitle="Your payment is complete. Confirmation and important meal updates will be sent on WhatsApp." size="page" /><View><Text className="font-body text-body-sm text-muted">Confirmation number</Text><Text selectable className="mt-1 font-mono-semibold text-[24px] tracking-[0.8px] text-foreground">ST3P27JUL</Text></View><View className="h-px bg-border" /><View><Text className="font-body text-body-sm text-muted">Payment amount</Text><Text className="mt-1 font-heading text-[34px] text-foreground">₹{total}</Text></View><View className="gap-5"><View><Text className="font-body text-body-sm text-muted">Trial starts</Text><Text className="mt-1 font-body-medium text-body-md text-foreground">{data.trialDays[0] ? trialDateLabel(data.trialDays[0]) : '27 July'}</Text></View><View><Text className="font-body text-body-sm text-muted">Meal preference</Text><Text className="mt-1 font-body-medium text-body-md text-foreground">{data.meal} · {data.food}</Text></View><View><Text className="font-body text-body-sm text-muted">Bread and rice</Text><Text className="mt-1 font-body-medium text-body-md text-foreground">{data.bread} · {data.rice}</Text></View><View><Text className="font-body text-body-sm text-muted">Delivering to {data.address.label}</Text><Text className="mt-1 font-body-medium text-body-md leading-6 text-foreground">{address}</Text></View></View></View></Animated.View></ScrollView><Animated.View entering={FadeInUp.delay(360).duration(280)} style={{ paddingBottom: insets.bottom + 14 }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-3"><TrialAuthButton label="View trial tracker" onPress={onContinue} /></Animated.View></View>;
+  const dishImage = foodImages[data.food as keyof typeof foodImages] ?? foodImages.Vegetarian;
+  return (
+    <View className="flex-1 bg-surface">
+      <View style={{ paddingTop: insets.top + 8 }} className="flex-row items-center justify-between px-5 pb-4">
+        <View className="size-icon-button" />
+        <Text className="font-body text-body-sm tracking-body-sm text-foreground">sora kitchen</Text>
+      </View>
+
+      <View className="h-[186px] w-full items-center overflow-hidden">
+        <View className="size-[314px] overflow-hidden rounded-full">
+          <Image source={dishImage} accessibilityLabel={`${data.food || 'Preferred'} meal`} resizeMode="cover" className="size-full" />
+        </View>
+      </View>
+
+      <View className="flex-1 rounded-t-sheet bg-canvas">
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}>
+          <Animated.View entering={FadeInUp.duration(360)} className="px-5 pt-5 gap-sheet-gap">
+            <FormHeader title="Your trial is confirmed" subtitle="Your payment is complete. Confirmation and important meal updates will be sent on WhatsApp." size="page" />
+            <View>
+              <Text className="font-body text-body-sm text-muted">Payment amount</Text>
+              <Text className="mt-1 font-heading text-[34px] text-foreground">{formatRupee(total)}</Text>
+            </View>
+            <View className="h-px bg-border" />
+            <View className="gap-5">
+              <View>
+                <Text className="font-body text-body-sm text-muted">Confirmation number</Text>
+                <Text selectable className="mt-1 font-body-medium text-body-md text-foreground">ST3P27JUL</Text>
+              </View>
+              <View>
+                <Text className="font-body text-body-sm text-muted">Trial starts</Text>
+                <Text className="mt-1 font-body-medium text-body-md text-foreground">{data.trialDays[0] ? trialDateLabel(data.trialDays[0]) : '27 July'}</Text>
+              </View>
+              <View>
+                <Text className="font-body text-body-sm text-muted">Meal preference</Text>
+                <Text className="mt-1 font-body-medium text-body-md text-foreground">{data.meal} · {data.food}</Text>
+              </View>
+              <View>
+                <Text className="font-body text-body-sm text-muted">Bread and rice</Text>
+                <Text className="mt-1 font-body-medium text-body-md text-foreground">{data.bread} · {data.rice}</Text>
+              </View>
+              <View>
+                <Text className="font-body text-body-sm text-muted">Delivering to {data.address.label}</Text>
+                <Text className="mt-1 font-body-medium text-body-md leading-6 text-foreground">{address}</Text>
+              </View>
+            </View>
+          </Animated.View>
+        </ScrollView>
+        <Animated.View entering={FadeInUp.delay(360).duration(280)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
+          <TrialAuthButton label="View trial tracker" onPress={onContinue} />
+        </Animated.View>
+      </View>
+    </View>
+  );
 }
 function LegacySummary({ data, meals, total, onBack, onEdit, onNext }: { data: State; meals: number; total: number; onBack: () => void; onEdit: (s: Step) => void; onNext: () => void }) {
   const cards = [{ label: 'Food preference', value: data.food, step: 'food' }, { label: 'Meal preference', value: `${data.meal} · ${data.meal === 'Dinner' ? '6:30–8:30 PM' : '11:00 AM–1:00 PM'}`, step: 'meal' }, { label: 'Bread preference', value: data.bread, step: 'bread' }, { label: 'Rice preference', value: data.rice, step: 'rice' }] as const;
@@ -807,13 +929,74 @@ function LegacySummary({ data, meals, total, onBack, onEdit, onNext }: { data: S
 }
 
 function Summary({ data, meals, total, onBack, onEdit, onNext }: { data: State; meals: number; total: number; onBack: () => void; onEdit: (step: Step) => void; onNext: () => void }) {
-  const cards = [
-    { label: 'Food preference', value: data.food, step: 'food' as const },
-    { label: 'Meal preference', value: `${data.meal} · ${data.meal === 'Dinner' ? '6:30–8:30 PM' : '11:00 AM–1:00 PM'}`, step: 'meal' as const },
-    { label: 'Bread preference', value: data.bread, step: 'bread' as const },
-    { label: 'Rice preference', value: data.rice, step: 'rice' as const },
-  ];
-  return <Shell title="Your trial, at a glance" onBack={onBack} footer={<TrialAuthButton label="Proceed to payment" onPress={onNext} />}><FormPageSection subheading="Review your choices before payment."><View className="gap-4">{cards.map((card) => <View key={card.label} className="rounded-field bg-field p-sheet"><View className="flex-row items-center justify-between"><Text className="font-body text-body-xs uppercase tracking-body-sm text-muted">{card.label}</Text><EditAction onPress={() => onEdit(card.step)} /></View><Text className="mt-3 font-mono-semibold text-body-md text-foreground">{card.value}</Text><View className="mt-4 h-20 rounded-button-inner bg-canvas" /></View>)}{data.food === 'Mix of both' ? <View className="rounded-field bg-field p-sheet"><View className="flex-row items-center justify-between"><Text className="font-heading text-body-md text-foreground">Three-day food plan</Text><EditAction onPress={() => onEdit('mixMeals')} /></View><View className="mt-3 gap-2">{data.dailyMeals.map((day, index) => <View key={`summary-day-${index + 1}`} className="flex-row justify-between gap-4"><Text className="font-body text-body-sm text-muted">Day {index + 1}</Text><Text className="flex-1 text-right font-body-medium text-body-sm text-foreground">{data.meal !== 'Dinner' ? `Lunch ${day.lunch === 'Vegetarian' ? 'Veg' : 'Non-veg'}` : ''}{data.meal === 'Both' ? ' · ' : ''}{data.meal !== 'Lunch' ? `Dinner ${day.dinner === 'Vegetarian' ? 'Veg' : 'Non-veg'}` : ''}</Text></View>)}</View></View> : null}<DeliverySummary data={data} onEdit={() => onEdit('address')} /><View className="rounded-field bg-field p-sheet"><Text className="font-heading text-body-md text-foreground">Nutrition with every meal</Text><Text className="mt-2 font-body text-body-sm leading-5 text-muted">View estimated calories, protein, carbohydrates, fat, fibre and sodium for every dish.</Text><View className="mt-4 flex-row flex-wrap gap-2">{['720 kcal', '28 g protein', '92 g carbs', '24 g fat', '11 g fibre'].map((chip) => <View key={chip} className="rounded-full bg-canvas px-3 py-2"><Text className="font-body-medium text-body-xs text-foreground">{chip}</Text></View>)}</View></View><View className="rounded-field bg-field p-sheet"><Text className="font-heading text-body-md text-foreground">Three-day trial</Text><Text className="mt-2 font-body text-body-sm text-muted">{trialRangeLabel(data.trialDays)} · {meals} meals</Text></View><View className="rounded-field bg-field p-sheet"><Row label="Trial price" value="₹999" /><View className="mt-3"><Row label="Delivery charges" value="₹0" /></View><View className="mt-3"><Row label="Taxes" value="₹0" /></View><View className="mt-3"><Row label="Discount" value="−₹100" /></View><View className="my-4 h-px bg-border" /><Row label="Total payable" value={`₹${total}`} bold /></View></View></FormPageSection></Shell>;
+  const preferenceCards = [
+    { caption: 'Food preference', title: data.food, image: foodImages[data.food as keyof typeof foodImages], step: 'food' as const },
+    { caption: 'Meal preference', title: data.meal, image: foodImages[data.meal as keyof typeof foodImages], step: 'meal' as const },
+    { caption: 'Bread preference', title: data.bread, image: foodImages[data.bread as keyof typeof foodImages], step: 'bread' as const },
+    { caption: 'Rice preference', title: data.rice, image: foodImages[data.rice as keyof typeof foodImages], step: 'rice' as const },
+  ].filter((card) => !!card.image);
+  return (
+    <Shell title="Your trial, at a glance" onBack={onBack} footer={<TrialAuthButton label="Proceed to payment" onPress={onNext} />}>
+      <FormPageSection subheading="Review your choices before payment.">
+        <View className="gap-4">
+          {preferenceCards.map((card, index) => (
+            <SummaryPreferenceCard
+              key={card.caption}
+              caption={card.caption}
+              title={card.title}
+              image={card.image}
+              onEdit={() => onEdit(card.step)}
+              animationDelay={360 + index * 120}
+            />
+          ))}
+          {data.food === 'Mix of both' ? (
+            <View className="rounded-field border border-border bg-canvas p-sheet">
+              <View className="flex-row items-center justify-between">
+                <Text className="font-heading text-body-md text-foreground">Three-day food plan</Text>
+                <EditStrokeButton onPress={() => onEdit('mixMeals')} />
+              </View>
+              <View className="mt-3">
+                {data.dailyMeals.map((day, index) => (
+                  <View key={`summary-day-${index + 1}`} className="flex-row justify-between gap-4">
+                    <Text className="font-body text-body-sm text-muted">Day {index + 1}</Text>
+                    <Text className="flex-1 text-right font-body-medium text-body-sm text-foreground">
+                      {data.meal !== 'Dinner' ? `Lunch ${day.lunch === 'Vegetarian' ? 'Veg' : 'Non-veg'}` : ''}
+                      {data.meal === 'Both' ? ' · ' : ''}
+                      {data.meal !== 'Lunch' ? `Dinner ${day.dinner === 'Vegetarian' ? 'Veg' : 'Non-veg'}` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          <DeliverySummary data={data} onEdit={() => onEdit('address')} />
+          <View className="rounded-field border border-border bg-canvas p-sheet">
+            <Text className="font-heading text-body-md text-foreground">Nutrition with every meal</Text>
+            <Text className="mt-2 font-body text-body-sm leading-5 text-muted">View estimated calories, protein, carbohydrates, fat, fibre and sodium for every dish.</Text>
+            <View className="mt-4 flex-row flex-wrap gap-2">
+              {['720 kcal', '28 g protein', '92 g carbs', '24 g fat', '11 g fibre'].map((chip) => (
+                <View key={chip} className="rounded-full bg-canvas px-3 py-2">
+                  <Text className="font-body-medium text-body-xs text-foreground">{chip}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View className="rounded-field border border-border bg-canvas p-sheet">
+            <Text className="font-heading text-body-md text-foreground">Three-day trial</Text>
+            <Text className="mt-2 font-body text-body-sm text-muted">{trialRangeLabel(data.trialDays)} · {meals} meals</Text>
+          </View>
+          <View className="rounded-field border border-border bg-canvas p-sheet">
+            <Row label="Trial price" value={formatRupee(999)} />
+            <View className="mt-3"><Row label="Delivery charges" value={formatRupee(0)} /></View>
+            <View className="mt-3"><Row label="Taxes" value={formatRupee(0)} /></View>
+            <View className="mt-3"><Row label="Discount" value={`−${formatRupee(100)}`} /></View>
+            <View className="my-4 h-px bg-border" />
+            <Row label="Total payable" value={formatRupee(total)} bold />
+          </View>
+        </View>
+      </FormPageSection>
+    </Shell>
+  );
 }
 
 function Tracker({ data, paused, setPauseOpen, toast, pauseOpen, confirmPause }: { data: State; paused: boolean; setPauseOpen: (v: boolean) => void; toast: boolean; pauseOpen: boolean; confirmPause: () => void }) {

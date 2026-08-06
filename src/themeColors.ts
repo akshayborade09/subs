@@ -3,6 +3,8 @@ import { useUniwind } from 'uniwind';
 export const themePalette = {
   light: {
     accent: '#2563eb',
+    accentSoft: '#eff6ff',
+    accentMuted: '#dbeafe',
     accentForeground: '#ffffff',
     success: '#078a4b',
     muted: '#5e5e5e',
@@ -10,6 +12,8 @@ export const themePalette = {
   },
   dark: {
     accent: '#60a5fa',
+    accentSoft: '#172554',
+    accentMuted: '#132850',
     accentForeground: '#ffffff',
     success: '#55c986',
     muted: '#ababab',

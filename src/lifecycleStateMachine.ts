@@ -2,7 +2,7 @@ export type LifecycleStateId =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
   | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U'
   | 'V' | 'W' | 'X' | 'Y' | 'Z' | 'AA' | 'AB' | 'AC' | 'AD' | 'AE'
-  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM';
+  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN';
 
 export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
 export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview' | 'commerce_profile';
@@ -56,6 +56,7 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'AH', group: 'Profile and settings', title: 'App permissions', summary: 'Review location and notification access without surprise prompts.', entry: 'Permission settings', primaryAction: 'Manage permissions', destination: 'commerce_profile', tone: 'neutral' },
   { id: 'AI', group: 'Loyalty and referrals', title: 'Refer and earn', summary: 'Share a referral code and follow qualified reward progress.', entry: 'Referral centre', primaryAction: 'Share invite', destination: 'commerce_profile', tone: 'success' },
   { id: 'AJ', group: 'Loyalty and referrals', title: 'Healthy Streak progress', summary: 'Track progress toward one guaranteed free meal day.', entry: 'Loyalty programme', primaryAction: 'View reward details', destination: 'commerce_profile', tone: 'success' },
+  { id: 'AN', group: 'Loyalty and referrals', title: 'Healthy Streak progress — completed', summary: 'Qualifying month completed. One free meal day is ready to claim.', entry: 'Loyalty programme', primaryAction: 'Claim free meal', destination: 'commerce_profile', tone: 'success' },
   { id: 'AK', group: 'Loyalty and referrals', title: 'Monthly leaderboard', summary: 'View friendly monthly points without affecting guaranteed rewards.', entry: 'Leaderboard', primaryAction: 'View my rank', destination: 'commerce_profile', tone: 'success' },
   { id: 'AL', group: 'Loyalty and referrals', title: 'Free meal earned', summary: 'A qualifying paid month has unlocked one free meal day.', entry: 'Reward earned', primaryAction: 'Choose free meal day', destination: 'commerce_profile', tone: 'success' },
   { id: 'AM', group: 'Loyalty and referrals', title: 'Redeem free meal', summary: 'Select an eligible date and confirm address and meal configuration.', entry: 'Reward redemption', primaryAction: 'Confirm free meal', destination: 'commerce_profile', tone: 'success' },

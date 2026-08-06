@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated as NativeAnimated, Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useUniwind } from 'uniwind';
+import { useThemePalette } from './themeColors';
 
 const SHIMMER_WIDTH = 48;
 const SHIMMER_OVERSHOOT = 80;
 
-export function PrimaryShimmerButton({ label, onPress, enabled = true, loading = false }: { label: string; onPress: () => void; enabled?: boolean; loading?: boolean }) {
+export function PrimaryShimmerButton({ label, onPress, enabled = true, loading = false, variant = 'primary' }: { label: string; onPress: () => void; enabled?: boolean; loading?: boolean; variant?: 'primary' | 'accent' }) {
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const [width, setWidth] = useState(0);
   const shimmer = useRef(new NativeAnimated.Value(-SHIMMER_OVERSHOOT)).current;
   const showShimmer = enabled && !loading;
+  const accent = variant === 'accent';
 
   useEffect(() => {
     if (!width || !showShimmer) {
@@ -39,11 +42,11 @@ export function PrimaryShimmerButton({ label, onPress, enabled = true, loading =
         onPress={onPress}
         onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
-        className={`w-full overflow-hidden rounded-button-outer border border-foreground p-button-wrap ${enabled ? 'opacity-100' : 'opacity-40'}`}
+        className={`w-full overflow-hidden rounded-button-outer border p-button-wrap ${accent ? 'border-accent' : 'border-foreground'} ${enabled ? 'opacity-100' : 'opacity-40'}`}
       >
         <View
           onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-          className="relative h-field overflow-hidden rounded-button-inner bg-foreground"
+          className={`relative h-field overflow-hidden rounded-button-inner ${accent ? 'bg-accent' : 'bg-foreground'}`}
         >
           {showShimmer ? (
             <NativeAnimated.View
@@ -60,8 +63,36 @@ export function PrimaryShimmerButton({ label, onPress, enabled = true, loading =
             />
           ) : null}
           <View className="h-field items-center justify-center">
-            <Text className="font-mono-semibold text-body-md text-canvas">{loading ? 'Please wait…' : label}</Text>
+            <Text className={`font-mono-semibold text-body-md ${accent ? 'text-accent-foreground' : 'text-canvas'}`}>{loading ? 'Please wait…' : label}</Text>
           </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+export function AccentShimmerButton({ label, onPress, enabled = true, loading = false }: { label: string; onPress: () => void; enabled?: boolean; loading?: boolean }) {
+  return <PrimaryShimmerButton label={label} onPress={onPress} enabled={enabled} loading={loading} variant="accent" />;
+}
+
+/** Blue secondary CTA — muted accent fill on accent-soft cards, no border. */
+export function AccentSecondaryButton({ label, onPress, enabled = true }: { label: string; onPress: () => void; enabled?: boolean }) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: !enabled }}
+        disabled={!enabled}
+        onPress={onPress}
+        onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
+        className={`w-full rounded-button-outer ${enabled ? 'opacity-100' : 'opacity-40'}`}
+      >
+        <View className="h-field items-center justify-center rounded-button-inner bg-accent-muted">
+          <Text className="font-mono-semibold text-body-md text-accent">{label}</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -82,7 +113,7 @@ function GhostButton({ label, onPress, surface }: { label: string; onPress: () =
         onPress={onPress}
         onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
-        className="w-full rounded-button-outer border border-foreground p-button-wrap"
+        className="w-full rounded-button-outer"
       >
         <View className={`h-field items-center justify-center rounded-button-inner ${fillClass}`}>
           <Text className="font-mono-semibold text-body-md text-foreground">{label}</Text>
@@ -92,7 +123,7 @@ function GhostButton({ label, onPress, surface }: { label: string; onPress: () =
   );
 }
 
-/** Ghost CTA for white/canvas surfaces — white fill, black border. */
+/** Ghost CTA for white/canvas surfaces — white fill, no border. */
 export function GhostCanvasButton({ label, onPress }: { label: string; onPress: () => void }) {
   return <GhostButton label={label} onPress={onPress} surface="canvas" />;
 }
@@ -102,7 +133,71 @@ export function GhostFieldButton({ label, onPress }: { label: string; onPress: (
   return <GhostButton label={label} onPress={onPress} surface="field" />;
 }
 
+/** Yellow secondary CTA — muted warning fill on warning-soft cards. */
+export function WarningFieldButton({ label, onPress, enabled = true }: { label: string; onPress: () => void; enabled?: boolean }) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: !enabled }}
+        disabled={!enabled}
+        onPress={onPress}
+        onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
+        className={`w-full rounded-button-outer ${enabled ? 'opacity-100' : 'opacity-40'}`}
+      >
+        <View className="h-field items-center justify-center rounded-button-inner bg-warning-muted">
+          <Text className="font-mono-semibold text-body-md text-warning-emphasis">{label}</Text>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 /** @deprecated Prefer GhostFieldButton / GhostCanvasButton */
 export function SecondaryFieldButton({ label, onPress }: { label: string; onPress: () => void }) {
   return <GhostFieldButton label={label} onPress={onPress} />;
+}
+
+/** Branded toggle — muted blue track when on, accent blue thumb. */
+export function AccentSwitch({ value, onValueChange, disabled = false }: { value: boolean; onValueChange: (value: boolean) => void; disabled?: boolean }) {
+  const palette = useThemePalette();
+  const { theme } = useUniwind();
+  const dark = theme === 'dark';
+  const trackOff = dark ? '#404040' : '#d4d4d4';
+  const thumbOff = dark ? '#737373' : '#ffffff';
+  const thumbShadow = value
+    ? {
+        shadowColor: palette.accent,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: dark ? 0.5 : 0.32,
+        shadowRadius: 3,
+        elevation: 3,
+      }
+    : {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: dark ? 0.4 : 0.16,
+        shadowRadius: 2,
+        elevation: 2,
+      };
+
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={() => onValueChange(!value)}
+      style={{ backgroundColor: value ? palette.accentMuted : trackOff }}
+      className={`h-4 w-14 items-center justify-center rounded-full p-0.5 ${disabled ? 'opacity-60' : ''}`}
+    >
+      <View
+        style={{ backgroundColor: value ? palette.accent : thumbOff, ...thumbShadow }}
+        className={`size-6 w-8 items-center justify-center rounded-2xl ${value ? 'self-end' : 'self-start'}`}
+      />
+    </Pressable>
+  );
 }

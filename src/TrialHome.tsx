@@ -3,9 +3,10 @@ import { Animated as NativeAnimated, Image, KeyboardAvoidingView, PanResponder, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import Animated, { Extrapolation, FadeIn, FadeInUp, interpolate, interpolateColor, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import { type Icon, type IconWeight } from 'phosphor-react-native';
+import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
 import { HouseIcon } from 'phosphor-react-native/src/icons/House';
 import { LockKeyIcon } from 'phosphor-react-native/src/icons/LockKey';
@@ -18,17 +19,24 @@ import { UserCircleIcon } from 'phosphor-react-native/src/icons/UserCircle';
 import { WarningCircleIcon } from 'phosphor-react-native/src/icons/WarningCircle';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 import { themePalette } from './themeColors';
-import { PrimaryShimmerButton, GhostFieldButton } from './primaryButton';
+import { PrimaryShimmerButton, GhostFieldButton, GhostCanvasButton, AccentSecondaryButton } from './primaryButton';
 import {
   FormChromeSheetLayout,
   FormFieldStack,
   FormHeader,
   FormModalLayout,
   FormPageSection,
+  SectionHeading,
 } from './formLayout';
 import { headingDescriptionClass } from './typographyClasses';
+import { formatInr, formatRupee } from './formatCurrency';
+import { foodImages } from './foodImages';
 
-const mealPhoto = require('../assets/food-thali.png');
+function foodImageForPreference(preference: string) {
+  if (preference === 'Non-vegetarian') return foodImages['Non-vegetarian'];
+  if (preference === 'Mix of both') return foodImages['Mix of both'];
+  return foodImages.Vegetarian;
+}
 
 type GlyphTone = 'foreground' | 'muted' | 'accent' | 'success' | 'canvas' | 'border' | 'white';
 function HomeGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foreground' }: { icon: Icon; size?: number; weight?: IconWeight; tone?: GlyphTone }) {
@@ -60,6 +68,29 @@ const menu: MealItem[] = [
   { name: 'Salad', serving: '80 g', calories: '20 kcal', protein: '1 g' },
   { name: 'Pickle', serving: '15 g', calories: '10 kcal', protein: '0 g' },
 ];
+const nextDayMenu: MealItem[] = [
+  { name: 'Mix veg sabzi', serving: '180 g', calories: '180 kcal', protein: '6 g' },
+  { name: 'Rajma curry', serving: '160 g', calories: '210 kcal', protein: '11 g' },
+  { name: 'Chapati', serving: '3 pieces', calories: '180 kcal', protein: '5 g' },
+  { name: 'Plain rice', serving: '150 g', calories: '140 kcal', protein: '3 g' },
+  { name: 'Raita', serving: '100 g', calories: '60 kcal', protein: '3 g' },
+  { name: 'Papad', serving: '1 piece', calories: '35 kcal', protein: '2 g' },
+];
+
+function planMealsFrom(allMeals: TrialMeal[]) {
+  return allMeals
+    .filter((item) => item.isPlanDay !== false)
+    .sort((a, b) => Number(a.shortDate || a.id.replace(/\D/g, '')) - Number(b.shortDate || b.id.replace(/\D/g, '')));
+}
+
+type TiffinMenuKind = 'delivered' | 'next' | 'pending';
+
+function tiffinMenuKind(meal: TrialMeal, allMeals: TrialMeal[]): TiffinMenuKind {
+  if (meal.status === 'delivered') return 'delivered';
+  const firstUpcoming = planMealsFrom(allMeals).find((item) => item.status !== 'delivered');
+  if (firstUpcoming?.id === meal.id) return 'next';
+  return 'pending';
+}
 
 export const TRIAL_DAY_COUNT = 3;
 
@@ -290,10 +321,21 @@ export function AdaptiveSheetFrame({ children, onClose, title, onExpansionChange
 }
 
 function StatusBadge({ status }: { status: MealStatus }) {
-  const label = status === 'delivery_failed' ? 'Delivery failed' : status[0]!.toUpperCase() + status.slice(1);
-  const warning = status === 'upcoming' || status === 'delayed';
-  const danger = status === 'delivery_failed' || status === 'issue';
-  return <View className={`rounded-full px-3 py-1.5 ${status === 'delivered' ? 'bg-success-soft' : warning ? 'bg-yellow-100 dark:bg-yellow-900/60' : danger ? 'bg-red-100 dark:bg-red-950' : 'bg-surface-raised'}`}><Text className={`font-body-medium text-body-xs ${status === 'delivered' ? 'text-success' : warning ? 'text-yellow-800 dark:text-yellow-300' : danger ? 'text-red-700 dark:text-red-300' : 'text-foreground'}`}>{label}</Text></View>;
+  const config: Record<MealStatus, { label: string; bg: string }> = {
+    delivered: { label: 'Delivered', bg: 'bg-success' },
+    upcoming: { label: 'Upcoming', bg: 'bg-accent' },
+    delayed: { label: 'Delayed', bg: 'bg-[#f59e0b]' },
+    delivery_failed: { label: 'Not delivered', bg: 'bg-destructive' },
+    issue: { label: 'Issue', bg: 'bg-destructive' },
+    paused: { label: 'Paused', bg: 'bg-[#6b7280]' },
+    inactive: { label: 'Inactive', bg: 'bg-[#6b7280]' },
+  };
+  const { label, bg } = config[status];
+  return (
+    <View className={`rounded-full px-3 py-1.5 ${bg}`}>
+      <Text className="font-body-medium text-body-xs text-white">{label}</Text>
+    </View>
+  );
 }
 
 function UpcomingRipple({ color = 'green' }: { color?: 'green' | 'red' | 'orange' }) {
@@ -310,11 +352,41 @@ function TrialDayTracker({ meals, selectedId, showBoth, animateUpcoming = true, 
   return <View className="w-full flex-row">{meals.map((meal) => { const excluded = meal.isPlanDay === false; const selected = meal.id === selectedId; const markers = meal.mealMarkers?.slice(0, showBoth ? 2 : 1) ?? Array.from({ length: showBoth ? 2 : 1 }, () => ({ foodPreference: meal.foodPreference, status: meal.status })); return <View key={meal.id} className="flex-1 items-center"><Pressable disabled={excluded} accessibilityRole="button" accessibilityLabel={excluded ? `${meal.date}, no meal selected` : `Select ${meal.date}`} accessibilityState={{ selected, disabled: excluded }} onPress={() => onSelectDate(meal)} className={`h-14 w-full max-w-[46px] items-center justify-center rounded-field border ${selected ? 'border-foreground bg-canvas' : excluded ? 'border-transparent bg-field opacity-45' : 'border-border bg-field'}`}><Text className="font-mono-semibold text-body-md text-foreground">{meal.shortDate}</Text><Text className="mt-0.5 font-body text-body-xs text-muted">{meal.dayLabel}</Text></Pressable><View className="mt-2 items-center gap-1">{markers.map((marker, markerIndex) => { const nonVeg = marker.foodPreference.toLowerCase().includes('non'); const delayed = marker.status === 'delayed'; const failed = marker.status === 'delivery_failed' || marker.status === 'issue'; const active = animateUpcoming && !excluded && !upcomingRippleAssigned && (marker.status === 'upcoming' || delayed); if (active) upcomingRippleAssigned = true; const delivered = marker.status === 'delivered'; const borderColor = excluded || marker.status === 'inactive' || marker.status === 'paused' ? '#d8d8d8' : failed ? '#dc2626' : delayed ? '#f59e0b' : nonVeg ? '#dc2626' : '#078a4b'; return <Pressable key={`${meal.id}-${markerIndex}`} disabled={excluded} accessibilityRole="button" accessibilityLabel={`${markerIndex === 0 ? 'Lunch' : 'Dinner'}, ${marker.foodPreference}, ${marker.status}`} onPress={() => onOpenMeal(meal)} className={`h-7 w-9 items-center justify-center ${excluded ? 'opacity-45' : ''}`}>{active ? <UpcomingRipple color={delayed ? 'orange' : nonVeg ? 'red' : 'green'} /> : null}<View style={{ borderColor, backgroundColor: delivered || failed ? borderColor : 'transparent' }} className="h-5 w-5 items-center justify-center rounded-full border-[3px]">{delivered && !excluded ? <HomeGlyph icon={CheckIcon} size={16} weight="bold" tone="white" /> : failed && !excluded ? <HomeGlyph icon={XIcon} size={15} weight="bold" tone="white" /> : null}</View></Pressable>; })}</View></View>; })}</View>;
 }
 
-function PreferenceSummary({ meal, onEdit }: { meal: TrialMeal; onEdit?: () => void }) { return <View><View className="flex-row items-center justify-between"><Text className="font-semibold text-xl text-foreground">Selected preferences</Text>{onEdit ? <Pressable accessibilityLabel="Edit preferences for this meal" onPress={onEdit} className="h-10 w-10 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={PencilSimpleIcon} size={18} /></Pressable> : null}</View><View className="mt-3 gap-2"><Meta label="Food" value={meal.foodPreference} /><Meta label="Meal" value={meal.mealType} /><Meta label="Bread" value={meal.breadPreference} /><Meta label="Rice" value={meal.ricePreference} /></View></View>; }
-function Meta({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) { return <View className="flex-row justify-between gap-4"><Text className="font-body text-body-sm text-muted">{label}</Text><Text className={`max-w-[62%] text-right font-body-medium leading-6 text-foreground ${compact ? 'text-body-sm' : 'text-body-md'}`}>{value}</Text></View>; }
+function selectionClass(selected: boolean) {
+  return `rounded-field border bg-canvas ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`;
+}
+
+function PreferenceSummary({ meal, onEdit }: { meal: TrialMeal; onEdit?: () => void }) { return <View><View className="flex-row items-center justify-between"><SectionHeading>Selected preferences</SectionHeading>{onEdit ? <Pressable accessibilityLabel="Edit preferences for this meal" onPress={onEdit} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={PencilSimpleIcon} size={18} /></Pressable> : null}</View><View className="mt-3 gap-2"><Meta label="Food" value={meal.foodPreference} /><Meta label="Meal" value={meal.mealType} /><Meta label="Bread" value={meal.breadPreference} /><Meta label="Rice" value={meal.ricePreference} /></View></View>; }
+function Meta({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
+  return (
+    <View className="flex-row items-start justify-between gap-4">
+      <Text className="max-w-[40%] shrink-0 font-body text-body-sm text-muted">{label}</Text>
+      <View className="min-w-0 flex-1">
+        <Text className={`text-right font-body-medium leading-6 text-foreground ${compact ? 'text-body-sm' : 'text-body-md'}`}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+function TiffinMenuSection({ meal, allMeals }: { meal: TrialMeal; allMeals: TrialMeal[] }) {
+  const kind = tiffinMenuKind(meal, allMeals);
+  const title = kind === 'delivered' ? 'Today’s tiffin' : 'Tiffin menu';
+  const items = kind === 'delivered' ? (meal.items ?? menu) : kind === 'next' ? (meal.items ?? nextDayMenu) : null;
+  return (
+    <>
+      <View className="my-7 h-px bg-border" />
+      <SectionHeading>{title}</SectionHeading>
+      {kind === 'pending' ? (
+        <Text className={`mt-3 ${headingDescriptionClass}`}>Yet to be decided</Text>
+      ) : (
+        <Text className="mt-3 font-body text-body-md leading-7 text-muted">{items!.map((item) => item.name).join(', ')}</Text>
+      )}
+    </>
+  );
+}
 
 function NutritionSection({ meal }: { meal: TrialMeal }) {
-  return <View><Text className="font-semibold text-xl text-foreground">Nutrition summary</Text><View className="mt-3 gap-2"><Meta label="Calories" value={meal.nutrition.calories} /><Meta label="Protein" value={meal.nutrition.protein} /><Meta label="Carbohydrates" value={meal.nutrition.carbohydrates} /><Meta label="Fat" value={meal.nutrition.fat} /><Meta label="Fibre" value={meal.nutrition.fibre} /><Meta label="Sodium" value={meal.nutrition.sodium} /></View><Text className="mt-3 font-sans text-xs leading-5 text-muted">Nutritional values are approximate and may vary based on portion size, ingredients and preparation method.</Text></View>;
+  return <View><SectionHeading>Nutrition summary</SectionHeading><View className="mt-3 gap-2"><Meta label="Calories" value={meal.nutrition.calories} /><Meta label="Protein" value={meal.nutrition.protein} /><Meta label="Carbohydrates" value={meal.nutrition.carbohydrates} /><Meta label="Fat" value={meal.nutrition.fat} /><Meta label="Fibre" value={meal.nutrition.fibre} /><Meta label="Sodium" value={meal.nutrition.sodium} /></View><Text className="mt-3 font-body text-body-xs leading-5 text-muted">Nutritional values are approximate and may vary based on portion size, ingredients and preparation method.</Text></View>;
 }
 
 function FloatingNav({ active, onChange }: { active: 'home' | 'profile'; onChange: (tab: 'home' | 'profile') => void }) {
@@ -325,10 +397,100 @@ function FloatingNav({ active, onChange }: { active: 'home' | 'profile'; onChang
 }
 
 const feedbackOptions = ['Tasty', 'Good quantity', 'Fresh', 'Well packed', 'Too spicy', 'Less quantity', 'Packaging issue', 'Arrived cold'];
-function Feedback({ meal, onSave, onToast, onFocusTellMore }: { meal: TrialMeal; onSave: (rating: number, tags: string[], note: string) => void; onToast: (text: string) => void; onFocusTellMore: () => void }) {
-  const [rating, setRating] = useState(meal.rating ?? 0); const [tags, setTags] = useState(meal.feedbackTags ?? []); const [note, setNote] = useState(meal.feedbackNote ?? ''); const [editing, setEditing] = useState(!meal.rating);
-  if (!editing) return <View className="rounded-[16px] bg-success-soft p-4"><Text className="font-semibold text-success">Thanks for your feedback</Text><Text className={`mt-1 ${headingDescriptionClass}`}>Your meal rating has been saved locally.</Text><Pressable accessibilityRole="button" onPress={() => setEditing(true)} className="mt-2 min-h-11 justify-center"><Text className="font-semibold text-accent">Edit feedback</Text></Pressable></View>;
-  return <View><Text className="font-semibold text-xl text-foreground">How was your meal?</Text><View className="mt-3 flex-row">{[1,2,3,4,5].map((star) => <Pressable key={star} accessibilityRole="radio" accessibilityLabel={`${star} star${star > 1 ? 's' : ''}`} accessibilityState={{ checked: rating === star }} onPress={() => setRating(star)} className="h-11 w-11 items-center justify-center"><HomeGlyph icon={StarIcon} size={30} weight={star <= rating ? 'fill' : 'regular'} tone={star <= rating ? 'accent' : 'muted'} /></Pressable>)}</View><View className="mt-3 flex-row flex-wrap gap-2">{feedbackOptions.map((tag) => { const active = tags.includes(tag); return <Pressable key={tag} onPress={() => setTags(active ? tags.filter((item) => item !== tag) : [...tags, tag])} className={`min-h-11 justify-center rounded-full border px-3 ${active ? 'border-accent bg-accent' : 'border-border'}`}><Text className={`font-medium text-xs ${active ? 'text-white dark:text-black' : 'text-foreground'}`}>{tag}</Text></Pressable>; })}</View><TextInput value={note} onChangeText={setNote} onFocus={onFocusTellMore} multiline placeholder="Optional feedback" placeholderTextColor="#8b8a84" className="mt-4 min-h-[92px] rounded-xl border border-border bg-sheet p-4 font-sans text-foreground" /><View className="mt-4"><Primary label="Submit feedback" onPress={() => { if (!rating) { onToast('Choose a rating first'); return; } onSave(rating, tags, note); setEditing(false); onToast('Feedback saved'); }} /></View></View>;
+
+function feedbackThanksCopy(stars: number) {
+  if (stars >= 4) {
+    return {
+      title: 'Thank you for the love!',
+      body: 'We’re so glad this meal hit the spot. Your kind words keep our kitchen going — we’ll keep serving you food you can look forward to.',
+    };
+  }
+  return {
+    title: 'Thanks for sharing',
+    body: 'We’re sorry this meal didn’t meet expectations. Your feedback goes straight to our team and helps us cook better for you with every tiffin.',
+  };
+}
+
+function Feedback({ meal, onSave, onFocusTellMore }: { meal: TrialMeal; onSave: (rating: number, tags: string[], note: string) => void; onFocusTellMore: () => void }) {
+  const [rating, setRating] = useState(meal.rating ?? 0);
+  const [tags, setTags] = useState(meal.feedbackTags ?? []);
+  const [note, setNote] = useState(meal.feedbackNote ?? '');
+  const [editing, setEditing] = useState(!meal.rating);
+  const submittedRating = meal.rating ?? rating;
+  const thanks = feedbackThanksCopy(submittedRating);
+
+  if (!editing && submittedRating > 0) {
+    return (
+      <View className="rounded-field border border-border bg-accent-soft p-sheet">
+        <View className="flex-row items-start gap-3">
+          <View className="size-10 shrink-0 items-center justify-center rounded-full bg-canvas">
+            <HomeGlyph icon={CheckIcon} size={22} weight="bold" tone="success" />
+          </View>
+          <View className="flex-1">
+            <Text className="font-mono-semibold text-body-md text-foreground">{thanks.title}</Text>
+            <Text className={`mt-1 ${headingDescriptionClass}`}>{thanks.body}</Text>
+          </View>
+        </View>
+        <Pressable accessibilityRole="button" onPress={() => setEditing(true)} className="mt-4 min-h-11 justify-center">
+          <Text className="font-mono-semibold text-body-sm text-accent">Edit feedback</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <SectionHeading>How was your meal?</SectionHeading>
+      <View className="mt-3 flex-row">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Pressable
+            key={star}
+            accessibilityRole="radio"
+            accessibilityLabel={`${star} star${star > 1 ? 's' : ''}`}
+            accessibilityState={{ checked: rating === star }}
+            onPress={() => setRating(star)}
+            className="size-11 items-center justify-center"
+          >
+            <HomeGlyph icon={StarIcon} size={30} weight={star <= rating ? 'fill' : 'regular'} tone={star <= rating ? 'accent' : 'muted'} />
+          </Pressable>
+        ))}
+      </View>
+      {rating === 0 ? <Text className="mt-2 font-body text-body-xs text-muted">Select a star rating to submit feedback.</Text> : null}
+      <View className="mt-3 flex-row flex-wrap gap-2">
+        {feedbackOptions.map((tag) => {
+          const active = tags.includes(tag);
+          return (
+            <Pressable
+              key={tag}
+              onPress={() => setTags(active ? tags.filter((item) => item !== tag) : [...tags, tag])}
+              className={`min-h-11 justify-center rounded-field border px-3 ${active ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
+            >
+              <Text className={`font-mono-semibold text-body-xs ${active ? 'text-foreground' : 'text-muted'}`}>{tag}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <TextInput
+        value={note}
+        onChangeText={setNote}
+        onFocus={onFocusTellMore}
+        multiline
+        placeholder="Optional feedback"
+        placeholderTextColor="#8b8a84"
+        className="mt-4 min-h-[92px] rounded-field border border-border bg-field p-sheet font-body-medium text-body-md text-foreground"
+      />
+      <View className="mt-4">
+        <Primary
+          label="Submit feedback"
+          enabled={rating > 0}
+          onPress={() => {
+            onSave(rating, tags, note);
+            setEditing(false);
+          }}
+        />
+      </View>
+    </View>
+  );
 }
 
 const issueCategories = ['Meal missing', 'Wrong meal', 'Bread preference not followed', 'Rice preference not followed', 'Food quality issue', 'Packaging issue', 'Delivery issue', 'Other'];
@@ -348,9 +510,9 @@ function IssueSheet({ onClose, onSubmit }: { onClose: () => void; onSubmit: () =
                       <Pressable
                         key={item}
                         onPress={() => setCategory(item)}
-                        className={`min-h-11 justify-center rounded-full border px-3 ${category === item ? 'border-accent bg-accent' : 'border-border'}`}
+                        className={`min-h-11 justify-center rounded-field border px-3 ${category === item ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
                       >
-                        <Text className={category === item ? 'font-medium text-xs text-white dark:text-black' : 'font-medium text-xs text-foreground'}>{item}</Text>
+                        <Text className={`font-mono-semibold text-body-xs ${category === item ? 'text-foreground' : 'text-muted'}`}>{item}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -360,14 +522,14 @@ function IssueSheet({ onClose, onSubmit }: { onClose: () => void; onSubmit: () =
                     multiline
                     placeholder="Optional description"
                     placeholderTextColor="#8b8a84"
-                    className="min-h-[100px] rounded-xl border border-border bg-sheet p-4 font-sans text-foreground"
+                    className="min-h-[100px] rounded-field border border-border bg-field p-sheet font-body-medium text-body-md text-foreground"
                   />
-                  <Pressable accessibilityRole="button" className="h-24 items-center justify-center rounded-xl border border-border bg-sheet">
+                  <Pressable accessibilityRole="button" className="h-24 items-center justify-center rounded-field border border-border bg-canvas">
                     <View className="flex-row items-center gap-2">
                       <HomeGlyph icon={PlusIcon} size={18} weight="bold" tone="muted" />
-                      <Text className="font-semibold text-muted">Add photo</Text>
+                      <Text className="font-mono-semibold text-body-sm text-muted">Add photo</Text>
                     </View>
-                    <Text className="mt-1 font-sans text-xs text-muted">Local placeholder</Text>
+                    <Text className="mt-1 font-body text-body-xs text-muted">Local placeholder</Text>
                   </Pressable>
                 </FormFieldStack>
               }
@@ -381,7 +543,7 @@ function IssueSheet({ onClose, onSubmit }: { onClose: () => void; onSubmit: () =
 }
 
 function PauseSheet({ meal, onClose, onConfirm }: { meal: TrialMeal; onClose: () => void; onConfirm: () => void }) {
-  return <Overlay onClose={onClose} level={60}><Animated.View entering={FadeInUp.duration(220)} className="mx-4 mb-4 rounded-[20px] bg-canvas p-sheet"><FormModalLayout title="Pause this meal?" subtitle={`${meal.date} · ${meal.mealType}. You can reactivate it later during this preview.`} primaryAction={<Primary label="Confirm pause" onPress={onConfirm} />} secondaryAction={<Pressable accessibilityRole="button" onPress={onClose} className="h-12 items-center justify-center"><Text className="font-semibold text-foreground">Keep meal active</Text></Pressable>} /></Animated.View></Overlay>;
+  return <Overlay onClose={onClose} level={60}><Animated.View entering={FadeInUp.duration(220)} className="mx-4 mb-4 rounded-sheet bg-canvas p-sheet"><FormModalLayout title="Pause this meal?" subtitle={`${meal.date} · ${meal.mealType}. You can reactivate it later during this preview.`} primaryAction={<Primary label="Confirm pause" onPress={onConfirm} />} secondaryAction={<GhostCanvasButton label="Keep meal active" onPress={onClose} />} /></Animated.View></Overlay>;
 }
 
 const serviceablePins = new Set(['411001', '411007', '411014', '411021', '411027', '411038', '411045', '411057']);
@@ -391,7 +553,7 @@ function ChangeAddressSheet({ meal, onClose, onSave, onChangeDate }: { meal: Tri
   const [address, setAddress] = useState(meal.address);
   const checked = pin.length === 6;
   const available = checked && serviceablePins.has(pin);
-  return <Overlay onClose={onClose} level={65}><Animated.View entering={FadeInUp.duration(220)} className="mx-4 mb-4 rounded-[20px] bg-canvas p-sheet"><FormModalLayout title="Change delivery address" subtitle="We’ll confirm that the new PIN code is available before changing this meal." headerAction={<Pressable accessibilityLabel="Close address editor" onPress={onClose} className="h-10 w-10 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} /></Pressable>} fields={<><TextInput autoFocus value={pin} onChangeText={(value) => setPin(value.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" placeholder="6-digit PIN code" placeholderTextColor="#8b8a84" className="h-14 rounded-xl bg-surface px-4 font-semibold text-lg text-foreground" />{checked && !available ? <View className="rounded-[16px] bg-surface p-4"><Text className="font-semibold text-foreground">Delivery isn’t available at this PIN code.</Text><Text className={headingDescriptionClass}>You can move this meal to another available delivery date.</Text><Pressable onPress={onChangeDate} className="mt-3 min-h-11 justify-center"><Text className="font-semibold text-accent">Change delivery date</Text></Pressable></View> : null}{available ? <TextInput value={address} onChangeText={setAddress} placeholder="Full delivery address" placeholderTextColor="#8b8a84" className="min-h-14 rounded-xl bg-surface px-4 font-semibold text-lg text-foreground" /> : null}</>} primaryAction={available ? <Primary label="Save address" onPress={() => onSave(`${address.trim()} · ${pin}`)} /> : undefined} /></Animated.View></Overlay>;
+  return <Overlay onClose={onClose} level={65}><Animated.View entering={FadeInUp.duration(220)} className="mx-4 mb-4 rounded-sheet bg-canvas p-sheet"><FormModalLayout title="Change delivery address" subtitle="We’ll confirm that the new PIN code is available before changing this meal." headerAction={<Pressable accessibilityLabel="Close address editor" onPress={onClose} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} /></Pressable>} fields={<><TextInput autoFocus value={pin} onChangeText={(value) => setPin(value.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" placeholder="6-digit PIN code" placeholderTextColor="#8b8a84" className="h-field rounded-field border border-border bg-field px-sheet font-body-medium text-body-md text-foreground" />{checked && !available ? <View className="rounded-field border border-border bg-accent-soft p-sheet"><Text className="font-heading text-body-md text-foreground">Delivery isn’t available at this PIN code.</Text><Text className={headingDescriptionClass}>You can move this meal to another available delivery date.</Text><Pressable onPress={onChangeDate} className="mt-3 min-h-11 justify-center"><Text className="font-mono-semibold text-body-sm text-accent">Change delivery date</Text></Pressable></View> : null}{available ? <TextInput value={address} onChangeText={setAddress} placeholder="Full delivery address" placeholderTextColor="#8b8a84" className="min-h-field rounded-field border border-border bg-field px-sheet font-body-medium text-body-md text-foreground" /> : null}</>} primaryAction={available ? <Primary label="Save address" onPress={() => onSave(`${address.trim()} · ${pin}`)} /> : undefined} /></Animated.View></Overlay>;
 }
 
 function ChangeDateSheet({ meal, hasRemaining, onClose, onSave }: { meal: TrialMeal; hasRemaining: boolean; onClose: () => void; onSave: (date: Date, applyRemaining: boolean) => void }) {
@@ -403,7 +565,7 @@ function ChangeDateSheet({ meal, hasRemaining, onClose, onSave }: { meal: TrialM
   const [confirming, setConfirming] = useState(false);
   const commit = (applyRemaining: boolean) => selected && onSave(selected, applyRemaining);
   const selectedLabel = selected?.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-  return <Overlay onClose={onClose} level={66}><Animated.View entering={FadeInUp.duration(220)} className="mx-4 mb-4 rounded-[20px] bg-canvas p-sheet"><FormModalLayout title={confirming ? 'Change remaining meals too?' : 'Change delivery date'} subtitle={confirming ? `Change this delivery from ${meal.date} to ${selectedLabel}. Would you like to move the remaining trial meals too?` : `Change the delivery scheduled for ${meal.date} to a new date.`} headerAction={<Pressable accessibilityLabel="Close date editor" onPress={onClose} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} /></Pressable>} fields={confirming ? undefined : <View className="flex-row flex-wrap gap-2">{options.map((date) => { const active = selected?.getTime() === date.getTime(); return <Pressable key={date.toISOString()} onPress={() => setSelected(date)} className={`min-w-[88px] rounded-xl border p-3 ${active ? 'border-[3px] border-accent bg-accent/10' : 'border-border bg-surface'}`}><Text className="font-semibold text-center text-foreground">{date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text><Text className="mt-1 text-center text-xs text-muted">{date.toLocaleDateString('en-IN', { weekday: 'short' })}</Text></Pressable>; })}</View>} primaryAction={confirming ? <Primary label="Only this meal" onPress={() => commit(false)} /> : <Primary label="Continue" onPress={() => selected && (hasRemaining ? setConfirming(true) : commit(false))} enabled={!!selected} />} secondaryAction={confirming ? <Pressable onPress={() => commit(true)} className="h-14 w-full items-center justify-center rounded-xl border border-border"><Text className="font-semibold text-center text-foreground">Change this and remaining meals</Text></Pressable> : undefined} /></Animated.View></Overlay>;
+  return <Overlay onClose={onClose} level={66}><Animated.View entering={FadeInUp.duration(220)} className="mx-4 mb-4 rounded-sheet bg-canvas p-sheet"><FormModalLayout title={confirming ? 'Change remaining meals too?' : 'Change delivery date'} subtitle={confirming ? `Change this delivery from ${meal.date} to ${selectedLabel}. Would you like to move the remaining trial meals too?` : `Change the delivery scheduled for ${meal.date} to a new date.`} headerAction={<Pressable accessibilityLabel="Close date editor" onPress={onClose} className="size-icon-button shrink-0 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} /></Pressable>} fields={confirming ? undefined : <View className="flex-row flex-wrap gap-2">{options.map((date) => { const active = selected?.getTime() === date.getTime(); return <Pressable key={date.toISOString()} onPress={() => setSelected(date)} className={`min-w-[88px] p-3 ${selectionClass(active)}`}><Text className="text-center font-mono-semibold text-body-sm text-foreground">{date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text><Text className="mt-1 text-center font-body text-body-xs text-muted">{date.toLocaleDateString('en-IN', { weekday: 'short' })}</Text></Pressable>; })}</View>} primaryAction={confirming ? <Primary label="Only this meal" onPress={() => commit(false)} /> : <Primary label="Continue" onPress={() => selected && (hasRemaining ? setConfirming(true) : commit(false))} enabled={!!selected} />} secondaryAction={confirming ? <GhostCanvasButton label="Change this and remaining meals" onPress={() => commit(true)} /> : undefined} /></Animated.View></Overlay>;
 }
 
 let updateTrialMealDate: ((mealId: string, date: Date, applyRemaining: boolean) => void) | null = null;
@@ -413,12 +575,20 @@ function MealPreferencePage({ meal, onClose, onSave }: { meal: TrialMeal; onClos
   const [food, setFood] = useState(meal.foodPreference);
   const [bread, setBread] = useState(meal.breadPreference);
   const [rice, setRice] = useState(meal.ricePreference);
-  const group = (title: string, values: string[], value: string, setValue: (value: string) => void) => <View className="mt-7"><Text className="mb-3 font-semibold text-lg text-foreground">{title}</Text><View className="flex-row flex-wrap gap-2">{values.map((option) => <Pressable key={option} onPress={() => setValue(option)} className={`min-h-12 justify-center rounded-xl border px-4 ${value === option ? 'border-[3px] border-accent bg-accent/10' : 'border-border bg-surface'}`}><Text className="font-semibold text-foreground">{option}</Text></Pressable>)}</View></View>;
+  const group = (title: string, values: string[], value: string, setValue: (value: string) => void) => <View className="mt-7"><View className="mb-3"><SectionHeading>{title}</SectionHeading></View><View className="flex-row flex-wrap gap-2">{values.map((option) => <Pressable key={option} onPress={() => setValue(option)} className={`min-h-12 justify-center px-4 ${selectionClass(value === option)}`}><Text className="font-mono-semibold text-body-sm text-foreground">{option}</Text></Pressable>)}</View></View>;
   return <Animated.View entering={FadeIn.duration(180)} className="absolute inset-0 z-[70] bg-canvas"><View style={{ paddingTop: insets.top + 8 }} className="flex-row items-start justify-between px-5 pb-3"><View className="flex-1 pr-3"><FormHeader title="Edit meal preferences" subtitle={`Only for ${meal.date}`} size="sheet" /></View><Pressable onPress={onClose} className="h-10 w-10 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 120 }}>{group('Food', ['Vegetarian', 'Non-vegetarian'], food, setFood)}{group('Bread', ['Chapati', 'Bhakri', 'Any'], bread, setBread)}{group('Rice', ['Plain Rice', 'Jeera Rice', 'Any'], rice, setRice)}</ScrollView><View style={{ paddingBottom: Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-3"><Primary label="Save for this meal" onPress={() => onSave({ ...meal, foodPreference: food, breadPreference: bread, ricePreference: rice })} /></View></Animated.View>;
 }
 
-function MealDetailSheet({ meal, hasRemaining = true, onClose, onUpdate, onChangeDate, onToast }: { meal: TrialMeal; hasRemaining?: boolean; onClose: () => void; onUpdate: (meal: TrialMeal) => void; onChangeDate?: (date: Date, applyRemaining: boolean) => void; onToast: (text: string) => void }) {
-  const insets = useSafeAreaInsets(); const [issueOpen, setIssueOpen] = useState(false); const [addressOpen, setAddressOpen] = useState(false); const [dateOpen, setDateOpen] = useState(false); const [preferencesOpen, setPreferencesOpen] = useState(false); const contentRef = useRef<ScrollView>(null);
+function MealDetailSheet({ meal, allMeals, hasRemaining = true, onClose, onUpdate, onChangeDate, onToast }: { meal: TrialMeal; allMeals: TrialMeal[]; hasRemaining?: boolean; onClose: () => void; onUpdate: (meal: TrialMeal) => void; onChangeDate?: (date: Date, applyRemaining: boolean) => void; onToast: (text: string) => void }) {
+  const insets = useSafeAreaInsets();
+  const { theme } = useUniwind();
+  const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
+  const mealImage = foodImageForPreference(meal.foodPreference);
+  const [issueOpen, setIssueOpen] = useState(false);
+  const [addressOpen, setAddressOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const contentRef = useAnimatedRef<Animated.ScrollView>();
   const mockAction = (label: string) => onToast(`${label} selected`);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -426,13 +596,136 @@ function MealDetailSheet({ meal, hasRemaining = true, onClose, onUpdate, onChang
   const daysUntilMeal = Math.round((mealDate.getTime() - today.getTime()) / 86400000);
   const preferenceLocked = daysUntilMeal < 1 || (daysUntilMeal === 1 && now.getHours() >= 20);
   const deliveryCancelled = meal.status === 'delivery_failed' || meal.status === 'issue';
-  return <Animated.View entering={FadeIn.duration(180)} className="absolute inset-0 z-50 bg-canvas"><View style={{ paddingTop: insets.top + 8 }} className="h-auto min-h-16 flex-row items-end justify-between px-5 pb-3"><Text className="font-semibold text-[24px] text-foreground">Meal details</Text><Pressable accessibilityLabel="Close meal details" onPress={onClose} className="h-10 w-10 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} /></Pressable></View><ScrollView ref={contentRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}>
-    <View className="h-52 items-center justify-center overflow-hidden rounded-[16px] bg-surface"><Image source={mealPhoto} accessibilityLabel="Plate with meal ingredients" resizeMode="contain" className="h-48 w-48" /></View>
-    <View className="mt-6 flex-row items-start justify-between gap-3"><View className="flex-1 gap-auth-block"><Text className="font-semibold text-2xl leading-8 text-foreground">{meal.date}</Text><Text className={headingDescriptionClass}>{meal.mealType} · {meal.foodPreference}</Text></View><StatusBadge status={meal.status} /></View>
-    <View className="my-7 h-px bg-border" /><View className="gap-auth-block"><Text className="font-semibold text-xl text-foreground">{meal.status === 'delivered' ? `Delivered to ${meal.addressLabel}` : deliveryCancelled ? `Delivery attempted at ${meal.addressLabel}` : `Delivering to ${meal.addressLabel}`}</Text><Text className={headingDescriptionClass}>{meal.address}</Text>{meal.deliveryNote ? <Text className={headingDescriptionClass}>Note · {meal.deliveryNote}</Text> : null}</View>
-    {meal.status === 'delivered' ? <><View className="my-7 h-px bg-border" /><Text className="font-semibold text-xl text-foreground">Today’s tiffin</Text><Text className="mt-3 font-sans text-base leading-7 text-muted">{meal.items?.map((item) => item.name).join(", ")}</Text><View className="my-7 h-px bg-border" /><NutritionSection meal={meal} /><View className="my-7 h-px bg-border" /><PreferenceSummary meal={meal} /><View className="my-7 h-px bg-border" /><Feedback meal={meal} onSave={(rating, tags, note) => onUpdate({ ...meal, rating, feedbackTags: tags, feedbackNote: note })} onToast={onToast} onFocusTellMore={() => setTimeout(() => contentRef.current?.scrollToEnd({ animated: true }), 180)} /></> : deliveryCancelled ? <><View className="my-7 h-px bg-border" /><PreferenceSummary meal={meal} /><Text className={`mt-4 ${headingDescriptionClass}`}>This past delivery was cancelled. Its preferences, delivery date and delivery address can no longer be changed.</Text></> : <><View className="my-7 h-px bg-border" /><PreferenceSummary meal={meal} onEdit={preferenceLocked ? undefined : () => setPreferencesOpen(true)} />{preferenceLocked ? <Text className="mt-3 font-sans text-[13px] leading-5 text-muted">Tomorrow’s meal preferences can be changed only until 8:00 PM. Preferences for later meals remain editable.</Text> : null}<Text className="mt-4 font-sans text-[15px] leading-6 text-muted">Nutrition details will be available after the meal is prepared.</Text><View className="mt-6 gap-3"><Primary label="Change delivery address" onPress={() => setAddressOpen(true)} /><Pressable onPress={() => setDateOpen(true)} className="h-14 items-center justify-center rounded-xl border border-border"><Text className="font-semibold text-foreground">Change delivery date</Text></Pressable></View></>}
-    <Pressable accessibilityRole="button" onPress={() => setIssueOpen(true)} className="mt-6 h-12 items-center justify-center rounded-xl border border-border"><Text className="font-semibold text-foreground">Report an issue</Text></Pressable><Pressable accessibilityRole="button" onPress={() => mockAction('Contact support')} className="mt-3 min-h-11 items-center justify-center"><Text className="font-medium text-sm text-muted">Need help with this meal? <Text className="text-accent">Contact support</Text></Text></Pressable>
-  </ScrollView>{issueOpen ? <IssueSheet onClose={() => setIssueOpen(false)} onSubmit={() => { setIssueOpen(false); onToast('Issue submitted'); }} /> : null}{addressOpen ? <ChangeAddressSheet meal={meal} onClose={() => setAddressOpen(false)} onSave={(nextAddress) => { onUpdate({ ...meal, address: nextAddress, addressLabel: 'Updated address' }); setAddressOpen(false); onToast('Delivery address updated'); }} onChangeDate={() => { setAddressOpen(false); setDateOpen(true); }} /> : null}{dateOpen ? <ChangeDateSheet meal={meal} hasRemaining={hasRemaining} onClose={() => setDateOpen(false)} onSave={(date, applyRemaining) => { if (onChangeDate) onChangeDate(date, applyRemaining); else updateTrialMealDate?.(meal.id, date, applyRemaining); setDateOpen(false); }} /> : null}{preferencesOpen ? <MealPreferencePage meal={meal} onClose={() => setPreferencesOpen(false)} onSave={(updated) => { onUpdate(updated); setPreferencesOpen(false); onToast('Preferences updated for this meal only'); }} /> : null}</Animated.View>;
+
+  const headerTop = insets.top + 8;
+  const headerRowHeight = 52;
+  const heroHeight = 186;
+  const closeIconSize = 36;
+  const dockGap = 12;
+  const initialSheetTop = headerTop + headerRowHeight + heroHeight;
+  const dockedSheetTop = headerTop + closeIconSize + dockGap;
+  const collapseRange = initialSheetTop - dockedSheetTop;
+  const surfaceColor = theme === 'dark' ? '#0d0d0d' : '#f6f6f6';
+  const canvasColor = theme === 'dark' ? '#000000' : '#ffffff';
+
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = Math.max(0, event.contentOffset.y);
+    },
+    onEndDrag: (event) => {
+      if (event.contentOffset.y < 0) scrollTo(contentRef, 0, 0, true);
+    },
+    onMomentumEnd: (event) => {
+      if (event.contentOffset.y < 0) scrollTo(contentRef, 0, 0, true);
+    },
+  });
+
+  const rootBgStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(scrollY.value, [0, collapseRange], [surfaceColor, canvasColor]),
+  }));
+
+  const heroAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, collapseRange * 0.85], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(scrollY.value, [0, collapseRange], [0, -heroHeight * 0.75], Extrapolation.CLAMP) },
+      { scale: interpolate(scrollY.value, [0, collapseRange], [1, 0.5], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const sheetPositionStyle = useAnimatedStyle(() => ({
+    top: initialSheetTop - Math.min(scrollY.value, collapseRange),
+    borderTopLeftRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
+    borderTopRightRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
+  }));
+
+  const contentLiftStyle = useAnimatedStyle(() => ({
+    marginTop: -collapseRange + Math.min(scrollY.value, collapseRange),
+  }));
+
+  return (
+    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, { overflow: 'visible' }]} className="absolute inset-0 z-50 flex-1">
+      <View style={{ paddingTop: headerTop }} className="absolute inset-x-0 top-0 z-20 flex-row items-center justify-between px-5 pb-4">
+        <Pressable accessibilityRole="button" accessibilityLabel="Close meal details" onPress={onClose} hitSlop={8} className="size-icon-button items-center justify-center">
+          <XIcon size={24} weight="regular" color={iconColor} />
+        </Pressable>
+        <Text className="font-body text-body-sm tracking-body-sm text-foreground">sora kitchen</Text>
+      </View>
+
+      <View style={{ top: headerTop + headerRowHeight, height: heroHeight, overflow: 'visible' }} pointerEvents="none" className="absolute inset-x-0 z-0 items-center">
+        <Animated.View style={heroAnimatedStyle} className="size-[314px] overflow-hidden rounded-full">
+          <Image source={mealImage} accessibilityLabel={`${meal.foodPreference} home-style meal`} resizeMode="cover" className="size-full" />
+        </Animated.View>
+      </View>
+
+      <Animated.View style={[{ bottom: 0, left: 0, right: 0, position: 'absolute' }, sheetPositionStyle]} className="z-10 bg-canvas">
+        <Animated.ScrollView
+          ref={contentRef}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 40 }}
+        >
+          <View style={{ height: collapseRange }} />
+          <Animated.View style={contentLiftStyle}>
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="flex-1 gap-auth-block">
+                <FormHeader size="page" title={meal.date} subtitle={`${meal.mealType} · ${meal.foodPreference}`} />
+              </View>
+              <StatusBadge status={meal.status} />
+            </View>
+            <View className="my-7 h-px bg-border" />
+            <View className="gap-auth-block">
+              <SectionHeading>{meal.status === 'delivered' ? `Delivered to ${meal.addressLabel}` : deliveryCancelled ? `Delivery attempted at ${meal.addressLabel}` : `Delivering to ${meal.addressLabel}`}</SectionHeading>
+              <Text className={headingDescriptionClass}>{meal.address}</Text>
+              {meal.deliveryNote ? <Text className={headingDescriptionClass}>Note · {meal.deliveryNote}</Text> : null}
+            </View>
+            {!deliveryCancelled ? <TiffinMenuSection meal={meal} allMeals={allMeals} /> : null}
+            {meal.status === 'delivered' ? (
+              <>
+                <View className="my-7 h-px bg-border" />
+                <NutritionSection meal={meal} />
+                <View className="my-7 h-px bg-border" />
+                <PreferenceSummary meal={meal} />
+                <View className="my-7 h-px bg-border" />
+                <Feedback meal={meal} onSave={(rating, tags, note) => onUpdate({ ...meal, rating, feedbackTags: tags, feedbackNote: note })} onFocusTellMore={() => setTimeout(() => contentRef.current?.scrollToEnd({ animated: true }), 180)} />
+              </>
+            ) : deliveryCancelled ? (
+              <>
+                <View className="my-7 h-px bg-border" />
+                <PreferenceSummary meal={meal} />
+                <Text className={`mt-4 ${headingDescriptionClass}`}>This past delivery was cancelled. Its preferences, delivery date and delivery address can no longer be changed.</Text>
+              </>
+            ) : (
+              <>
+                <View className="my-7 h-px bg-border" />
+                <PreferenceSummary meal={meal} onEdit={preferenceLocked ? undefined : () => setPreferencesOpen(true)} />
+                {preferenceLocked ? <Text className="mt-3 font-body text-body-sm leading-5 text-muted">Tomorrow’s meal preferences can be changed only until 8:00 PM. Preferences for later meals remain editable.</Text> : null}
+                <Text className="mt-4 font-body text-body-sm leading-6 text-muted">Nutrition details will be available after the meal is prepared.</Text>
+                <View className="mt-6 gap-3">
+                  <Primary label="Change delivery address" onPress={() => setAddressOpen(true)} />
+                  <GhostFieldButton label="Change delivery date" onPress={() => setDateOpen(true)} />
+                </View>
+              </>
+            )}
+            <View className="mt-6"><GhostCanvasButton label="Report an issue" onPress={() => setIssueOpen(true)} /></View>
+            <Pressable accessibilityRole="button" onPress={() => mockAction('Contact support')} className="mt-3 min-h-11 items-center justify-center">
+              <Text className="font-body-medium text-body-sm text-muted">Need help with this meal? <Text className="text-accent">Contact support</Text></Text>
+            </Pressable>
+          </Animated.View>
+        </Animated.ScrollView>
+      </Animated.View>
+      {issueOpen ? <IssueSheet onClose={() => setIssueOpen(false)} onSubmit={() => { setIssueOpen(false); onToast('Issue submitted'); }} /> : null}
+      {addressOpen ? <ChangeAddressSheet meal={meal} onClose={() => setAddressOpen(false)} onSave={(nextAddress) => { onUpdate({ ...meal, address: nextAddress, addressLabel: 'Updated address' }); setAddressOpen(false); onToast('Delivery address updated'); }} onChangeDate={() => { setAddressOpen(false); setDateOpen(true); }} /> : null}
+      {dateOpen ? <ChangeDateSheet meal={meal} hasRemaining={hasRemaining} onClose={() => setDateOpen(false)} onSave={(date, applyRemaining) => { if (onChangeDate) onChangeDate(date, applyRemaining); else updateTrialMealDate?.(meal.id, date, applyRemaining); setDateOpen(false); }} /> : null}
+      {preferencesOpen ? <MealPreferencePage meal={meal} onClose={() => setPreferencesOpen(false)} onSave={(updated) => { onUpdate(updated); setPreferencesOpen(false); onToast('Preferences updated for this meal only'); }} /> : null}
+    </Animated.View>
+  );
 }
 
 type PlanId = 'weekly' | 'monthly' | 'quarterly';
@@ -460,59 +753,246 @@ function SubscriptionCard({ active, daysLeft, caption, title, description, butto
         : !caption && daysLeft === 3
           ? (dark ? '#facc15' : '#a16207')
           : themePalette[dark ? 'dark' : 'light'].accent;
-  return <View className="mt-6 rounded-field bg-field p-sheet"><Text style={{ color: captionColor }} className="mb-2 font-body-medium text-body-sm">{captionText}</Text><FormHeader title={title ?? (active ? 'Your nutrition tools are ready' : 'Continue your healthy meal routine')} subtitle={description ?? (active ? 'Explore your subscribed meals and personalised nutrition tools.' : 'Subscribe for fresh everyday meals and unlock personalised nutrition tools designed around your goals.')} size="sheet" /><View className="mt-3 gap-1">{features.map((feature) => <View key={feature} className="min-h-9 flex-row items-center"><View className="h-8 w-8 shrink-0 items-center justify-center">{active ? <HomeGlyph icon={CheckIcon} size={18} weight="bold" tone="success" /> : <HomeGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />}</View><Text className={`ml-3 flex-1 font-body text-body-sm ${active ? 'text-foreground' : 'text-muted'}`}>{feature}</Text></View>)}</View><View className="mt-4"><TrialAuthButton label={buttonLabel ?? (active ? 'Explore My Plan' : 'Avail Subscription')} onPress={onPress} /></View></View>;
+  return <View className="mt-6 rounded-field border border-border bg-canvas p-sheet"><Text style={{ color: captionColor }} className="mb-2 font-body-medium text-body-sm">{captionText}</Text><FormHeader title={title ?? (active ? 'Your nutrition tools are ready' : 'Continue your healthy meal routine')} subtitle={description ?? (active ? 'Explore your subscribed meals and personalised nutrition tools.' : 'Subscribe for fresh everyday meals and unlock personalised nutrition tools designed around your goals.')} size="sheet" /><View className="mt-1">{features.map((feature) => <View key={feature} className="min-h-9 flex-row items-center"><View className="h-8 w-8 shrink-0 items-center justify-center">{active ? <HomeGlyph icon={CheckIcon} size={18} weight="bold" tone="success" /> : <HomeGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />}</View><Text className={`ml-3 flex-1 font-body text-body-sm ${active ? 'text-foreground' : 'text-muted'}`}>{feature}</Text></View>)}</View><View className="mt-4"><TrialAuthButton label={buttonLabel ?? (active ? 'Explore My Plan' : 'Avail Subscription')} onPress={onPress} /></View></View>;
 }
 
 function LockedPreview({ title, description, goals }: { title: string; description?: string; goals?: string[] }) {
-  return <View className="rounded-[16px] bg-surface p-4"><FormHeader title={title} subtitle={description} size="sheet" />{goals ? <View className="mt-4 flex-row flex-wrap gap-2">{goals.map((goal) => <View key={goal} className="rounded-full bg-surface-raised px-3 py-2"><Text className="font-medium text-sm text-muted">{goal}</Text></View>)}</View> : null}</View>;
+  return (
+    <View className="rounded-field bg-field p-sheet">
+      <FormHeader title={title} subtitle={description} size="sheet" />
+      {goals ? (
+        <View className="mt-4 flex-row flex-wrap gap-2">
+          {goals.map((goal) => (
+            <View key={goal} className="rounded-full bg-canvas px-3 py-2">
+              <Text className="font-body-medium text-body-xs text-muted">{goal}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
-function LegacySubscriptionSheet({ food, bread, rice, address, initialMeal, onClose, onActivated, onToast }: { food: string; bread: string; rice: string; address: string; initialMeal: string; onClose: () => void; onActivated: (plan: string, meal: string, total: number, startDate: string) => void; onToast: (text: string) => void }) {
-  const insets = useSafeAreaInsets(); const [planId, setPlanId] = useState<PlanId>('monthly'); const [mealChoice, setMealChoice] = useState(initialMeal === 'Dinner' ? 'Dinner' : initialMeal === 'Both' ? 'Both' : 'Lunch'); const [success, setSuccess] = useState(false);
-  const selectedPlan = plans.find((plan) => plan.id === planId)!; const multiplier = mealChoice === 'Both' ? 2 : 1; const planPrice = selectedPlan.price * multiplier; const discount = selectedPlan.discount * multiplier; const trialCredit = 100; const taxes = Math.round((planPrice - discount) * 0.05); const total = planPrice - discount - trialCredit + taxes; const mealCount = selectedPlan.meals * multiplier; const perMeal = Math.round(total / mealCount);
-  if (success) return <Overlay onClose={onClose}><SheetFrame onClose={onClose} title="Subscription active"><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 32 }}><FormChromeSheetLayout fields={<><View className="items-center"><View className="h-20 w-20 items-center justify-center rounded-full bg-success-soft"><HomeGlyph icon={CheckIcon} size={30} weight="bold" tone="success" /></View><View className="mt-5 items-center gap-auth-block"><Text className="text-center font-semibold text-[24px] leading-8 tracking-[-0.5px] text-foreground">Your subscription is active</Text><Text className={`text-center ${headingDescriptionClass}`}>Your meals and nutrition tools are now ready.</Text></View></View><View className="gap-3 rounded-[16px] bg-surface p-5"><Meta label="Duration" value={selectedPlan.duration} /><Meta label="Start date" value="26 July" /><Meta label="Meal preference" value={mealChoice} /><Meta label="Delivery address" value={address} /><Meta label="Next meal" value="26 July · Lunch" /></View></>} primaryAction={<Primary label="Explore My Plan" onPress={() => { onActivated(selectedPlan.name, mealChoice, total, "26 July"); onClose(); }} />} /></ScrollView></SheetFrame></Overlay>;
-  return <Overlay onClose={onClose}><AdaptiveSheetFrame onClose={onClose} title="Choose your subscription">{(sheetControls) => <View className="flex-1"><ScrollView showsVerticalScrollIndicator={false} scrollEnabled={sheetControls.scrollEnabled} onScrollBeginDrag={sheetControls.onScrollBeginDrag} onScrollEndDrag={sheetControls.onScrollEndDrag} scrollEventThrottle={16} contentContainerStyle={{ padding: 16, paddingBottom: 112 }}><FormChromeSheetLayout subtitle="Continue with home-style meals and unlock tools that help you better understand your nutrition." fields={<><Text className="mb-3 font-semibold text-xl text-foreground">Meal selection</Text><View className="flex-row gap-2">{['Lunch', 'Dinner', 'Both'].map((choice) => <Pressable key={choice} accessibilityRole="radio" accessibilityState={{ checked: mealChoice === choice }} onPress={() => setMealChoice(choice)} className={`h-12 flex-1 items-center justify-center rounded-full border ${mealChoice === choice ? 'border-accent bg-accent' : 'border-border'}`}><Text className={mealChoice === choice ? 'font-semibold text-sm text-white dark:text-black' : 'font-semibold text-sm text-foreground'}>{choice}</Text></Pressable>)}</View><Text className="mt-3 font-sans text-[15px] leading-6 text-muted">Lunch · 11:00 AM to 1:00 PM{mealChoice === 'Both' ? '\n' : '   '}Dinner · 6:30 PM to 8:30 PM</Text><View className="mt-6 rounded-[16px] bg-surface p-4"><View className="flex-row items-center justify-between"><Text className="font-semibold text-lg text-foreground">Current preferences</Text><Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={() => onToast('Preference editor selected')} className="h-10 w-10 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={PencilSimpleIcon} size={18} weight="bold" /></Pressable></View><View className="mt-4 gap-3"><Meta compact label="Food preference" value={food} /><Meta compact label="Meal" value={mealChoice} /><Meta compact label="Bread preference" value={bread} /><Meta compact label="Rice preference" value={rice} /><Meta compact label="Primary address" value={address} /></View></View><Text className="mb-3 mt-7 font-semibold text-xl text-foreground">Subscription plans</Text><View className="gap-3">{plans.map((plan) => { const selected = plan.id === planId; const factor = mealChoice === 'Both' ? 2 : 1; const computedTotal = plan.price * factor - plan.discount * factor - trialCredit + Math.round((plan.price * factor - plan.discount * factor) * 0.05); return <Pressable key={plan.id} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => setPlanId(plan.id)} className={`rounded-[16px] border p-4 ${selected ? 'border-[3px] border-accent bg-accent/10' : 'border-border bg-canvas'}`}><View className="flex-row justify-between"><Text className="font-semibold text-lg text-foreground">{plan.name}</Text>{plan.badge ? <Text className="font-semibold text-xs text-accent">{plan.badge}</Text> : null}</View><Text className="mt-1 font-sans text-[15px] leading-6 text-muted">{plan.duration} · {plan.meals * factor} meals</Text><View className="mt-3 flex-row items-end justify-between"><Text className="font-bold text-xl text-foreground">₹{computedTotal}</Text><Text className="font-medium text-xs text-muted">₹{Math.round(computedTotal / (plan.meals * factor))}/meal · save ₹{plan.discount * factor}</Text></View></Pressable>; })}</View><Text className="mb-3 mt-7 font-semibold text-xl text-foreground">Subscription benefits</Text><Text className="font-medium text-sm text-muted">EVERY SUBSCRIPTION</Text><View className="mt-2 gap-2">{standardBenefits.map((item) => <View key={item} className="flex-row items-center gap-2"><HomeGlyph icon={CheckIcon} size={16} weight="bold" /><Text className="flex-1 font-sans text-[15px] leading-6 text-foreground">{item}</Text></View>)}</View><View className="mt-7 gap-3"><LockedPreview title="Understand your daily nutrition" description="Track estimated calories, protein, carbohydrates, fat, fibre and sodium across your subscribed meals." /><LockedPreview title="A meal plan built around your goals" goals={['Balanced meals', 'Increase protein', 'Manage calories', 'Improve meal consistency']} /></View><Text className="mb-3 mt-7 font-semibold text-xl text-foreground">Price breakdown</Text><View className="gap-3 rounded-[16px] bg-surface p-4"><Meta label="Plan price" value={`₹${planPrice}`} /><Meta label="Delivery charges" value="₹0" /><Meta label="Taxes" value={`₹${taxes}`} /><Meta label="Discount" value={`−₹${discount}`} /><Meta label="Trial credit" value={`−₹${trialCredit}`} /><View className="h-px bg-border" /><Meta label="Total payable" value={`₹${total}`} /></View></>} /></ScrollView><View style={{ paddingBottom: 16 }} className="absolute inset-x-0 bottom-0 bg-sheet px-4 pt-3"><View className="mb-3 flex-row justify-between"><Text className="font-medium text-sm text-muted">{selectedPlan.name} · ₹{perMeal}/meal</Text><Text className="font-bold text-foreground">₹{total}</Text></View><Primary label="Continue to Payment" onPress={() => setSuccess(true)} /></View></View>}</AdaptiveSheetFrame></Overlay>;
+const mealChoices = ['Lunch', 'Dinner', 'Both'] as const;
+type MealChoice = typeof mealChoices[number];
+
+function SubscriptionMealSelector({ value, onChange }: { value: MealChoice; onChange: (value: MealChoice) => void }) {
+  return (
+    <View className="flex-row gap-2">
+      {mealChoices.map((choice) => {
+        const selected = value === choice;
+        return (
+          <Pressable
+            key={choice}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            onPress={() => onChange(choice)}
+            className={`min-h-field flex-1 items-center justify-center rounded-field border bg-canvas ${selected ? 'border-2 border-accent' : 'border-border'}`}
+          >
+            <Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function SubscriptionPreferencesCard({ food, mealChoice, bread, rice, address, onEdit }: { food: string; mealChoice: string; bread: string; rice: string; address: string; onEdit: () => void }) {
+  return (
+    <View className="gap-3 rounded-field bg-field p-sheet">
+      <View className="flex-row items-center justify-between gap-3">
+        <SectionHeading>Current preferences</SectionHeading>
+        <Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={onEdit} hitSlop={8} className="size-icon-button items-center justify-center rounded-full bg-icon-surface">
+          <HomeGlyph icon={PencilSimpleIcon} size={18} weight="bold" />
+        </Pressable>
+      </View>
+      <View className="gap-3">
+        <Meta compact label="Food preference" value={food} />
+        <Meta compact label="Meal" value={mealChoice} />
+        <Meta compact label="Bread preference" value={bread} />
+        <Meta compact label="Rice preference" value={rice} />
+        <Meta compact label="Primary address" value={address} />
+      </View>
+    </View>
+  );
+}
+
+function SubscriptionPlanCard({ plan, selected, mealChoice, multiplier, trialCredit, onPress }: { plan: typeof plans[number]; selected: boolean; mealChoice: MealChoice; multiplier: number; trialCredit: number; onPress: () => void }) {
+  const computedTotal = plan.price * multiplier - plan.discount * multiplier - trialCredit + Math.round((plan.price * multiplier - plan.discount * multiplier) * 0.05);
+  const perMeal = Math.round(computedTotal / (plan.meals * multiplier));
+  const inclusion = mealChoice === 'Both' ? 'Lunch & dinner' : mealChoice;
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      onPress={onPress}
+      className={`rounded-field border p-sheet ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
+    >
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="min-w-0 flex-1">
+          <Text className="font-mono-semibold text-body-md text-foreground">{plan.name}</Text>
+          <Text className="mt-1 font-body text-body-sm text-muted">{plan.duration} · {plan.meals * multiplier} meals</Text>
+          <Text className="mt-1 font-body-medium text-body-sm text-foreground">Includes {inclusion}</Text>
+        </View>
+        {plan.badge ? (
+          <View className={`rounded-full px-2.5 py-1 ${plan.badge === 'Recommended' ? 'bg-accent' : 'bg-success'}`}>
+            <Text className="font-body-medium text-body-xs text-accent-foreground">{plan.badge}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View className="mt-4 flex-row items-end justify-between gap-3">
+        <Text className="font-heading text-heading-sm text-foreground">{formatRupee(computedTotal)}</Text>
+        <Text className="text-right font-body text-body-xs text-muted">{formatRupee(perMeal)}/meal · save {formatRupee(plan.discount * multiplier)}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function SubscriptionBenefitsSection() {
+  return (
+    <View className="gap-sheet-gap">
+      <View className="rounded-field bg-field p-sheet">
+        <Text className="font-body-medium text-body-sm text-muted">INCLUDED WITH EVERY PLAN</Text>
+        <View className="mt-3">
+          {standardBenefits.map((item) => (
+            <View key={item} className="min-h-9 flex-row items-center gap-3">
+              <HomeGlyph icon={CheckIcon} size={18} weight="bold" tone="success" />
+              <Text className="flex-1 font-body text-body-sm text-foreground">{item}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+      <View className="rounded-field bg-field p-sheet">
+        <FormHeader title="Unlock nutrition tools" subtitle="Personalised nutrition insights become available after you subscribe." size="sheet" />
+        <View className="mt-3">
+          {toolBenefits.map((item) => (
+            <View key={item} className="min-h-9 flex-row items-center gap-3">
+              <HomeGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />
+              <Text className="flex-1 font-body text-body-sm text-muted">{item}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+      <LockedPreview title="A meal plan built around your goals" goals={['Balanced meals', 'Increase protein', 'Manage calories', 'Improve meal consistency']} />
+    </View>
+  );
 }
 
 function SubscriptionSheet({ food, bread, rice, address, initialMeal, onClose, onActivated, onToast }: { food: string; bread: string; rice: string; address: string; initialMeal: string; onClose: () => void; onActivated: (plan: string, meal: string, total: number, startDate: string) => void; onToast: (text: string) => void }) {
   const insets = useSafeAreaInsets();
+  const { theme } = useUniwind();
+  const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   const [planId, setPlanId] = useState<PlanId>('monthly');
-  const [mealChoice, setMealChoice] = useState(initialMeal === 'Dinner' ? 'Dinner' : initialMeal === 'Both' ? 'Both' : 'Lunch');
+  const [mealChoice, setMealChoice] = useState<MealChoice>(initialMeal === 'Dinner' ? 'Dinner' : initialMeal === 'Both' ? 'Both' : 'Lunch');
   const [success, setSuccess] = useState(false);
   const selectedPlan = plans.find((plan) => plan.id === planId)!;
   const multiplier = mealChoice === 'Both' ? 2 : 1;
   const planPrice = selectedPlan.price * multiplier;
   const discount = selectedPlan.discount * multiplier;
+  const trialCredit = 100;
   const taxes = Math.round((planPrice - discount) * 0.05);
-  const total = planPrice - discount - 100 + taxes;
-  if (success) return <Overlay onClose={onClose}>
-    <Animated.View entering={FadeInUp.duration(240)} style={{ marginBottom: 16 }} className="mx-4 rounded-[20px] bg-canvas p-sheet">
-      <FormModalLayout
-        title="Your subscription is active"
-        subtitle="Your meals and nutrition tools are now ready."
-        headerAction={<Pressable accessibilityRole="button" accessibilityLabel="Close subscription active" onPress={onClose} className="h-10 w-10 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} weight="bold" /></Pressable>}
-        fields={<View className="gap-3 rounded-[16px] bg-surface p-4"><Meta compact label="Duration" value={selectedPlan.duration} /><Meta compact label="Start date" value="26 July" /><Meta compact label="Meal preference" value={mealChoice} /><Meta compact label="Delivery address" value={address} /><Meta compact label="Next meal" value="26 July · Lunch" /></View>}
-        primaryAction={<Primary label="Explore My Plan" onPress={() => { onActivated(selectedPlan.name, mealChoice, total, '26 July'); onClose(); }} />}
-      />
-    </Animated.View>
-  </Overlay>;
+  const total = planPrice - discount - trialCredit + taxes;
+  const perMeal = Math.round(total / (selectedPlan.meals * multiplier));
 
-  return <Animated.View entering={FadeIn.duration(180)} className="absolute inset-0 z-50 bg-canvas">
-    <View style={{ paddingTop: insets.top + 8 }} className="flex-row items-center gap-3 px-5 pb-3"><Pressable accessibilityRole="button" accessibilityLabel="Back to home" onPress={onClose} className="h-11 w-11 items-center justify-center rounded-full bg-icon-surface"><Text className="font-semibold text-2xl text-foreground">‹</Text></Pressable><Text className="font-semibold text-[24px] text-foreground">Choose your subscription</Text></View>
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 132 }}>
-      <FormChromeSheetLayout subtitle="Continue with home-style meals and unlock tools that help you better understand your nutrition." fields={<><Text className="mb-3 font-semibold text-xl text-foreground">Meal selection</Text>
-      <View className="flex-row gap-2">{['Lunch', 'Dinner', 'Both'].map((choice) => <Pressable key={choice} accessibilityRole="radio" accessibilityState={{ checked: mealChoice === choice }} onPress={() => setMealChoice(choice)} className={`h-12 flex-1 items-center justify-center rounded-full border ${mealChoice === choice ? 'border-accent bg-accent' : 'border-border'}`}><Text className={mealChoice === choice ? 'font-semibold text-sm text-white dark:text-black' : 'font-semibold text-sm text-foreground'}>{choice}</Text></Pressable>)}</View>
-      <View className="mt-6 border-y border-border py-5"><View className="flex-row items-center justify-between"><Text className="font-semibold text-lg text-foreground">Current preferences</Text><Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={() => onToast('Preference editor selected')} className="h-10 w-10 items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={PencilSimpleIcon} size={18} weight="bold" /></Pressable></View><View className="mt-4 gap-3"><Meta compact label="Food preference" value={food} /><Meta compact label="Meal" value={mealChoice} /><Meta compact label="Bread preference" value={bread} /><Meta compact label="Rice preference" value={rice} /><Meta compact label="Primary address" value={address} /></View></View>
-      <Text className="mb-3 mt-7 font-semibold text-xl text-foreground">Subscription plans</Text>
-      <View className="gap-3">{plans.map((plan) => { const selected = plan.id === planId; const computedTotal = plan.price * multiplier - plan.discount * multiplier - 100 + Math.round((plan.price * multiplier - plan.discount * multiplier) * 0.05); const inclusion = mealChoice === 'Both' ? 'Lunch & Dinner' : mealChoice; const badgeColor = plan.badge === 'Recommended' ? 'bg-accent' : 'bg-purple-600'; const selectedBorder = plan.id === 'quarterly' ? 'border-[3px] border-purple-600' : 'border-[3px] border-accent'; return <Pressable key={plan.id} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => setPlanId(plan.id)} className={`rounded-[16px] border bg-white p-4 dark:bg-surface ${selected ? selectedBorder : 'border-border'}`}><View className="flex-row items-center justify-between gap-3"><Text className="font-semibold text-lg text-foreground">{plan.name}</Text>{plan.badge ? <View className={`rounded-full px-2.5 py-1 ${badgeColor}`}><Text className="font-semibold text-xs text-white">{plan.badge}</Text></View> : null}</View><Text className="mt-1 font-sans text-[15px] text-muted">{plan.duration} · {plan.meals * multiplier} meals</Text><Text className="mt-1 font-semibold text-sm text-foreground">Includes {inclusion}</Text><Text className="mt-3 font-bold text-xl text-foreground">₹{computedTotal}</Text></Pressable>; })}</View>
-      <View className="mt-7 gap-3"><LockedPreview title="Understand your daily nutrition" description="Track estimated calories, protein, carbohydrates, fat, fibre and sodium across your subscribed meals." /><LockedPreview title="A meal plan built around your goals" goals={['Balanced meals', 'Increase protein', 'Manage calories', 'Improve meal consistency']} /></View>
-      <Text className="mb-3 mt-7 font-semibold text-xl text-foreground">Price breakdown</Text>
-      <View className="gap-3 rounded-[16px] bg-surface p-4"><Meta label="Plan price" value={`₹${planPrice}`} /><Meta label="Delivery charges" value="₹0" /><Meta label="Taxes" value={`₹${taxes}`} /><Meta label="Discount" value={`−₹${discount}`} /><Meta label="Trial credit" value="−₹100" /><View className="h-px bg-border" /><View className="flex-row items-center justify-between gap-4"><Text className="font-sans text-[15px] leading-6 text-muted">Total payable</Text><Text className="font-bold text-lg text-foreground">₹{total}</Text></View></View></>} />
-    </ScrollView><View style={{ paddingBottom: Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-3"><Primary label={`Continue to Payment · ₹${total}`} onPress={() => setSuccess(true)} /></View>
-  </Animated.View>;
+  if (success) {
+    return (
+      <Overlay onClose={onClose}>
+        <Animated.View entering={FadeInUp.duration(240)} style={{ marginBottom: 16 }} className="mx-4 rounded-sheet bg-canvas p-sheet">
+          <FormModalLayout
+            title="Your subscription is active"
+            subtitle="Your meals and nutrition tools are now ready."
+            headerAction={<Pressable accessibilityRole="button" accessibilityLabel="Close subscription active" onPress={onClose} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={XIcon} size={20} weight="bold" /></Pressable>}
+            fields={(
+              <View className="gap-3 rounded-field bg-field p-sheet">
+                <Meta compact label="Duration" value={selectedPlan.duration} />
+                <Meta compact label="Start date" value="26 July" />
+                <Meta compact label="Meal preference" value={mealChoice} />
+                <Meta compact label="Delivery address" value={address} />
+                <Meta compact label="Next meal" value="26 July · Lunch" />
+              </View>
+            )}
+            primaryAction={<Primary label="Explore My Plan" onPress={() => { onActivated(selectedPlan.name, mealChoice, total, '26 July'); onClose(); }} />}
+          />
+        </Animated.View>
+      </Overlay>
+    );
+  }
+
+  return (
+    <Animated.View entering={FadeIn.duration(180)} className="absolute inset-0 z-50 bg-canvas">
+      <View style={{ paddingTop: insets.top + 12 }} className="bg-canvas px-5 pb-1">
+        <View className="flex-row items-center gap-3">
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to home" onPress={onClose} hitSlop={8} className="size-6 items-center justify-center">
+            <CaretLeftIcon size={24} weight="regular" color={iconColor} />
+          </Pressable>
+          <Text className="flex-1 font-heading text-heading-md text-foreground">Choose your subscription</Text>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 132 }}>
+        <Animated.View entering={FadeInUp.delay(170).duration(280)} className="mx-5 mt-4 gap-sheet-gap">
+          <FormPageSection>
+            <View className="gap-sheet-gap">
+              <View className="gap-3">
+                <SectionHeading>Meal selection</SectionHeading>
+                <SubscriptionMealSelector value={mealChoice} onChange={setMealChoice} />
+                <Text className="font-body text-body-sm leading-5 text-muted">
+                  {mealChoice === 'Both' ? 'Lunch · 11:00 AM to 1:00 PM\nDinner · 6:30 PM to 8:30 PM' : mealChoice === 'Dinner' ? 'Dinner · 6:30 PM to 8:30 PM' : 'Lunch · 11:00 AM to 1:00 PM'}
+                </Text>
+              </View>
+
+              <SubscriptionPreferencesCard food={food} mealChoice={mealChoice} bread={bread} rice={rice} address={address} onEdit={() => onToast('Preference editor selected')} />
+
+              <View className="gap-3">
+                <SectionHeading>Subscription plans</SectionHeading>
+                <View className="gap-3">
+                  {plans.map((plan) => (
+                    <SubscriptionPlanCard
+                      key={plan.id}
+                      plan={plan}
+                      selected={plan.id === planId}
+                      mealChoice={mealChoice}
+                      multiplier={multiplier}
+                      trialCredit={trialCredit}
+                      onPress={() => setPlanId(plan.id)}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              <SubscriptionBenefitsSection />
+
+              <View className="gap-3">
+                <SectionHeading>Price breakdown</SectionHeading>
+                <View className="gap-3 rounded-field bg-field p-sheet">
+                  <Meta label="Plan price" value={formatRupee(planPrice)} />
+                  <Meta label="Delivery charges" value="₹0" />
+                  <Meta label="Taxes" value={formatRupee(taxes)} />
+                  <Meta label="Discount" value={`−${formatRupee(discount)}`} />
+                  <Meta label="Trial credit" value={`−${formatRupee(trialCredit)}`} />
+                  <View className="h-px bg-border" />
+                  <View className="flex-row items-center justify-between gap-4">
+                    <Text className="font-body text-body-sm text-muted">Total payable</Text>
+                    <Text className="font-mono-semibold text-body-md text-foreground">{formatRupee(total)}</Text>
+                  </View>
+                </View>
+                <Text className="font-body text-body-xs leading-5 text-muted">
+                  {selectedPlan.name} · {formatRupee(perMeal)}/meal after trial credit and savings.
+                </Text>
+              </View>
+            </View>
+          </FormPageSection>
+        </Animated.View>
+      </ScrollView>
+
+      <Animated.View entering={FadeInUp.delay(280).duration(280)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
+        <Primary label={`Continue to payment · ${formatRupee(total)}`} onPress={() => setSuccess(true)} />
+      </Animated.View>
+    </Animated.View>
+  );
 }
 
-export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, openSubscriptionOnLoad = false, lifecycleVariant = 'trial_active', onPaymentStatusPress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; openSubscriptionOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; onPaymentStatusPress?: () => void }) {
+export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, openSubscriptionOnLoad = false, lifecycleVariant = 'trial_active', onPaymentStatusPress, onProfilePress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; openSubscriptionOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; onPaymentStatusPress?: () => void; onProfilePress?: () => void }) {
   const insets = useSafeAreaInsets();
   const { theme } = useUniwind();
   const dark = theme === 'dark';
@@ -561,7 +1041,7 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
         ? { title: 'Your plan is paused', description: 'Your preferences and selected weekly schedule are saved until deliveries resume.', buttonLabel: 'Manage My Plan' }
         : undefined;
   const stateNotice = lifecycleVariant === 'trial_payment_pending'
-    ? { title: 'Check Payment Status', body: 'Return to payment status to see whether your ₹899 trial payment is confirmed.', tone: 'orange' as const, action: 'Check Payment Status' }
+    ? { title: 'Check Payment Status', body: 'Return to payment status to see whether your ₹899 trial payment is confirmed.', action: 'Check Payment Status' }
     : lifecycleVariant === 'subscription_delivery_delayed'
     ? { title: 'Delivery delayed', body: 'The 23 July delivery is delayed. The remaining selected delivery days are unchanged.', tone: 'orange' as const }
     : lifecycleVariant === 'subscription_delivery_failed'
@@ -575,7 +1055,6 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   const [detailId, setDetailId] = useState(seed.find((item) => item.isPlanDay !== false && item.status !== 'delivered')?.id ?? seed[seed.length - 1]!.id);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toast, setToast] = useState('');
-  const [activeTab, setActiveTab] = useState<'home' | 'profile'>('home');
   const [subscriptionOpen, setSubscriptionOpen] = useState(openSubscriptionOnLoad);
   const [subscription, setSubscription] = useState<{ plan: string; meal: string; total: number; startDate: string } | null>(initiallySubscribed ? { plan: 'Monthly', meal, total: 5299, startDate: '26 July' } : null);
   const eligibleMeals = meals.filter((item) => item.isPlanDay !== false);
@@ -592,14 +1071,19 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   };
   updateTrialMealDate = changeMealDate;
   const openPlan = () => subscription ? showToast(`${subscription.plan} subscription active`) : setSubscriptionOpen(true);
-  return <View className="flex-1 bg-canvas">{activeTab === 'home' ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }}><View className="px-5">
+  const stateNoticeSurfaceClass = lifecycleVariant === 'trial_payment_pending' || lifecycleVariant === 'subscription_ending'
+    ? 'rounded-field p-sheet bg-accent-soft'
+    : lifecycleVariant === 'subscription_offline' || lifecycleVariant === 'subscription_delivery_failed' || lifecycleVariant === 'subscription_delivery_delayed'
+      ? 'rounded-field p-sheet bg-warning-muted'
+      : `rounded-field border p-sheet ${stateNotice?.tone === 'red' ? 'border-destructive bg-accent-soft' : stateNotice?.tone === 'orange' ? 'border-[#f59e0b] bg-accent-soft' : 'border-accent bg-accent-soft'}`;
+  return <View className="flex-1 bg-canvas"><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }}><View className="px-5">
     <Animated.Text entering={FadeInUp.delay(20).duration(240)} className="font-body text-body-sm tracking-body-sm text-accent">{config.eyebrow}</Animated.Text>
-    <View className="gap-sheet-gap"><Animated.View entering={FadeInUp.delay(70).duration(260)}><View className="flex-row items-center justify-between gap-3"><Text className="flex-1 font-heading text-heading-md text-foreground">{config.title}</Text><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => { setActiveTab('profile'); setSheetOpen(false); }} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={UserCircleIcon} size={24} weight="bold" /></Pressable></View></Animated.View><Animated.View entering={FadeInUp.delay(130).duration(260)}><FormPageSection subheading={config.description}><View className="gap-sheet-gap">{stateNotice ? <Animated.View entering={FadeInUp.delay(190).duration(260)} style={{ backgroundColor: stateNotice.tone === 'orange' ? (dark ? '#2A1B0C' : '#FFF3E0') : stateNotice.tone === 'red' ? (dark ? '#2B1212' : '#FDECEC') : stateNotice.tone === 'blue' ? (dark ? '#101F33' : '#EAF3FF') : (dark ? '#211A2E' : '#F2ECFF') }} className="rounded-field p-sheet"><Text className="font-mono-semibold text-body-md text-foreground">{stateNotice.title}</Text><Text className="mt-1 font-body text-body-sm leading-5 text-muted">{stateNotice.body}</Text>{stateNotice.action ? <View className="mt-4">{lifecycleVariant === 'trial_payment_pending' ? <Pressable accessibilityRole="button" onPress={onPaymentStatusPress} style={{ backgroundColor: dark ? '#1F1409' : '#F2DDBB' }} className="h-field items-center justify-center rounded-button-inner px-4"><Text className="font-mono-semibold text-body-md text-foreground">{stateNotice.action}</Text></Pressable> : lifecycleVariant === 'subscription_ending' ? <Pressable accessibilityRole="button" onPress={() => showToast('Re-subscription selected')} style={{ backgroundColor: dark ? '#171020' : '#DED0F3' }} className="h-field items-center justify-center rounded-button-inner px-4"><Text className="font-mono-semibold text-body-md text-foreground">{stateNotice.action}</Text></Pressable> : <TrialAuthButton label={stateNotice.action} onPress={() => showToast('Re-subscription selected')} />}</View> : null}</Animated.View> : null}
+    <View className="gap-sheet-gap"><Animated.View entering={FadeInUp.delay(70).duration(260)}><View className="flex-row items-center justify-between gap-3"><Text className="flex-1 font-heading text-heading-md text-foreground">{config.title}</Text><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => { setSheetOpen(false); onProfilePress?.(); }} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={UserCircleIcon} size={24} weight="bold" /></Pressable></View></Animated.View><Animated.View entering={FadeInUp.delay(130).duration(260)}><FormPageSection subheading={config.description}><View className="gap-sheet-gap">{stateNotice ? <Animated.View entering={FadeInUp.delay(190).duration(260)} className={stateNoticeSurfaceClass}><Text className={`text-body-md text-foreground ${lifecycleVariant === 'subscription_offline' || lifecycleVariant === 'subscription_delivery_failed' || lifecycleVariant === 'subscription_delivery_delayed' || lifecycleVariant === 'subscription_ending' ? 'font-mono-semibold' : 'font-heading'}`}>{stateNotice.title}</Text><Text className="mt-1 font-body text-body-sm leading-5 text-muted">{stateNotice.body}</Text>{stateNotice.action ? <View className="mt-4">{lifecycleVariant === 'trial_payment_pending' ? <AccentSecondaryButton label={stateNotice.action} onPress={onPaymentStatusPress ?? (() => showToast(stateNotice.action!))} /> : lifecycleVariant === 'subscription_ending' ? <AccentSecondaryButton label={stateNotice.action} onPress={() => showToast('Re-subscription selected')} /> : <TrialAuthButton label={stateNotice.action} onPress={() => showToast('Re-subscription selected')} />}</View> : null}</Animated.View> : null}
     <Animated.View entering={FadeInUp.delay(210).duration(280)}><TrialDayTracker meals={meals} selectedId={calendarSelectedId} showBoth={(subscription?.meal ?? meal) === 'Both'} animateUpcoming={lifecycleVariant !== 'subscription_offline' && lifecycleVariant !== 'subscription_expired'} onSelectDate={() => {}} onOpenMeal={(item) => { setDetailId(item.id); setSheetOpen(true); }} /></Animated.View>
     <Animated.View entering={FadeInUp.delay(290).duration(280)}><SubscriptionCard active={!!subscription} daysLeft={daysLeft} caption={config.caption} title={planCard?.title} description={planCard?.description} buttonLabel={planCard?.buttonLabel} onPress={openPlan} /></Animated.View>
-    <Animated.View entering={FadeInUp.delay(370).duration(280)} className="rounded-field bg-field p-sheet"><View className="flex-row items-start justify-between gap-3"><View className="flex-1"><Text className="font-body text-body-sm tracking-body-sm text-muted">{config.selectedLabel}</Text><Text className="mt-2 font-heading text-heading-sm text-foreground">{selected.date}</Text><Text className="mt-1 font-body text-body-sm leading-5 text-muted">{selected.mealType} · {selected.addressLabel}</Text></View><StatusBadge status={selected.status} /></View><View className="mt-5"><HomeSecondaryButton label="View meal details" onPress={() => { setDetailId(selected.id); setSheetOpen(true); }} /></View></Animated.View></View></FormPageSection></Animated.View></View>
-  </View></ScrollView> : <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }}><View className="px-5 gap-sheet-gap"><Animated.View entering={FadeInUp.delay(30).duration(260)}><View className="flex-row items-center justify-between gap-3"><Text className="font-heading text-heading-md text-foreground">Profile</Text><Pressable accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => setActiveTab('home')} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={HouseIcon} size={22} weight="bold" /></Pressable></View></Animated.View><Animated.View entering={FadeInUp.delay(100).duration(260)}><FormPageSection subheading="Your meal preferences and delivery account."><Animated.View entering={FadeInUp.delay(170).duration(280)} className="rounded-field bg-field p-sheet"><Meta label="Food" value={food} /><View className="mt-3"><Meta label="Meal" value={meal} /></View><View className="mt-3"><Meta label="Bread" value={bread} /></View><View className="mt-3"><Meta label="Rice" value={rice} /></View><View className="mt-3"><Meta label="Address" value="Home" /></View></Animated.View></FormPageSection></Animated.View></View></ScrollView>}
-    {sheetOpen ? <MealDetailSheet meal={detailMeal} onClose={() => setSheetOpen(false)} onUpdate={updateMeal} onToast={showToast} /> : null}
+    <Animated.View entering={FadeInUp.delay(370).duration(280)} className="rounded-field border border-border bg-canvas p-sheet"><View className="flex-row items-start justify-between gap-3"><View className="flex-1"><Text className="font-body text-body-sm tracking-body-sm text-muted">{config.selectedLabel}</Text><Text className="mt-2 font-heading text-heading-sm text-foreground">{selected.date}</Text><Text className="mt-1 font-body text-body-sm leading-5 text-muted">{selected.mealType} · {selected.addressLabel}</Text></View><StatusBadge status={selected.status} /></View><View className="mt-5"><HomeSecondaryButton label="View meal details" onPress={() => { setDetailId(selected.id); setSheetOpen(true); }} /></View></Animated.View></View></FormPageSection></Animated.View></View>
+  </View></ScrollView>
+    {sheetOpen ? <MealDetailSheet meal={detailMeal} allMeals={meals} onClose={() => setSheetOpen(false)} onUpdate={updateMeal} onToast={showToast} /> : null}
     {subscriptionOpen ? <SubscriptionSheet food={food} bread={bread} rice={rice} address={address} initialMeal={meal} onClose={() => setSubscriptionOpen(false)} onToast={showToast} onActivated={(plan, selectedMeal, total, startDate) => { setSubscription({ plan, meal: selectedMeal, total, startDate }); showToast(`${plan} plan activated for ${selectedMeal}`); }} /> : null}
     {toast ? <BottomToast message={toast} onDismiss={() => setToast('')} /> : null}
   </View>;

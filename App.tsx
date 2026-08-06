@@ -702,6 +702,7 @@ function AppFlow() {
   const [machine, dispatch] = useReducer(lifecycleMachineReducer, initialLifecycleMachineState);
   const [screen, setScreen] = useState<Screen>('selector');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [homeReturnState, setHomeReturnState] = useState<LifecycleStateId | null>(null);
   const { theme } = useUniwind();
   useEffect(() => {
     if (Platform.OS !== 'web') void Location.requestForegroundPermissionsAsync();
@@ -723,7 +724,21 @@ function AppFlow() {
   const openSelector = () => {
     dispatch({ type: 'OPEN_SELECTOR' });
     setSheetOpen(false);
+    setHomeReturnState(null);
     setScreen('selector');
+  };
+  const openProfileFromHome = () => {
+    if (machine.selectedState) setHomeReturnState(machine.selectedState);
+    chooseState('AB');
+  };
+  const backFromCommerceProfile = () => {
+    if (homeReturnState) {
+      const returnState = homeReturnState;
+      setHomeReturnState(null);
+      chooseState(returnState);
+      return;
+    }
+    openSelector();
   };
   return (
     <View className="flex-1 bg-canvas">
@@ -733,9 +748,9 @@ function AppFlow() {
       </View>
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
       {screen === 'complete' ? <TrialFlow /> : null}
-      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} onPaymentStatusPress={() => setScreen('preview')} /> : null}
+      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} /> : null}
       {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} /> : null}
-      {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={machine.selectedState} stateId={machine.selectedState} onBack={openSelector} onTransition={chooseState} /> : null}
+      {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={machine.selectedState} stateId={machine.selectedState} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
       {screen !== 'selector' && screen !== 'preview' && screen !== 'stories' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-semibold text-xs text-foreground">States</Text></Pressable> : null}
     </View>

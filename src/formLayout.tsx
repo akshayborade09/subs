@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { headingDescriptionClass } from './typographyClasses';
+import { SectionHeading } from './SectionHeading';
+
+export { SectionHeading };
 
 /** Title + description — 9px apart (`gap-auth-block`). */
 export function FormHeader({

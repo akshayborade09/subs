@@ -83,8 +83,12 @@ textarea:focus {
       --color-accent: #2563eb;
       --color-accent-foreground: #ffffff;
       --color-accent-soft: #eff6ff;
+      --color-accent-muted: #dbeafe;
       --color-success: #078a4b;
       --color-success-soft: #e7f7ee;
+      --color-warning-soft: #fffbeb;
+      --color-warning-muted: #fef3c7;
+      --color-warning-emphasis: #a16207;
       --color-destructive: #ef4444;
       --color-placeholder: rgba(16, 16, 16, 0.2);
     }
@@ -106,8 +110,12 @@ textarea:focus {
       --color-accent: #60a5fa;
       --color-accent-foreground: #ffffff;
       --color-accent-soft: #172554;
+      --color-accent-muted: #132850;
       --color-success: #55c986;
       --color-success-soft: #173624;
+      --color-warning-soft: #2a1f0a;
+      --color-warning-muted: #422006;
+      --color-warning-emphasis: #fbbf24;
       --color-destructive: #f87171;
       --color-placeholder: rgba(255, 255, 255, 0.2);
     }
