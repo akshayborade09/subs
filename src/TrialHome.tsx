@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated as NativeAnimated, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -64,11 +64,24 @@ import {
 } from './mealDetailState';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
 import { SubscriptionPreferenceFlow, type SubscriptionPreferences } from './SubscriptionPreferenceFlow';
+import { MealPreferenceImage } from './MealPreferenceImage';
+import { SubscriptionPreferencePickerModal, type PickerAnchor } from './subscriptionPreferencePickerModal';
+import { type SubscriptionPreferenceKind } from './subscriptionPreferenceOptions';
 
 function foodImageForPreference(preference: string) {
   if (preference === 'Non-vegetarian') return foodImages['Non-vegetarian'];
   if (preference === 'Mix of both') return foodImages['Mix of both'];
   return foodImages.Vegetarian;
+}
+
+function preferenceImageFor(value: string) {
+  return foodImages[value as keyof typeof foodImages] ?? foodImages.Vegetarian;
+}
+
+function shortFoodPreferenceLabel(preference: string) {
+  if (preference === 'Non-vegetarian') return 'Non-veg';
+  if (preference === 'Vegetarian') return 'Veg';
+  return preference;
 }
 
 type GlyphTone = 'foreground' | 'muted' | 'accent' | 'success' | 'canvas' | 'border' | 'white';
@@ -681,7 +694,7 @@ function MealDetailSheet({
   const actionRows = buildMealDetailActions(guardContext);
   const cutoffMessage = cutoffHelperMessage(guardContext);
   const slotSkipped = planBoth ? isSlotSkipped(meal, mealSlot) : (meal.isSkipped || meal.status === 'skipped');
-  const activeSkipMetadata = planBoth ? skipMetadataForSlot(meal, mealSlot) : meal.skipMetadata;
+  const activeSkipMetadata = skipMetadataForSlot(meal, mealSlot) ?? meal.skipMetadata;
   const undoAvailable = canUndoSkip(guardContext);
   const deliveryCancelled = meal.status === 'delivery_failed' || meal.status === 'issue';
   const isSkipped = slotSkipped;
@@ -943,23 +956,105 @@ function SubscriptionMealSelector({ value, onChange }: { value: MealChoice; onCh
   );
 }
 
-function SubscriptionPreferencesCard({ food, mealChoice, bread, rice, address, onEdit }: { food: string; mealChoice: string; bread: string; rice: string; address: string; onEdit: () => void }) {
+function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, index, onPress }: { caption: string; title: string; image: number; animate: boolean; index: number; onPress: (anchor: PickerAnchor) => void }) {
+  const cardRef = useRef<View>(null);
+
+  const handlePress = () => {
+    cardRef.current?.measureInWindow((x, y, width, height) => {
+      onPress({ x, y, width, height });
+    });
+  };
+
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={hapticPress(onEdit, 'light')} className="gap-3 rounded-field bg-field p-sheet">
-      <View className="flex-row items-center justify-between gap-3">
-        <SectionHeading>Current preferences</SectionHeading>
-        <View className="size-icon-button items-center justify-center rounded-full bg-icon-surface">
-          <HomeGlyph icon={PencilSimpleIcon} size={18} weight="bold" />
-        </View>
-      </View>
-      <View className="gap-2">
-        <Meta compact label="Food preference" value={food} />
-        <Meta compact label="Meal" value={mealChoice} />
-        <Meta compact label="Bread preference" value={bread} />
-        <Meta compact label="Rice preference" value={rice} />
-        <Meta compact label="Primary address" value={address} />
+    <Pressable
+      ref={cardRef}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${caption.toLowerCase()} preference`}
+      onPress={hapticPress(handlePress, 'light')}
+      className="w-[161px] shrink-0 overflow-hidden rounded-field border border-border bg-canvas"
+    >
+      {animate ? (
+        <MealPreferenceImage source={image} label={title} delayMs={80 + index * 50} />
+      ) : (
+        <View className="h-[116px] w-full bg-field" />
+      )}
+      <View className="gap-0.5 px-3 py-2.5">
+        <Text className="font-body text-body-xs text-muted">{caption}</Text>
+        <Text className="font-mono-semibold text-body-sm text-foreground">{title}</Text>
       </View>
     </Pressable>
+  );
+}
+
+function SubscriptionPreferencesCard({
+  food,
+  mealChoice,
+  bread,
+  rice,
+  onEdit,
+  scrollSignal,
+  onOpenPicker,
+}: {
+  food: string;
+  mealChoice: string;
+  bread: string;
+  rice: string;
+  onEdit: () => void;
+  scrollSignal: number;
+  onOpenPicker: (kind: SubscriptionPreferenceKind, anchor: PickerAnchor) => void;
+}) {
+  const [animateImages, setAnimateImages] = useState(false);
+  const sectionRef = useRef<View>(null);
+  const hasAnimated = useRef(false);
+  const { height: windowHeight } = useWindowDimensions();
+  const cards: Array<{ kind: SubscriptionPreferenceKind; caption: string; title: string; image: number; value: string }> = [
+    { kind: 'food', caption: 'Food', title: shortFoodPreferenceLabel(food), image: foodImageForPreference(food), value: food },
+    { kind: 'meal', caption: 'Meal', title: mealChoice, image: preferenceImageFor(mealChoice), value: mealChoice },
+    { kind: 'bread', caption: 'Bread', title: bread, image: preferenceImageFor(bread), value: bread },
+    { kind: 'rice', caption: 'Rice', title: rice, image: preferenceImageFor(rice), value: rice },
+  ];
+
+  const revealImages = useCallback(() => {
+    if (hasAnimated.current) return;
+    sectionRef.current?.measureInWindow((_x, y, _width, height) => {
+      if (y + height * 0.2 < windowHeight) {
+        hasAnimated.current = true;
+        setAnimateImages(true);
+      }
+    });
+  }, [windowHeight]);
+
+  useEffect(() => {
+    revealImages();
+  }, [scrollSignal, revealImages]);
+
+  return (
+    <View ref={sectionRef} onLayout={revealImages} className="gap-3">
+      <View className="flex-row items-center justify-between gap-3">
+        <SectionHeading>Current preferences</SectionHeading>
+        <Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={hapticPress(onEdit, 'light')} className="size-icon-button items-center justify-center rounded-full bg-icon-surface">
+          <HomeGlyph icon={PencilSimpleIcon} size={18} weight="bold" />
+        </Pressable>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -20, overflow: 'visible' }}
+        contentContainerStyle={{ gap: 12, paddingHorizontal: 20, paddingVertical: 8 }}
+      >
+          {cards.map((card, index) => (
+            <SubscriptionPreferenceCarouselCard
+              key={card.kind}
+              caption={card.caption}
+              title={card.title}
+              image={card.image}
+              animate={animateImages}
+              index={index}
+              onPress={(anchor) => onOpenPicker(card.kind, anchor)}
+            />
+          ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -993,10 +1088,10 @@ function SubscriptionPlanCard({ plan, selected, multiplier, trialCredit, onPress
         ) : null}
       </View>
       <View className="mt-3 flex-row items-end justify-between gap-2">
-        <MoneyText amount={computedTotal} className="text-heading-sm text-foreground" />
-        <Text className="max-w-[52%] text-right font-body text-body-xs leading-4 text-muted">
-          <MoneyText amount={perMeal} className="text-body-xs text-muted" />/meal · save <MoneyText amount={savings} className="text-body-xs text-muted" />
-        </Text>
+        <Text className="font-mono-bold text-heading-sm text-foreground">{formatRupee(computedTotal)}</Text>
+        <MoneyInline className="max-w-[52%] text-right font-body text-body-xs leading-4 text-muted">
+          {`${formatRupee(perMeal)}/meal · save ${formatRupee(savings)}`}
+        </MoneyInline>
       </View>
     </Pressable>
   );
@@ -1040,6 +1135,9 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
   const [mealChoice, setMealChoice] = useState<MealChoice>(initialMeal === 'Dinner' ? 'Dinner' : initialMeal === 'Both' ? 'Both' : 'Lunch');
   const [success, setSuccess] = useState(false);
   const [preferenceFlowOpen, setPreferenceFlowOpen] = useState(false);
+  const [openPreferencePicker, setOpenPreferencePicker] = useState<SubscriptionPreferenceKind | null>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor | null>(null);
+  const [preferencesScrollSignal, setPreferencesScrollSignal] = useState(0);
   const [preferences, setPreferences] = useState<SubscriptionPreferences>({
     food: initialFood,
     meal: initialMeal,
@@ -1066,6 +1164,26 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
       onToast('Preferences updated');
     }
   };
+
+  const handlePreferencePickerSelect = (value: string) => {
+    if (openPreferencePicker === 'food') setPreferences((current) => ({ ...current, food: value }));
+    if (openPreferencePicker === 'meal') {
+      setPreferences((current) => ({ ...current, meal: value }));
+      if (value === 'Lunch' || value === 'Dinner' || value === 'Both') setMealChoice(value);
+    }
+    if (openPreferencePicker === 'bread') setPreferences((current) => ({ ...current, bread: value }));
+    if (openPreferencePicker === 'rice') setPreferences((current) => ({ ...current, rice: value }));
+  };
+
+  const preferencePickerValue = openPreferencePicker === 'food'
+    ? preferences.food
+    : openPreferencePicker === 'meal'
+      ? mealChoice
+      : openPreferencePicker === 'bread'
+        ? preferences.bread
+        : openPreferencePicker === 'rice'
+          ? preferences.rice
+          : '';
 
   if (success) {
     return (
@@ -1102,7 +1220,12 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 132 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={() => setPreferencesScrollSignal((value) => value + 1)}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 132 }}
+      >
         <Animated.View entering={FadeInUp.delay(170).duration(280)} className="mx-5 mt-4 gap-sheet-gap">
           <FormPageSection>
             <View className="gap-sheet-gap">
@@ -1130,7 +1253,18 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
                 </View>
               </View>
 
-              <SubscriptionPreferencesCard food={preferences.food} mealChoice={mealChoice} bread={preferences.bread} rice={preferences.rice} address={address} onEdit={() => setPreferenceFlowOpen(true)} />
+              <SubscriptionPreferencesCard
+                food={preferences.food}
+                mealChoice={mealChoice}
+                bread={preferences.bread}
+                rice={preferences.rice}
+                scrollSignal={preferencesScrollSignal}
+                onEdit={() => setPreferenceFlowOpen(true)}
+                onOpenPicker={(kind, anchor) => {
+                  setOpenPreferencePicker(kind);
+                  setPickerAnchor(anchor);
+                }}
+              />
 
               <SubscriptionBenefitsSection />
 
@@ -1162,6 +1296,18 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
       <Animated.View entering={FadeInUp.delay(280).duration(280)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
         <Primary label={`Continue to payment · ${formatRupee(total)}`} onPress={() => setSuccess(true)} />
       </Animated.View>
+      {openPreferencePicker && pickerAnchor ? (
+        <SubscriptionPreferencePickerModal
+          kind={openPreferencePicker}
+          value={preferencePickerValue}
+          anchor={pickerAnchor}
+          onClose={() => {
+            setOpenPreferencePicker(null);
+            setPickerAnchor(null);
+          }}
+          onSelect={handlePreferencePickerSelect}
+        />
+      ) : null}
       {preferenceFlowOpen ? (
         <SubscriptionPreferenceFlow
           initial={preferences}

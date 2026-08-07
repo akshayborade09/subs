@@ -97,6 +97,8 @@ textarea:focus {
       --color-destructive: #ef4444;
       --color-placeholder: rgba(16, 16, 16, 0.2);
       --color-overlay: rgb(0 0 0 / 0.25);
+      --color-toast: #101010;
+      --color-toast-foreground: #ffffff;
     }
 
     @variant dark {
@@ -130,6 +132,8 @@ textarea:focus {
       --color-destructive: #f87171;
       --color-placeholder: rgba(255, 255, 255, 0.2);
       --color-overlay: rgb(115 115 115 / 0.3);
+      --color-toast: #ffffff;
+      --color-toast-foreground: #101010;
     }
   }
 }

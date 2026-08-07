@@ -20,7 +20,7 @@ type MoneyTextProps = TextProps & {
 
 export function MoneyText({ amount, className = '', ...props }: MoneyTextProps) {
   return (
-    <Text {...props} className={`font-mono-semibold ${className}`.trim()}>
+    <Text {...props} className={`${className} font-mono-semibold`.trim()}>
       {formatRupee(amount)}
     </Text>
   );

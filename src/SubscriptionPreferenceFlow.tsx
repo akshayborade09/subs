@@ -7,12 +7,17 @@ import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 import { FormPageSection } from './formLayout';
 import { PrimaryShimmerButton } from './primaryButton';
 import { hapticPress } from './haptics';
-import { foodImages } from './foodImages';
 import { MealPreferenceImage } from './MealPreferenceImage';
+import {
+  subscriptionBreadOptions,
+  subscriptionFoodOptions,
+  subscriptionMealOptions,
+  subscriptionRiceOptions,
+  type PreferenceOption,
+} from './subscriptionPreferenceOptions';
 
 const PREF_DAY_COUNT = 3;
 
-type FoodChoice = { title: string; description: string; image: number };
 type DailyMealChoice = { lunch: string; dinner: string };
 
 export type SubscriptionPreferences = {
@@ -30,33 +35,21 @@ export type PreferenceCompletionMeta = {
   completed: true;
 };
 
-const foodOptions: FoodChoice[] = [
-  { title: 'Vegetarian', description: 'Seasonal vegetables, paneer and home-style dals.', image: foodImages.Vegetarian },
-  { title: 'Non-vegetarian', description: 'Home-style chicken, mutton and egg preparations.', image: foodImages['Non-vegetarian'] },
-  { title: 'Mix of both', description: 'Enjoy vegetarian and non-vegetarian meals during your trial.', image: foodImages['Mix of both'] },
-];
-const mealOptions: FoodChoice[] = [
-  { title: 'Lunch', description: 'Delivery between 11:00 AM and 1:00 PM', image: foodImages.Lunch },
-  { title: 'Dinner', description: 'Delivery between 6:30 PM and 8:30 PM', image: foodImages.Dinner },
-  { title: 'Both', description: 'Lunch and dinner every day', image: foodImages.Both },
-];
-const breadOptions: FoodChoice[] = [
-  { title: 'Chapati', description: 'Soft whole-wheat chapatis.', image: foodImages.Chapati },
-  { title: 'Bhakri', description: 'Traditional Maharashtrian bhakri.', image: foodImages.Bhakri },
-  { title: 'Any', description: 'Let us serve chapati or bhakri based on the day’s meal.', image: foodImages.Any },
-];
-const riceOptions: FoodChoice[] = [
-  { title: 'Plain Rice', description: 'Simple steamed rice.', image: foodImages['Plain Rice'] },
-  { title: 'Jeera Rice', description: 'Rice lightly tempered with cumin.', image: foodImages['Jeera Rice'] },
-];
-
 type PrefStep = 'food' | 'meal' | 'mixMeals' | 'bread' | 'rice';
 
 function selectionCardClass(selected: boolean) {
   return `overflow-hidden rounded-field border bg-canvas ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`;
 }
 
-function PreferenceCards({ options, value, onChange }: { options: FoodChoice[]; value: string; onChange: (value: string) => void }) {
+function PreferenceCardImage({ source, label, delayMs }: { source: number; label: string; delayMs: number }) {
+  return (
+    <View className="w-[161px] shrink-0 self-stretch justify-end overflow-hidden">
+      <MealPreferenceImage source={source} label={label} delayMs={delayMs} />
+    </View>
+  );
+}
+
+function PreferenceCards({ options, value, onChange }: { options: PreferenceOption[]; value: string; onChange: (value: string) => void }) {
   return (
     <View className="gap-4">
       {options.map((option, index) => {
@@ -73,7 +66,7 @@ function PreferenceCards({ options, value, onChange }: { options: FoodChoice[]; 
               <Text className="font-mono-semibold text-body-md text-foreground">{option.title}</Text>
               <Text className="font-body text-body-xs leading-5 text-muted">{option.description}</Text>
             </View>
-            <MealPreferenceImage source={option.image} label={`${option.title} meal`} delayMs={360 + index * 120} />
+            <PreferenceCardImage source={option.image} label={`${option.title} meal`} delayMs={360 + index * 120} />
           </Pressable>
         );
       })}
@@ -202,11 +195,11 @@ export function SubscriptionPreferenceFlow({
               <Text className="font-heading text-heading-md text-foreground">{copy.title}</Text>
               <View className="mt-6">
                 {step === 'food' ? (
-                  <PreferenceCards options={foodOptions} value={food} onChange={(value) => { setFood(value); setTimeout(() => goNext('meal'), 160); }} />
+                  <PreferenceCards options={subscriptionFoodOptions} value={food} onChange={(value) => { setFood(value); setTimeout(() => goNext('meal'), 160); }} />
                 ) : null}
                 {step === 'meal' ? (
                   <PreferenceCards
-                    options={mealOptions}
+                    options={subscriptionMealOptions}
                     value={meal}
                     onChange={(value) => {
                       setMeal(value);
@@ -221,10 +214,10 @@ export function SubscriptionPreferenceFlow({
                   <DailyMealPlan meal={meal} value={dailyMeals} onChange={setDailyMeals} />
                 ) : null}
                 {step === 'bread' ? (
-                  <PreferenceCards options={breadOptions} value={bread} onChange={(value) => { setBread(value); setTimeout(() => goNext('rice'), 160); }} />
+                  <PreferenceCards options={subscriptionBreadOptions} value={bread} onChange={(value) => { setBread(value); setTimeout(() => goNext('rice'), 160); }} />
                 ) : null}
                 {step === 'rice' ? (
-                  <PreferenceCards options={riceOptions} value={rice} onChange={(value) => { setRice(value); setTimeout(finish, 160); }} />
+                  <PreferenceCards options={subscriptionRiceOptions} value={rice} onChange={(value) => { setRice(value); setTimeout(finish, 160); }} />
                 ) : null}
               </View>
             </FormPageSection>

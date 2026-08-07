@@ -2,7 +2,29 @@ import { useEffect } from 'react';
 import { Image, View } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
 
-export function MealPreferenceImage({ source, label, delayMs = 0, fillHeight = false, alignBottom = false }: { source: number; label: string; delayMs?: number; fillHeight?: boolean; alignBottom?: boolean }) {
+const DEFAULT_WIDTH = 161;
+const DEFAULT_HEIGHT = 116;
+const DEFAULT_IMAGE_SIZE = 181;
+
+export function MealPreferenceImage({
+  source,
+  label,
+  delayMs = 0,
+  fillHeight = false,
+  alignBottom = false,
+  width = DEFAULT_WIDTH,
+  height = DEFAULT_HEIGHT,
+  imageSize = DEFAULT_IMAGE_SIZE,
+}: {
+  source: number;
+  label: string;
+  delayMs?: number;
+  fillHeight?: boolean;
+  alignBottom?: boolean;
+  width?: number;
+  height?: number;
+  imageSize?: number;
+}) {
   const opacity = useSharedValue(delayMs > 0 ? 0 : 1);
   const translateY = useSharedValue(delayMs > 0 ? 72 : 0);
   const scale = useSharedValue(delayMs > 0 ? 0.72 : 1);
@@ -36,23 +58,34 @@ export function MealPreferenceImage({ source, label, delayMs = 0, fillHeight = f
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
   }));
 
+  const isDefaultSize = width === DEFAULT_WIDTH && height === DEFAULT_HEIGHT && imageSize === DEFAULT_IMAGE_SIZE;
+
   const containerClass = fillHeight && alignBottom
     ? 'w-[161px] shrink-0 self-stretch overflow-hidden'
     : fillHeight
       ? 'w-[161px] shrink-0 self-stretch overflow-hidden pt-3'
-      : alignBottom
-        ? 'h-[116px] w-[161px] shrink-0 overflow-hidden'
-        : 'h-[116px] w-[161px] shrink-0 overflow-hidden pt-2';
+      : isDefaultSize
+        ? 'h-[116px] w-[161px] shrink-0 overflow-hidden pt-2'
+        : 'shrink-0 overflow-hidden pt-1';
 
+  const containerStyle = fillHeight && alignBottom
+    ? undefined
+    : fillHeight
+      ? undefined
+      : isDefaultSize
+        ? undefined
+        : { width, minWidth: width, maxWidth: width, height, minHeight: height };
+
+  const imageLeft = isDefaultSize ? 0 : (width - imageSize) / 2;
   const imageStyle = alignBottom
-    ? { position: 'absolute' as const, bottom: 0, left: 0, width: 181, height: 181 }
-    : { position: 'absolute' as const, top: 0, left: 0, width: 181, height: 181 };
+    ? { position: 'absolute' as const, bottom: 0, left: imageLeft, width: imageSize, height: imageSize }
+    : { position: 'absolute' as const, top: 0, left: imageLeft, width: imageSize, height: imageSize };
 
   return (
-    <View className={containerClass}>
+    <View className={containerClass} style={containerStyle}>
       <View className="relative h-full w-full overflow-hidden">
         <Animated.View style={[imageStyle, animatedStyle]}>
-          <Image source={source} accessibilityLabel={label} resizeMode="cover" style={{ width: 181, height: 181 }} />
+          <Image source={source} accessibilityLabel={label} resizeMode="cover" style={{ width: imageSize, height: imageSize }} />
         </Animated.View>
       </View>
     </View>
