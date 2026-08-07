@@ -56,6 +56,24 @@ export function FormValidationText({ children }: { children: ReactNode }) {
   );
 }
 
+function FormActionStack({ primaryAction, secondaryAction }: { primaryAction?: ReactNode; secondaryAction?: ReactNode }) {
+  if (!primaryAction && !secondaryAction) return null;
+  if (primaryAction && secondaryAction) {
+    return (
+      <View className="gap-2">
+        {primaryAction}
+        {secondaryAction}
+      </View>
+    );
+  }
+  return (
+    <>
+      {primaryAction}
+      {secondaryAction}
+    </>
+  );
+}
+
 export function FormFooterCopy({ children }: { children: ReactNode }) {
   return (
     <Text className="font-body text-body-xs text-center leading-5 text-foreground">{children}</Text>
@@ -123,8 +141,7 @@ export function FormChromeSheetLayout({
       {subtitle ? <Text className={headingDescriptionClass}>{subtitle}</Text> : null}
       {fields}
       {extra}
-      {primaryAction}
-      {secondaryAction}
+      <FormActionStack primaryAction={primaryAction} secondaryAction={secondaryAction} />
       {footer}
     </View>
   );
@@ -169,8 +186,7 @@ export function FormModalLayout({
       {header}
       {fields ? <FormFieldStack>{fields}</FormFieldStack> : null}
       {extra}
-      {primaryAction}
-      {secondaryAction}
+      <FormActionStack primaryAction={primaryAction} secondaryAction={secondaryAction} />
       {footer}
     </View>
   );

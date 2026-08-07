@@ -2,7 +2,7 @@ export type LifecycleStateId =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
   | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U'
   | 'V' | 'W' | 'X' | 'Y' | 'Z' | 'AA' | 'AB' | 'AC' | 'AD' | 'AE'
-  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN';
+  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN' | 'AO';
 
 export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
 export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview' | 'commerce_profile';
@@ -33,6 +33,7 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'I', group: 'Trial', title: 'Trial completed, no subscription', summary: 'Trial is finished and conversion is the priority.', entry: 'Conversion Home', primaryAction: 'Choose Subscription', secondaryAction: 'Review Trial Meals', destination: 'trial_home', tone: 'warning' },
   { id: 'J', group: 'Subscription', title: 'Subscription scheduled', summary: 'Subscription is paid and begins on a future date.', entry: 'Pre-subscription Home', primaryAction: 'Explore My Plan', destination: 'trial_home', tone: 'success' },
   { id: 'K', group: 'Subscription', title: 'Subscription active', summary: 'Normal subscriber experience with this week’s selected meals.', entry: 'Subscriber Home', primaryAction: 'View Meal Details', destination: 'trial_home', tone: 'success' },
+  { id: 'AO', group: 'Subscription', title: 'Future meal detail', summary: 'Upcoming subscription meal with address, preference, date, skip and report actions.', entry: 'Future Meal Detail', primaryAction: 'Open meal detail', destination: 'trial_home', tone: 'success' },
   { id: 'L', group: 'Subscription', title: 'No meal today', summary: 'Subscription is active without a delivery today.', entry: 'Subscriber Home', primaryAction: 'View Next Delivery', destination: 'trial_home', tone: 'neutral' },
   { id: 'M', group: 'Subscription', title: 'Subscription paused', summary: 'Deliveries are paused until the saved resume date.', entry: 'Paused Home', primaryAction: 'Resume Subscription', destination: 'trial_home', tone: 'warning' },
   { id: 'N', group: 'Subscription', title: 'Cancelled, active until end date', summary: 'Cancellation is recorded while paid meals continue.', entry: 'Subscriber Home', primaryAction: 'Reactivate Subscription', destination: 'trial_home', tone: 'warning' },

@@ -80,10 +80,15 @@ textarea:focus {
       --color-subtle: #949494; /* 2 steps toward canvas — softer than muted in light */
       --color-border: #dedede;
       --color-control-border: #dedede;
-      --color-accent: #2563eb;
+      --color-accent-lighter: #eff6ff;
+      --color-accent-light: #dbeafe;
+      --color-accent-moderate: #2563eb;
+      --color-accent-dark: #1d4ed8;
+      --color-accent-darker: #1e3a8a;
+      --color-accent: var(--color-accent-moderate);
       --color-accent-foreground: #ffffff;
-      --color-accent-soft: #eff6ff;
-      --color-accent-muted: #dbeafe;
+      --color-accent-soft: var(--color-accent-lighter);
+      --color-accent-muted: var(--color-accent-light);
       --color-success: #078a4b;
       --color-success-soft: #e7f7ee;
       --color-warning-soft: #fffbeb;
@@ -91,6 +96,7 @@ textarea:focus {
       --color-warning-emphasis: #a16207;
       --color-destructive: #ef4444;
       --color-placeholder: rgba(16, 16, 16, 0.2);
+      --color-overlay: rgb(0 0 0 / 0.25);
     }
 
     @variant dark {
@@ -107,10 +113,15 @@ textarea:focus {
       --color-subtle: #808080; /* 2 steps toward canvas — softer than muted in dark */
       --color-border: #292929;
       --color-control-border: #303030;
-      --color-accent: #60a5fa;
+      --color-accent-lighter: #172554;
+      --color-accent-light: #22386d;
+      --color-accent-moderate: #60a5fa;
+      --color-accent-dark: #3b82f6;
+      --color-accent-darker: #2563eb;
+      --color-accent: var(--color-accent-moderate);
       --color-accent-foreground: #ffffff;
-      --color-accent-soft: #172554;
-      --color-accent-muted: #132850;
+      --color-accent-soft: var(--color-accent-lighter);
+      --color-accent-muted: var(--color-accent-light);
       --color-success: #55c986;
       --color-success-soft: #173624;
       --color-warning-soft: #2a1f0a;
@@ -118,6 +129,7 @@ textarea:focus {
       --color-warning-emphasis: #fbbf24;
       --color-destructive: #f87171;
       --color-placeholder: rgba(255, 255, 255, 0.2);
+      --color-overlay: rgb(115 115 115 / 0.3);
     }
   }
 }

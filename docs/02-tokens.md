@@ -38,9 +38,15 @@ Borrowed from Astryx: their whole accent system generates from a single `color.a
 | `--color-primary-foreground` | `#FFFFFF` | `#FFFFFF` | `text-primary-foreground` |
 | `--color-secondary` | `gray-100` | `gray-800` | `bg-secondary` |
 | `--color-secondary-foreground` | `gray-900` | `gray-50` | `text-secondary-foreground` |
-| `--color-accent` | `#2563eb` | `#60a5fa` | `bg-accent`, `text-accent`, `border-accent` |
+| `--color-accent-lighter` | `#eff6ff` | `#172554` | `bg-accent-lighter` — softest accent tint (notice cards, selected chip fill) |
+| `--color-accent-light` | `#dbeafe` | `#22386d` | `bg-accent-light` — secondary accent buttons on accent-lighter surfaces |
+| `--color-accent-moderate` | `#2563eb` | `#60a5fa` | `bg-accent-moderate`, `text-accent-moderate` — main brand blue |
+| `--color-accent-dark` | `#1d4ed8` | `#3b82f6` | `bg-accent-dark`, `border-accent-dark` — emphasis, elevated button borders |
+| `--color-accent-darker` | `#1e3a8a` | `#2563eb` | `bg-accent-darker`, `text-accent-darker` — deepest accent step |
+| `--color-accent` | *(alias → moderate)* | *(alias → moderate)* | `bg-accent`, `text-accent`, `border-accent` |
 | `--color-accent-foreground` | `#ffffff` | `#ffffff` | `text-accent-foreground` |
-| `--color-accent-soft` | `#eff6ff` | `#172554` | `bg-accent-soft` — selected chips, OTP/field focus tint |
+| `--color-accent-soft` | *(alias → lighter)* | *(alias → lighter)* | `bg-accent-soft` — backward-compatible alias |
+| `--color-accent-muted` | *(alias → light)* | *(alias → light)* | `bg-accent-muted` — backward-compatible alias |
 
 ### Status
 | Token pair | Light | Dark | Class |

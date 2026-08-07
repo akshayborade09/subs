@@ -8,12 +8,15 @@ const SHIMMER_WIDTH = 48;
 const SHIMMER_OVERSHOOT = 80;
 
 export function PrimaryShimmerButton({ label, onPress, enabled = true, loading = false, variant = 'primary' }: { label: string; onPress: () => void; enabled?: boolean; loading?: boolean; variant?: 'primary' | 'accent' }) {
+  const { theme } = useUniwind();
+  const dark = theme === 'dark';
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const [width, setWidth] = useState(0);
   const shimmer = useRef(new NativeAnimated.Value(-SHIMMER_OVERSHOOT)).current;
   const showShimmer = enabled && !loading;
   const accent = variant === 'accent';
+  const shimmerColor = accent || !dark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.14)';
 
   useEffect(() => {
     if (!width || !showShimmer) {
@@ -57,9 +60,9 @@ export function PrimaryShimmerButton({ label, onPress, enabled = true, loading =
                 top: -20,
                 width: SHIMMER_WIDTH,
                 height: 92,
+                backgroundColor: shimmerColor,
                 transform: [{ translateX: shimmer }, { rotate: '18deg' }],
               }}
-              className="bg-white/25"
             />
           ) : null}
           <View className="h-field items-center justify-center">
@@ -75,10 +78,20 @@ export function AccentShimmerButton({ label, onPress, enabled = true, loading = 
   return <PrimaryShimmerButton label={label} onPress={onPress} enabled={enabled} loading={loading} variant="accent" />;
 }
 
-/** Blue secondary CTA — muted accent fill on accent-soft cards, no border. */
-export function AccentSecondaryButton({ label, onPress, enabled = true }: { label: string; onPress: () => void; enabled?: boolean }) {
+/** Secondary accent surface on accent-lighter cards — matches payment-status elevated styling in dark mode. */
+export function accentSecondarySurfaceClass({ elevated = false, dark = false }: { elevated?: boolean; dark?: boolean } = {}) {
+  const useElevated = elevated && dark;
+  return useElevated ? 'border border-accent-dark/35 bg-accent-light' : 'bg-accent-light';
+}
+
+/** Blue secondary CTA — accent-light fill on accent-lighter cards. Use elevated on dark accent-lighter notices. */
+export function AccentSecondaryButton({ label, onPress, enabled = true, elevated = false }: { label: string; onPress: () => void; enabled?: boolean; elevated?: boolean }) {
+  const { theme } = useUniwind();
+  const dark = theme === 'dark';
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const fillClass = accentSecondarySurfaceClass({ elevated, dark });
+  const textClass = 'text-accent';
   return (
     <Animated.View style={animatedStyle}>
       <Pressable
@@ -91,8 +104,8 @@ export function AccentSecondaryButton({ label, onPress, enabled = true }: { labe
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
         className={`w-full rounded-button-outer ${enabled ? 'opacity-100' : 'opacity-40'}`}
       >
-        <View className="h-field items-center justify-center rounded-button-inner bg-accent-muted">
-          <Text className="font-mono-semibold text-body-md text-accent">{label}</Text>
+        <View className={`h-field items-center justify-center rounded-button-inner ${fillClass}`}>
+          <Text className={`font-mono-semibold text-body-md ${textClass}`}>{label}</Text>
         </View>
       </Pressable>
     </Animated.View>

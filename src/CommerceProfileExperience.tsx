@@ -6,7 +6,7 @@ import type { Icon } from 'phosphor-react-native';
 import { headingDescriptionClass } from './typographyClasses';
 import { formatRupee } from './formatCurrency';
 import { FormHeader, FormPageSection, SectionHeading } from './formLayout';
-import { GhostCanvasButton, GhostFieldButton, PrimaryShimmerButton, AccentSwitch } from './primaryButton';
+import { GhostCanvasButton, GhostFieldButton, PrimaryShimmerButton, AccentSwitch, accentSecondarySurfaceClass } from './primaryButton';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { CalendarIcon } from 'phosphor-react-native/src/icons/Calendar';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
@@ -27,6 +27,8 @@ import { UserIcon } from 'phosphor-react-native/src/icons/User';
 import { WalletIcon } from 'phosphor-react-native/src/icons/Wallet';
 import type { LifecycleStateId } from './lifecycleStateMachine';
 import { themePalette, useFieldPlaceholderColor } from './themeColors';
+import { addressLabelDisplay, formatSavedAddressLines } from './addressTypes';
+import { useSavedAddresses } from './savedAddressesStore';
 import { foodImages } from './foodImages';
 
 const userFoodPreference = 'Mix of both';
@@ -59,7 +61,7 @@ function FoodPreferenceTabs({ value, onChange }: { value: FoodPreference; onChan
           accessibilityRole="tab"
           accessibilityState={{ selected: value === tab.id }}
           onPress={() => onChange(tab.id)}
-          className={`min-h-field flex-1 items-center justify-center rounded-field border bg-canvas px-2 ${value === tab.id ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}
+          className={`flex-1 items-center justify-center rounded-field border bg-canvas px-2 ${value === tab.id ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}
         >
           <Text numberOfLines={1} adjustsFontSizeToFit className={`font-mono-semibold text-body-sm ${value === tab.id ? 'text-foreground' : 'text-muted'}`}>{tab.label}</Text>
         </Pressable>
@@ -73,6 +75,12 @@ type Route = 'checkout' | 'coupon' | 'profile' | 'edit_profile' | 'addresses' | 
 const stateRoute: Partial<Record<LifecycleStateId, Route>> = {
   V: 'checkout', W: 'coupon', X: 'checkout', AB: 'profile', AC: 'edit_profile', AD: 'addresses', AE: 'transactions', AF: 'settings', AG: 'notifications', AH: 'permissions', AI: 'referral', AJ: 'loyalty', AN: 'loyalty', AK: 'leaderboard', AL: 'reward', AM: 'redeem',
 };
+
+const trialOnlyStates: LifecycleStateId[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'T', 'U'];
+
+function isSubscribedState(stateId: LifecycleStateId) {
+  return !trialOnlyStates.includes(stateId);
+}
 
 function selectionClass(selected: boolean) {
   return `rounded-field border bg-canvas ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`;
@@ -207,7 +215,7 @@ function ToggleRow({ title, description, value, onChange, locked = false, showDi
 
 function ActionChip({ label, onPress, danger = false }: { label: string; onPress: () => void; danger?: boolean }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} className={`h-9 justify-center rounded-sheet border px-4 ${danger ? 'border-destructive bg-destructive' : 'border-border bg-canvas'}`}>
+    <Pressable accessibilityRole="button" onPress={onPress} className={`h-9 justify-center rounded-full border px-4 ${danger ? 'border-destructive bg-destructive' : 'border-border bg-canvas'}`}>
       <Text className={`font-mono-semibold text-body-sm ${danger ? 'text-white' : 'text-foreground'}`}>{label}</Text>
     </Pressable>
   );
@@ -366,28 +374,26 @@ function EditProfilePage({ onBack, toast }: { onBack: () => void; toast: (messag
 }
 
 function AddressesPage({ onBack, toast }: { onBack: () => void; toast: (message: string) => void }) {
-  const [addresses, setAddresses] = useState([
-    { label: 'Home', text: 'B-704, Green View Apartments, Baner Road, Pune 411045', primary: true },
-    { label: 'Office', text: 'Tech Park One, Yerawada, Pune 411006', primary: false },
-  ]);
-  const add = () => { setAddresses((items) => [...items, { label: 'Other', text: 'New serviceable address, Pune 411007', primary: false }]); toast('Address added'); };
+  const { savedAddresses, defaultAddressId, setDefaultAddress, removeAddress } = useSavedAddresses();
   return <>
     <Header onBack={onBack} title="Saved addresses" description="Manage delivery locations and choose your default address." />
     <Section>
       <View className="gap-3">
-        {addresses.map((address, index) => (
-          <Card compact key={`${address.label}-${index}`}>
-            <IconText icon={MapPinIcon} tone="accent" title={address.label} description={address.text} titleClassName="font-mono-semibold text-body-md text-foreground" trailing={address.primary ? <SolidBadge label="Default" tone="accent" /> : undefined} />
+        {savedAddresses.length === 0 ? (
+          <Text className="font-body text-body-sm leading-5 text-muted">No saved addresses yet. Add one during checkout or from a meal delivery update.</Text>
+        ) : savedAddresses.map((address) => (
+          <Card compact key={address.id}>
+            <IconText icon={MapPinIcon} tone="accent" title={addressLabelDisplay(address)} description={formatSavedAddressLines(address)} titleClassName="font-mono-semibold text-body-md text-foreground" trailing={address.id === defaultAddressId ? <SolidBadge label="Default" tone="accent" /> : undefined} />
             <View className="ml-9 mt-4 flex-row flex-wrap gap-2">
               <ActionChip label="Edit" onPress={() => toast('Address editing opened')} />
-              {!address.primary ? <ActionChip label="Set as default" onPress={() => { setAddresses((items) => items.map((item, i) => ({ ...item, primary: i === index }))); toast('Default address updated'); }} /> : null}
-              {!address.primary ? <ActionChip label="Delete" danger onPress={() => setAddresses((items) => items.filter((_, i) => i !== index))} /> : null}
+              {address.id !== defaultAddressId ? <ActionChip label="Set as default" onPress={() => { setDefaultAddress(address.id); toast('Default address updated'); }} /> : null}
+              {address.id !== defaultAddressId ? <ActionChip label="Delete" danger onPress={() => { removeAddress(address.id); toast('Address removed'); }} /> : null}
             </View>
           </Card>
         ))}
       </View>
     </Section>
-    <View className="mt-6"><PrimaryShimmerButton label="Add address" onPress={add} /></View>
+    <View className="mt-6"><PrimaryShimmerButton label="Add address" onPress={() => toast('Add address from delivery setup')} /></View>
   </>;
 }
 
@@ -449,6 +455,8 @@ function PermissionsPage({ onBack, toast }: { onBack: () => void; toast: (messag
 }
 
 function ReferralPage({ onBack, toast }: { onBack: () => void; toast: (message: string) => void }) {
+  const { theme } = useUniwind();
+  const dark = theme === 'dark';
   const steps = ['Friend signs up with your code', 'Friend completes first payment', 'Your account credit is unlocked'];
   return <>
     <Header onBack={onBack} eyebrow="REFER & EARN" title="Share healthy meals" description="Your friend gets a welcome offer. Your reward unlocks after their first successful payment." />
@@ -457,7 +465,7 @@ function ReferralPage({ onBack, toast }: { onBack: () => void; toast: (message: 
         <Text className="font-mono-semibold text-body-xs text-accent">YOUR CODE</Text>
         <View className="mt-2 flex-row items-center justify-between gap-3">
           <Text className="font-heading text-heading-md text-foreground">AKSHAY250</Text>
-          <Pressable onPress={() => toast('Referral code copied')} className="h-9 shrink-0 justify-center rounded-field bg-accent-muted px-4">
+          <Pressable onPress={() => toast('Referral code copied')} className={`h-9 shrink-0 justify-center rounded-full px-4 ${accentSecondarySurfaceClass({ elevated: true, dark })}`}>
             <Text className="font-mono-semibold text-body-sm text-accent">COPY</Text>
           </Pressable>
         </View>
@@ -491,15 +499,36 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function LoyaltyPage({ onBack, go, completed = false }: { onBack: () => void; go: (route: Route) => void; completed?: boolean }) {
+function LoyaltyPage({ onBack, go, completed = false, subscribed = true }: { onBack: () => void; go: (route: Route) => void; completed?: boolean; subscribed?: boolean }) {
   const daysCompleted = completed ? 28 : 18;
   return <>
     <Header onBack={onBack} eyebrow="HEALTHY STREAK" title="Your loyalty progress" description={completed ? 'You completed a qualifying paid month. Claim your free meal day before it expires.' : 'Complete one continuous paid subscription month to earn one free meal day.'} />
     <Section>
       <View className="rounded-field bg-accent-soft p-sheet">
-        <View>
-          <Text className="font-heading text-heading-md text-foreground">{daysCompleted} of 28</Text>
-          <Text className="mt-1 font-body text-body-sm text-muted">active days completed</Text>
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1">
+            {completed ? (
+              <>
+                <Text className="font-mono-semibold text-body-xs text-accent">STREAK COMPLETED</Text>
+                <Text className="mt-1 font-heading text-heading-md text-foreground">28 of 28</Text>
+                <Text className="mt-1 font-body text-body-sm text-muted">active days completed</Text>
+              </>
+            ) : (
+              <>
+                <Text className="font-heading text-heading-md text-foreground">{daysCompleted} of 28</Text>
+                <Text className="mt-1 font-body text-body-sm text-muted">active days completed</Text>
+              </>
+            )}
+          </View>
+          {completed ? (
+            subscribed ? (
+              <Text className="shrink-0 pt-0.5 font-body text-body-sm text-muted">Resets tomorrow</Text>
+            ) : (
+              <Pressable accessibilityRole="button" onPress={() => go('checkout')} className="h-9 shrink-0 justify-center rounded-full bg-accent px-4">
+                <Text className="font-mono-semibold text-body-sm text-accent-foreground">Subscribe now</Text>
+              </Pressable>
+            )
+          ) : null}
         </View>
         <View className="mt-5"><ProgressBar value={(daysCompleted / 28) * 100} /></View>
         {!completed ? <Text className="mt-3 font-body text-body-sm text-muted">Expected reward: 1 August 2026</Text> : null}
@@ -511,7 +540,7 @@ function LoyaltyPage({ onBack, go, completed = false }: { onBack: () => void; go
           <>
             <View className="flex-row items-center justify-between gap-3">
               <Text className="flex-1 font-mono-semibold text-body-md text-foreground">One free meal day</Text>
-              <Pressable accessibilityRole="button" onPress={() => go('reward')} className="h-9 shrink-0 flex-row items-center gap-1 rounded-sheet bg-accent pl-4 pr-3">
+              <Pressable accessibilityRole="button" onPress={() => go('reward')} className="h-9 shrink-0 flex-row items-center gap-1 rounded-full bg-accent pl-4 pr-3">
                 <Text className="font-mono-semibold text-body-sm text-accent-foreground">Claim</Text>
                 <CaretRightIcon size={16} weight="bold" color="#ffffff" />
               </Pressable>
@@ -668,7 +697,7 @@ export default function CommerceProfileExperience({ stateId, onBack, onTransitio
     if (route === 'notifications') return <NotificationsPage onBack={back} toast={toast} />;
     if (route === 'permissions') return <PermissionsPage onBack={back} toast={toast} />;
     if (route === 'referral') return <ReferralPage onBack={back} toast={toast} />;
-    if (route === 'loyalty') return <LoyaltyPage onBack={back} go={go} completed={stateId === 'AN'} />;
+    if (route === 'loyalty') return <LoyaltyPage onBack={back} go={go} completed={stateId === 'AN'} subscribed={isSubscribedState(stateId)} />;
     if (route === 'leaderboard') return <LeaderboardPage onBack={back} />;
     if (route === 'reward') return <RewardPage onBack={back} go={go} foodPreference={rewardFoodPreference} onFoodPreferenceChange={setRewardFoodPreference} />;
     return <RedeemPage onBack={back} onTransition={onTransition} foodPreference={rewardFoodPreference} />;
