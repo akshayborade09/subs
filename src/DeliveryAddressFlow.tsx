@@ -31,7 +31,7 @@ import {
   usePincodeAvailability,
 } from './deliveryAddressComponents';
 import { useSavedAddresses } from './savedAddressesStore';
-import { BottomToast, COVERAGE_REQUEST_SUCCESS_TOAST } from './bottomToast';
+import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST } from './toast';
 
 export function DeliveryAddressFlow({
   mode,
@@ -254,7 +254,7 @@ export function DeliveryAddressFlow({
           onSubmit={submitCoverage}
         />
       ) : null}
-      {toastMessage ? <BottomToast message={toastMessage} onDismiss={() => setToastMessage('')} /> : null}
+      {toastMessage ? <Toast message={toastMessage} onDismiss={() => setToastMessage('')} /> : null}
     </View>
   );
 }

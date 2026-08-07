@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { SheetBackdrop } from './sheetOverlay';
 import { hapticPress } from './haptics';
+import { useHeroScrollSheetMotion } from './heroScrollSheetMotion';
 import * as Location from 'expo-location';
 import Animated, { Easing, Extrapolation, FadeIn, FadeInUp, interpolate, interpolateColor, LinearTransition, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
@@ -23,6 +24,7 @@ import { CenteredFieldInput, fieldValueTextClass } from './centeredFieldInput';
 import { FormChromeSheetLayout, FormFieldStack, FormHeader, FormModalLayout, FormPageSection, FormSheetLayout, FormValidationText } from './formLayout';
 import { headingDescriptionClass } from './typographyClasses';
 import { formatRupee } from './formatCurrency';
+import { MoneyText, moneyValueTypography } from './moneyText';
 import { themePalette, useFieldPlaceholderColor, useForegroundColor } from './themeColors';
 import { PrimaryShimmerButton, GhostFieldButton } from './primaryButton';
 
@@ -33,23 +35,20 @@ import {
   AddressLocationSummary,
   DeliveryCoverageSheet,
   LocationPanel,
-  SavedAddressesSheet,
   SearchLocationScreen,
   usePincodeAvailability,
 } from './deliveryAddressComponents';
 import {
   addressDetailsValid,
   addressLabelDisplay,
-  detailsFromSavedAddress,
   emptyAddressDetails,
   extractPincodeFromText,
   formatSavedAddressLines,
   type AddressDetails,
-  type SavedAddress,
 } from './addressTypes';
 import { canContinueFromMapSelection, extractPincode } from './deliveryServiceability';
 import { submitCoverageRequest } from './coverageRequestStore';
-import { BottomToast, COVERAGE_REQUEST_SUCCESS_TOAST } from './bottomToast';
+import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST } from './toast';
 import { useSavedAddresses } from './savedAddressesStore';
 const genderOptions = [
   { label: 'Male', icon: GenderMaleIcon },
@@ -367,7 +366,7 @@ function DailyMealPlan({ meal, dates, value, onChange }: { meal: string; dates: 
           <Text className="w-14 font-body-medium text-body-sm capitalize text-foreground">{mealKey}</Text>
           <View className="flex-1 flex-row gap-2">{(['Vegetarian', 'Non-vegetarian'] as const).map((choice) => {
             const selected = day[mealKey] === choice;
-            return <Pressable key={choice} accessibilityRole="radio" accessibilityLabel={`Day ${dayIndex + 1} ${mealKey} ${choice}`} accessibilityState={{ checked: selected }} onPress={() => update(dayIndex, mealKey, choice)} className={`h-9 flex-1 items-center justify-center rounded-field border bg-canvas ${selected ? 'border-2 border-accent' : 'border-border'}`}><Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice === 'Vegetarian' ? 'Veg' : 'Non-veg'}</Text></Pressable>;
+            return <Pressable key={choice} accessibilityRole="radio" accessibilityLabel={`Day ${dayIndex + 1} ${mealKey} ${choice}`} accessibilityState={{ checked: selected }} onPress={() => update(dayIndex, mealKey, choice)} className={`h-9 flex-1 items-center justify-center rounded-full border ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}><Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice === 'Vegetarian' ? 'Veg' : 'Non-veg'}</Text></Pressable>;
           })}</View>
         </View>
       )}</View>
@@ -384,13 +383,15 @@ function AddressLead({ mode, value }: { mode: AddressMode; value: string }) {
 }
 
 function EditStrokeButton({ onPress }: { onPress: () => void }) {
+  const { theme } = useUniwind();
+  const fillClass = theme === 'dark' ? 'bg-ghost-on-field' : 'bg-icon-surface';
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Edit"
       hitSlop={8}
       onPress={onPress}
-      className="self-start rounded-full bg-ghost-on-field px-3 py-1.5"
+      className={`self-start rounded-full px-3 py-1.5 ${fillClass}`}
     >
       <Text className="font-mono-semibold text-body-sm text-foreground">Edit</Text>
     </Pressable>
@@ -798,7 +799,7 @@ function TrialCalendarSheet({ initialDays, initialWeekendDelivery, initialWeeken
 }
 
 export default function TrialFlow() {
-  const { savedAddresses, upsertAddress, setDefaultAddress, removeAddress, defaultAddressId } = useSavedAddresses();
+  const { upsertAddress, setDefaultAddress } = useSavedAddresses();
   const [step, setStep] = useState<Step>('personal'); const [data, setData] = useState<State>(initialState); const [dateOpen, setDateOpen] = useState(false); const [calendarOpen, setCalendarOpen] = useState(false); const [paused, setPaused] = useState(false); const [pauseOpen, setPauseOpen] = useState(false); const [toast, setToast] = useState(false); const [returnToSummary, setReturnToSummary] = useState(false); const [openSubscriptionOnHome, setOpenSubscriptionOnHome] = useState(false);
   const [addressMode, setAddressMode] = useState<AddressMode>('weekday');
   const [locationSearchOpen, setLocationSearchOpen] = useState(false);
@@ -807,20 +808,12 @@ export default function TrialFlow() {
   const [coverageRequestState, setCoverageRequestState] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
   const [coverageToast, setCoverageToast] = useState('');
   const [confirmAddressOpen, setConfirmAddressOpen] = useState(false);
-  const [savedAddressesOpen, setSavedAddressesOpen] = useState(false);
   const addressNumberRef = useRef<TextInput>(null); const societyRef = useRef<TextInput>(null); const landmarkRef = useRef<TextInput>(null); const instructionsRef = useRef<TextInput>(null);
   const set = <K extends keyof State>(key: K, value: State[K]) => setData((current) => ({ ...current, [key]: value }));
   const patchWeekdayAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, address: { ...current.address, ...patch } }));
   const patchWeekendAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, weekendAddressDetails: { ...current.weekendAddressDetails, ...patch } }));
   const patchActiveAddress = (patch: Partial<AddressDetails>) => { if (addressMode === 'weekday') patchWeekdayAddress(patch); else patchWeekendAddress(patch); };
-  const selectSavedAddress = (saved: SavedAddress) => {
-    const details = detailsFromSavedAddress(saved);
-    const { deliveryLocation, ...fields } = details;
-    if (addressMode === 'weekday') setData((current) => ({ ...current, deliveryLocation, address: fields }));
-    else setData((current) => ({ ...current, weekendLocation: deliveryLocation, weekendAddressDetails: fields }));
-    setSavedAddressesOpen(false);
-  };
-  const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'address'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.min(order.length - 1, index + 1)]!); }; const back = () => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.max(0, index - 1)]!); };
+const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'address'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.min(order.length - 1, index + 1)]!); }; const back = () => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.max(0, index - 1)]!); };
   const confirmSections = [{ mode: 'Weekday', value: data.address, text: formatSavedAddressLines(addressDetailsFromState(data.deliveryLocation, data.address)) }, { mode: 'Weekend', value: data.weekendAddressDetails, text: formatSavedAddressLines(addressDetailsFromState(data.weekendLocation, data.weekendAddressDetails)) }];
   const openConfirmAddress = () => { Keyboard.dismiss(); setConfirmAddressOpen(true); };
   const finishAddress = () => {
@@ -874,7 +867,7 @@ export default function TrialFlow() {
   if (step === 'bread') return <Shell title="Choose your bread" onBack={() => { if (returnToSummary) back(); else setStep(data.food === 'Mix of both' ? 'mixMeals' : 'meal'); }}><FormPageSection subheading="Pick what feels most familiar at home."><PreferenceCards options={bread} value={data.bread} onChange={(v) => { set('bread', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
   if (step === 'rice') return <Shell title="Choose your rice" onBack={back}><FormPageSection subheading="You can change this later for upcoming meals."><PreferenceCards options={rice} value={data.rice} onChange={(v) => { set('rice', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
   if (step === 'locate') return <>
-    <Shell title="Where should we deliver?" suppressKeyboard={coverageOpen} onBack={back} footerDelay={390} footer={<View className="gap-2"><TrialAuthButton label="Next" enabled={canContinueLocate} onPress={() => { if (usesDifferentWeekendAddress && addressMode === 'weekday') { setAddressMode('weekend'); } else { setAddressMode('weekday'); next(); } }} />{savedAddresses.length > 0 ? <GhostFieldButton label="Select address from list" onPress={() => setSavedAddressesOpen(true)} /> : null}</View>}>
+    <Shell title="Where should we deliver?" suppressKeyboard={coverageOpen} onBack={back} footerDelay={390} footer={<TrialAuthButton label="Next" enabled={canContinueLocate} onPress={() => { if (usesDifferentWeekendAddress && addressMode === 'weekday') { setAddressMode('weekend'); } else { setAddressMode('weekday'); next(); } }} />}>
       <View className="gap-auth-block">
         <Text className="font-body text-body-sm leading-5 text-muted">Search for a location, then adjust the pin on the map.</Text>
         {usesDifferentWeekendAddress ? <AddressTabs value={addressMode} onChange={setAddressMode} /> : null}
@@ -896,8 +889,7 @@ export default function TrialFlow() {
         onSubmit={submitCoverage}
       />
     ) : null}
-    {coverageToast ? <BottomToast message={coverageToast} onDismiss={() => setCoverageToast('')} /> : null}
-    {savedAddressesOpen ? <SavedAddressesSheet addresses={savedAddresses} defaultAddressId={defaultAddressId} onClose={() => setSavedAddressesOpen(false)} onSelect={selectSavedAddress} onEdit={selectSavedAddress} onDelete={(address) => { removeAddress(address.id); if (savedAddresses.length <= 1) setSavedAddressesOpen(false); }} /> : null}
+    {coverageToast ? <Toast message={coverageToast} onDismiss={() => setCoverageToast('')} /> : null}
   </>;
   if (step === 'address') {
     const activeDetails = addressDetailsFromState(activeAddressText, activeAddress);
@@ -922,8 +914,7 @@ export default function TrialFlow() {
           />
         </FormPageSection>
       </Shell>
-      {savedAddressesOpen ? <SavedAddressesSheet addresses={savedAddresses} defaultAddressId={defaultAddressId} onClose={() => setSavedAddressesOpen(false)} onSelect={selectSavedAddress} onEdit={selectSavedAddress} onDelete={(address) => { removeAddress(address.id); if (savedAddresses.length <= 1) setSavedAddressesOpen(false); }} /> : null}
-      {confirmAddressOpen ? <ConfirmAddressSheet data={data} onClose={() => setConfirmAddressOpen(false)} onConfirm={finishAddress} onEdit={() => setConfirmAddressOpen(false)} usesDifferentWeekendAddress={usesDifferentWeekendAddress} sections={confirmSections} /> : null}
+        {confirmAddressOpen ? <ConfirmAddressSheet data={data} onClose={() => setConfirmAddressOpen(false)} onConfirm={finishAddress} onEdit={() => setConfirmAddressOpen(false)} usesDifferentWeekendAddress={usesDifferentWeekendAddress} sections={confirmSections} /> : null}
     </>;
   }
   if (step === 'summary') return <Summary data={data} meals={meals} total={total} onBack={back} onEdit={(target) => { setReturnToSummary(true); setStep(target); }} onNext={next} />;
@@ -933,11 +924,13 @@ export default function TrialFlow() {
 }
 
 function Row({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
+  const tone = 'text-foreground';
+  const typography = moneyValueTypography(value, 'text-body-md', tone);
   return (
     <View className="flex-row items-start justify-between gap-4">
       <Text className="max-w-[40%] shrink-0 font-body text-body-sm text-muted">{label}</Text>
       <View className="min-w-0 flex-1">
-        <Text className={`text-right font-body-medium text-body-md leading-6 text-foreground ${bold ? 'font-mono-semibold' : ''}`}>{value}</Text>
+        <Text className={`${typography}${bold && !value.includes('₹') ? ' font-mono-semibold' : ''}`}>{value}</Text>
       </View>
     </View>
   );
@@ -975,42 +968,30 @@ function TrialConfirmation({ data, total, onContinue }: { data: State; total: nu
     },
   });
 
-  const rootBgStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(scrollY.value, [0, collapseRange], [surfaceColor, canvasColor]),
-  }));
-
-  const heroAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, collapseRange * 0.85], [1, 0], Extrapolation.CLAMP),
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, collapseRange], [0, -heroHeight * 0.75], Extrapolation.CLAMP) },
-      { scale: interpolate(scrollY.value, [0, collapseRange], [1, 0.5], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const sheetPositionStyle = useAnimatedStyle(() => ({
-    top: initialSheetTop - Math.min(scrollY.value, collapseRange),
-    borderTopLeftRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
-    borderTopRightRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
-  }));
-
-  const contentLiftStyle = useAnimatedStyle(() => ({
-    marginTop: -collapseRange + Math.min(scrollY.value, collapseRange),
-  }));
+  const { rootOverflow, heroOverflow, rootBgStyle, heroAnimatedStyle, sheetPositionStyle, contentLiftStyle } = useHeroScrollSheetMotion({
+    scrollY,
+    collapseRange,
+    initialSheetTop,
+    dockedSheetTop,
+    heroHeight,
+    surfaceColor,
+    canvasColor,
+  });
 
   return (
-    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, { overflow: 'visible' }]} className="flex-1">
+    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, { overflow: rootOverflow }]} className="flex-1">
       <View style={{ paddingTop: headerTop }} className="absolute inset-x-0 top-0 z-20 flex-row items-center justify-between px-5 pb-4">
         <View className="size-icon-button" />
         <Text className="font-body text-body-sm tracking-body-sm text-foreground">sora kitchen</Text>
       </View>
 
-      <View style={{ top: headerTop + headerRowHeight, height: heroHeight, overflow: 'visible' }} pointerEvents="none" className="absolute inset-x-0 z-0 items-center">
+      <View style={{ top: headerTop + headerRowHeight, height: heroHeight, overflow: heroOverflow }} pointerEvents="none" className="absolute inset-x-0 z-0 items-center">
         <Animated.View style={heroAnimatedStyle} className="size-[314px] overflow-hidden rounded-full">
           <Image source={dishImage} accessibilityLabel={`${data.food || 'Preferred'} meal`} resizeMode="cover" className="size-full" />
         </Animated.View>
       </View>
 
-      <Animated.View style={[{ bottom: footerHeight, left: 0, right: 0, position: 'absolute' }, sheetPositionStyle]} className="z-10 bg-canvas">
+      <Animated.View style={[{ bottom: footerHeight, left: 0, right: 0, position: 'absolute', overflow: 'hidden' }, sheetPositionStyle]} className="z-10 bg-canvas">
         <Animated.ScrollView
           ref={contentRef}
           onScroll={scrollHandler}
@@ -1018,6 +999,8 @@ function TrialConfirmation({ data, total, onContinue }: { data: State; total: nu
           bounces={false}
           alwaysBounceVertical={false}
           overScrollMode="never"
+          nestedScrollEnabled
+          removeClippedSubviews={false}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
@@ -1028,7 +1011,7 @@ function TrialConfirmation({ data, total, onContinue }: { data: State; total: nu
             <FormHeader title="Your trial is confirmed" subtitle="Your payment is complete. Confirmation and important meal updates will be sent on WhatsApp." size="page" />
             <View>
               <Text className="font-body text-body-sm text-muted">Payment amount</Text>
-              <Text className="mt-1 font-heading text-[34px] text-foreground">{formatRupee(total)}</Text>
+              <MoneyText amount={total} className="mt-1 text-[34px] text-foreground" />
             </View>
             <View className="h-px bg-border" />
             <View className="gap-5">

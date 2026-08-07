@@ -5,9 +5,9 @@ import { useUniwind } from 'uniwind';
 import type { Icon } from 'phosphor-react-native';
 import { headingDescriptionClass } from './typographyClasses';
 import { formatRupee } from './formatCurrency';
+import { MoneyInline, moneyValueTypography } from './moneyText';
 import { FormHeader, FormPageSection, SectionHeading } from './formLayout';
 import { GhostCanvasButton, GhostFieldButton, PrimaryShimmerButton, AccentSwitch, accentSecondarySurfaceClass } from './primaryButton';
-import { hapticPress } from './haptics';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { CalendarIcon } from 'phosphor-react-native/src/icons/Calendar';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
@@ -28,6 +28,7 @@ import { UserIcon } from 'phosphor-react-native/src/icons/User';
 import { WalletIcon } from 'phosphor-react-native/src/icons/Wallet';
 import type { LifecycleStateId } from './lifecycleStateMachine';
 import { themePalette, useFieldPlaceholderColor } from './themeColors';
+import { Toast as AppToast } from './toast';
 import { addressLabelDisplay, formatSavedAddressLines } from './addressTypes';
 import { useSavedAddresses } from './savedAddressesStore';
 import { foodImages } from './foodImages';
@@ -62,7 +63,7 @@ function FoodPreferenceTabs({ value, onChange }: { value: FoodPreference; onChan
           accessibilityRole="tab"
           accessibilityState={{ selected: value === tab.id }}
           onPress={() => onChange(tab.id)}
-          className={`flex-1 items-center justify-center rounded-field border bg-canvas px-2 ${value === tab.id ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}
+          className={`min-h-field flex-1 items-center justify-center rounded-field border bg-canvas px-2 ${value === tab.id ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}
         >
           <Text numberOfLines={1} adjustsFontSizeToFit className={`font-mono-semibold text-body-sm ${value === tab.id ? 'text-foreground' : 'text-muted'}`}>{tab.label}</Text>
         </Pressable>
@@ -138,7 +139,7 @@ function ListContainer({ children, tone = 'default' }: { children: ReactNode; to
   return <View className={`overflow-hidden rounded-field ${surfaceToneClass(tone)}`}>{children}</View>;
 }
 
-function IconText({ icon, title, description, tone, color, trailing, titleClassName = 'font-body-medium text-body-md text-foreground' }: { icon: Icon; title: string; description?: string; tone?: 'accent' | 'success' | 'foreground'; color?: string; trailing?: ReactNode; titleClassName?: string }) {
+function IconText({ icon, title, description, tone, color, trailing, titleClassName = 'font-body-medium text-body-md text-foreground' }: { icon: Icon; title: string; description?: ReactNode; tone?: 'accent' | 'success' | 'foreground'; color?: string; trailing?: ReactNode; titleClassName?: string }) {
   return (
     <View className="flex-row items-start gap-2">
       <View className="h-6 w-6 shrink-0 items-center justify-center">
@@ -146,7 +147,7 @@ function IconText({ icon, title, description, tone, color, trailing, titleClassN
       </View>
       <View className="min-w-0 flex-1">
         <Text className={`${titleClassName} leading-6`}>{title}</Text>
-        {description ? <Text className="mt-1 font-body text-body-sm leading-5 text-muted">{description}</Text> : null}
+        {description ? <View className="mt-1">{typeof description === 'string' ? <Text className="font-body text-body-sm leading-5 text-muted">{description}</Text> : description}</View> : null}
       </View>
       {trailing ? <View className="shrink-0 self-start">{trailing}</View> : null}
     </View>
@@ -158,7 +159,7 @@ function ListMetaRow({ label, value, valueTone, showDivider = true }: { label: s
     <View className={`flex-row items-start justify-between gap-4 px-sheet py-3 ${showDivider ? 'border-b border-border' : ''}`}>
       <Text className="max-w-[40%] shrink-0 font-body text-body-sm text-muted">{label}</Text>
       <View className="min-w-0 flex-1">
-        <Text className={`text-right font-body-medium text-body-md leading-6 ${valueTone ?? 'text-foreground'}`}>{value}</Text>
+        <Text className={moneyValueTypography(value, 'text-body-md', valueTone ?? 'text-foreground')}>{value}</Text>
       </View>
     </View>
   );
@@ -169,7 +170,7 @@ function MetaRow({ label, value, valueTone, compact = false }: { label: string; 
     <View className={`flex-row items-start justify-between gap-4 ${compact ? 'py-1' : 'py-2'}`}>
       <Text className="max-w-[40%] shrink-0 font-body text-body-sm text-muted">{label}</Text>
       <View className="min-w-0 flex-1">
-        <Text className={`text-right font-body-medium text-body-md leading-6 ${valueTone ?? 'text-foreground'}`}>{value}</Text>
+        <Text className={moneyValueTypography(value, 'text-body-md', valueTone ?? 'text-foreground')}>{value}</Text>
       </View>
     </View>
   );
@@ -216,7 +217,7 @@ function ToggleRow({ title, description, value, onChange, locked = false, showDi
 
 function ActionChip({ label, onPress, danger = false }: { label: string; onPress: () => void; danger?: boolean }) {
   return (
-    <Pressable accessibilityRole="button" onPress={hapticPress(onPress, danger ? 'warning' : 'light')} className={`h-9 justify-center rounded-full border px-4 ${danger ? 'border-destructive bg-destructive' : 'border-border bg-canvas'}`}>
+    <Pressable accessibilityRole="button" onPress={onPress} className={`h-9 justify-center rounded-full border px-4 ${danger ? 'border-destructive bg-destructive' : 'border-border bg-canvas'}`}>
       <Text className={`font-mono-semibold text-body-sm ${danger ? 'text-white' : 'text-foreground'}`}>{label}</Text>
     </Pressable>
   );
@@ -251,7 +252,7 @@ function CheckoutPage({ onBack, go, onPayment, couponApplied, setCouponApplied }
     <Section title="Coupon and rewards">
       <Pressable accessibilityRole="button" onPress={() => go('coupon')}>
         <Card compact borderless tone={couponApplied ? 'success' : 'default'}>
-          <IconText icon={TagIcon} tone="accent" title={couponApplied ? 'HEALTHY300 applied' : 'Apply coupon'} description={couponApplied ? 'You save ₹300 on this subscription.' : 'View eligible offers and rewards.'} trailing={<Text className="font-mono-semibold text-body-sm text-accent">{couponApplied ? 'Change' : 'View'}</Text>} />
+          <IconText icon={TagIcon} tone="accent" title={couponApplied ? 'HEALTHY300 applied' : 'Apply coupon'} description={couponApplied ? <MoneyInline className="font-body text-body-sm leading-5 text-muted">You save ₹300 on this subscription.</MoneyInline> : 'View eligible offers and rewards.'} trailing={<Text className="font-mono-semibold text-body-sm text-accent">{couponApplied ? 'Change' : 'View'}</Text>} />
         </Card>
       </Pressable>
       {couponApplied ? <Pressable onPress={() => setCouponApplied(false)} className="mt-2 self-end"><Text className="font-body-medium text-body-sm text-destructive">Remove coupon</Text></Pressable> : null}
@@ -296,8 +297,8 @@ function CouponPage({ onBack, apply }: { onBack: () => void; apply: () => void }
             <View className="flex-row items-center gap-3">
               <Glyph icon={TagIcon} tone="accent" />
               <View className="min-w-0 flex-1">
-                <Text className="font-mono-semibold text-body-md text-foreground">{coupon.title}</Text>
-                <Text className="mt-1 font-body text-body-sm leading-5 text-muted">{coupon.detail}</Text>
+                <MoneyInline className="font-body-medium text-body-md text-foreground">{coupon.title}</MoneyInline>
+                <MoneyInline className="mt-1 font-body text-body-sm leading-5 text-muted">{coupon.detail}</MoneyInline>
                 <Text className="mt-2 font-mono-semibold text-body-sm text-foreground">{coupon.code}</Text>
               </View>
               <Pressable accessibilityRole="button" onPress={() => { if (coupon.code === 'HEALTHY300') apply(); else { setCode(coupon.code); setError('This coupon is valid only on weekly plans.'); } }}>
@@ -409,7 +410,7 @@ function TransactionsPage({ onBack }: { onBack: () => void }) {
     <Header onBack={onBack} title="Transactions" description="Payments, refunds, credits and rewards in one place." />
     <View className="mt-6 flex-row gap-2">
       {['All', 'Payments', 'Rewards'].map((item, index) => (
-        <Pressable key={item} onPress={hapticPress(() => setFilter(index), 'selection')} className={`rounded-full px-4 py-2 ${index === filter ? 'bg-accent' : 'border border-border bg-canvas'}`}>
+        <Pressable key={item} onPress={() => setFilter(index)} className={`rounded-full px-4 py-2 ${index === filter ? 'bg-accent' : 'border border-border bg-canvas'}`}>
           <Text className={`font-mono-semibold text-body-sm ${index === filter ? 'text-white' : 'text-foreground'}`}>{item}</Text>
         </Pressable>
       ))}
@@ -418,7 +419,7 @@ function TransactionsPage({ onBack }: { onBack: () => void }) {
       <ListContainer>
         {transactions.map((item, index) => (
           <Pressable key={item.title} className={`px-sheet py-3 ${index < transactions.length - 1 ? 'border-b border-border' : ''}`}>
-            <IconText icon={ReceiptIcon} title={item.title} description={`${item.date} · ${item.status}`} titleClassName="font-body-medium text-body-sm text-foreground" trailing={<Text className="text-right font-body-medium text-body-sm leading-6 text-foreground">{item.amount}</Text>} />
+            <IconText icon={ReceiptIcon} title={item.title} description={`${item.date} · ${item.status}`} titleClassName="font-body-medium text-body-sm text-foreground" trailing={<Text className={moneyValueTypography(item.amount, 'text-body-sm')}>{item.amount}</Text>} />
           </Pressable>
         ))}
       </ListContainer>
@@ -668,14 +669,6 @@ function RedeemPage({ onBack, onTransition, foodPreference }: { onBack: () => vo
   </>;
 }
 
-function Toast({ message }: { message: string }) {
-  return (
-    <View className="absolute inset-x-5 bottom-12 z-50 rounded-full bg-success px-5 py-4">
-      <Text className="text-center font-body-medium text-body-sm text-white">{message}</Text>
-    </View>
-  );
-}
-
 export default function CommerceProfileExperience({ stateId, onBack, onTransition }: { stateId: LifecycleStateId; onBack: () => void; onTransition: (id: LifecycleStateId) => void }) {
   const insets = useSafeAreaInsets();
   const initial = stateRoute[stateId] ?? 'profile';
@@ -686,7 +679,7 @@ export default function CommerceProfileExperience({ stateId, onBack, onTransitio
   const route = stack[stack.length - 1] ?? initial;
   const go = (next: Route) => setStack((items) => [...items, next]);
   const back = () => setStack((items) => { if (items.length <= 1) { onBack(); return items; } return items.slice(0, -1); });
-  const toast = (message: string) => { setToastMessage(message); setTimeout(() => setToastMessage(''), 5000); };
+  const toast = (message: string) => setToastMessage(message);
   const page = useMemo(() => {
     if (route === 'checkout') return <CheckoutPage onBack={back} go={go} onPayment={() => onTransition('Y')} couponApplied={couponApplied} setCouponApplied={setCouponApplied} />;
     if (route === 'coupon') return <CouponPage onBack={back} apply={() => { setCouponApplied(true); setStack((items) => [...items.slice(0, -1), 'checkout']); toast('HEALTHY300 applied'); }} />;
@@ -708,7 +701,7 @@ export default function CommerceProfileExperience({ stateId, onBack, onTransitio
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} className="flex-1" contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 }}>
         <View className="flex-1 px-5">{page}</View>
       </ScrollView>
-      {toastMessage ? <Toast message={toastMessage} /> : null}
+      {toastMessage ? <AppToast message={toastMessage} onDismiss={() => setToastMessage('')} /> : null}
     </View>
   );
 }

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUniwind } from 'uniwind';
 import { PrimaryShimmerButton, GhostFieldButton } from './primaryButton';
 import { headingDescriptionClass } from './typographyClasses';
+import { moneyValueTypography } from './moneyText';
 import { SectionHeading } from './SectionHeading';
 import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
 import { ClockIcon } from 'phosphor-react-native/src/icons/Clock';
@@ -50,7 +51,7 @@ function MetaRow({ label, value, strong = false }: { label: string; value: strin
     <View className="flex-row items-start justify-between gap-4">
       <Text className="max-w-[40%] shrink-0 font-body text-body-sm text-muted">{label}</Text>
       <View className="min-w-0 flex-1">
-        <Text className={`text-right font-body-medium text-body-md leading-6 text-foreground ${strong ? 'font-mono-semibold' : ''}`}>{value}</Text>
+        <Text className={moneyValueTypography(value, 'text-body-md', strong ? 'text-foreground' : 'text-foreground')}>{value}</Text>
       </View>
     </View>
   );

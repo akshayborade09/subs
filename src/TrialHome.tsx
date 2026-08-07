@@ -21,10 +21,11 @@ import { UserCircleIcon } from 'phosphor-react-native/src/icons/UserCircle';
 import { WarningCircleIcon } from 'phosphor-react-native/src/icons/WarningCircle';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 import { themePalette } from './themeColors';
-import { BottomToast } from './bottomToast';
+import { Toast } from './toast';
 import { SheetBackdrop } from './sheetOverlay';
 import { PrimaryShimmerButton, GhostFieldButton, GhostCanvasButton, AccentSecondaryButton } from './primaryButton';
 import { hapticPress } from './haptics';
+import { useHeroScrollSheetMotion } from './heroScrollSheetMotion';
 import {
   FormHeader,
   FormModalLayout,
@@ -33,6 +34,7 @@ import {
 } from './formLayout';
 import { headingDescriptionClass } from './typographyClasses';
 import { formatInr, formatRupee } from './formatCurrency';
+import { MoneyInline, MoneyText, moneyValueTypography } from './moneyText';
 import { foodImages } from './foodImages';
 import { FoodPreferencePicker } from './FoodPreferencePicker';
 import {
@@ -388,11 +390,12 @@ function selectionClass(selected: boolean) {
 
 function PreferenceSummary({ meal, onEdit }: { meal: TrialMeal; onEdit?: () => void }) { return <View><View className="flex-row items-center justify-between"><SectionHeading>Selected preferences</SectionHeading>{onEdit ? <Pressable accessibilityLabel="Edit preferences for this meal" onPress={onEdit} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={PencilSimpleIcon} size={18} /></Pressable> : null}</View><View className="mt-3 gap-2"><Meta label="Food" value={meal.foodPreference} /><Meta label="Meal" value={meal.mealType} /><Meta label="Bread" value={meal.breadPreference} /><Meta label="Rice" value={meal.ricePreference} /></View></View>; }
 function Meta({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
+  const sizeClass = compact ? 'text-body-sm' : 'text-body-md';
   return (
     <View className="flex-row items-start justify-between gap-4">
       <Text className="max-w-[40%] shrink-0 font-body text-body-sm text-muted">{label}</Text>
       <View className="min-w-0 flex-1">
-        <Text className={`text-right font-body-medium leading-6 text-foreground ${compact ? 'text-body-sm' : 'text-body-md'}`}>{value}</Text>
+        <Text className={moneyValueTypography(value, sizeClass)}>{value}</Text>
       </View>
     </View>
   );
@@ -718,30 +721,18 @@ function MealDetailSheet({
     },
   });
 
-  const rootBgStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(scrollY.value, [0, collapseRange], [surfaceColor, canvasColor]),
-  }));
-
-  const heroAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, collapseRange * 0.85], [1, 0], Extrapolation.CLAMP),
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, collapseRange], [0, -heroHeight * 0.75], Extrapolation.CLAMP) },
-      { scale: interpolate(scrollY.value, [0, collapseRange], [1, 0.5], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const sheetPositionStyle = useAnimatedStyle(() => ({
-    top: initialSheetTop - Math.min(scrollY.value, collapseRange),
-    borderTopLeftRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
-    borderTopRightRadius: interpolate(scrollY.value, [0, collapseRange], [20, 0], Extrapolation.CLAMP),
-  }));
-
-  const contentLiftStyle = useAnimatedStyle(() => ({
-    marginTop: -collapseRange + Math.min(scrollY.value, collapseRange),
-  }));
+  const { rootOverflow, heroOverflow, rootBgStyle, heroAnimatedStyle, sheetPositionStyle, contentLiftStyle } = useHeroScrollSheetMotion({
+    scrollY,
+    collapseRange,
+    initialSheetTop,
+    dockedSheetTop,
+    heroHeight,
+    surfaceColor,
+    canvasColor,
+  });
 
   return (
-    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, { overflow: 'visible' }]} className="absolute inset-0 z-50 flex-1">
+    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, { overflow: rootOverflow }]} className="absolute inset-0 z-50 flex-1">
       <View style={{ paddingTop: headerTop }} className="absolute inset-x-0 top-0 z-20 flex-row items-center justify-between px-5 pb-4">
         <Pressable accessibilityRole="button" accessibilityLabel="Close meal details" onPress={onClose} hitSlop={8} className="size-icon-button items-center justify-center">
           <XIcon size={24} weight="regular" color={iconColor} />
@@ -749,13 +740,13 @@ function MealDetailSheet({
         <Text className="font-body text-body-sm tracking-body-sm text-foreground">sora kitchen</Text>
       </View>
 
-      <View style={{ top: headerTop + headerRowHeight, height: heroHeight, overflow: 'visible' }} pointerEvents="none" className="absolute inset-x-0 z-0 items-center">
+      <View style={{ top: headerTop + headerRowHeight, height: heroHeight, overflow: heroOverflow }} pointerEvents="none" className="absolute inset-x-0 z-0 items-center">
         <Animated.View style={heroAnimatedStyle} className="size-[314px] overflow-hidden rounded-full">
           <Image source={mealImage} accessibilityLabel={`${effectiveFoodPreference} home-style meal`} resizeMode="cover" className="size-full" />
         </Animated.View>
       </View>
 
-      <Animated.View style={[{ bottom: 0, left: 0, right: 0, position: 'absolute' }, sheetPositionStyle]} className="z-10 bg-canvas">
+      <Animated.View style={[{ bottom: 0, left: 0, right: 0, position: 'absolute', overflow: 'hidden' }, sheetPositionStyle]} className="z-10 bg-canvas">
         <Animated.ScrollView
           ref={contentRef}
           onScroll={scrollHandler}
@@ -763,6 +754,8 @@ function MealDetailSheet({
           bounces={false}
           alwaysBounceVertical={false}
           overScrollMode="never"
+          nestedScrollEnabled
+          removeClippedSubviews={false}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
@@ -1000,8 +993,10 @@ function SubscriptionPlanCard({ plan, selected, multiplier, trialCredit, onPress
         ) : null}
       </View>
       <View className="mt-3 flex-row items-end justify-between gap-2">
-        <Text className="font-heading text-heading-sm text-foreground">{formatRupee(computedTotal)}</Text>
-        <Text className="max-w-[52%] text-right font-body text-body-xs leading-4 text-muted">{formatRupee(perMeal)}/meal · save {formatRupee(savings)}</Text>
+        <MoneyText amount={computedTotal} className="text-heading-sm text-foreground" />
+        <Text className="max-w-[52%] text-right font-body text-body-xs leading-4 text-muted">
+          <MoneyText amount={perMeal} className="text-body-xs text-muted" />/meal · save <MoneyText amount={savings} className="text-body-xs text-muted" />
+        </Text>
       </View>
     </Pressable>
   );
@@ -1150,11 +1145,13 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
                   <View className="h-px bg-border" />
                   <View className="flex-row items-center justify-between gap-4">
                     <Text className="font-body text-body-sm text-muted">Total payable</Text>
-                    <Text className="font-mono-semibold text-body-md text-foreground">{formatRupee(total)}</Text>
+                    <MoneyText amount={total} className="text-body-md text-foreground" />
                   </View>
                 </View>
                 <Text className="font-body text-body-xs leading-5 text-muted">
-                  {selectedPlan.name} · {formatRupee(perMeal)}/meal after trial credit and savings.
+                <Text className="font-body text-body-xs leading-4 text-muted">
+                  {selectedPlan.name} · <MoneyInline className="font-body text-body-xs leading-4 text-muted">{`${formatRupee(perMeal)}/meal after trial credit and savings.`}</MoneyInline>
+                </Text>
                 </Text>
               </View>
             </View>
@@ -1357,6 +1354,6 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
       />
     ) : null}
     {subscriptionOpen ? <SubscriptionSheet food={food} bread={bread} rice={rice} address={address} initialMeal={meal} dailyMeals={dailyMeals} onClose={() => setSubscriptionOpen(false)} onToast={showToast} onActivated={(plan, selectedMeal, total, startDate) => { setSubscription({ plan, meal: selectedMeal, total, startDate, endDate: demoAddDays(demoStartOfDay(), 14) }); showToast(`${plan} plan activated for ${selectedMeal}`); }} /> : null}
-    {toast ? <BottomToast message={toast} onDismiss={() => setToast('')} /> : null}
+    {toast ? <Toast message={toast} onDismiss={() => setToast('')} /> : null}
   </View>;
 }

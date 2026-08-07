@@ -463,7 +463,7 @@ export function AddressLocationSummary({
         >
           <SelectableMap thumbnail searchQuery={location} />
         </Pressable>
-        <Text className="min-w-0 flex-1 font-body text-body-sm leading-5 text-muted">{location}</Text>
+        <Text className="min-w-0 flex-1 font-body text-body-sm leading-5 text-foreground">{location}</Text>
       </View>
       <DeliveryLocationAvailabilityNotice
         state={availability}
