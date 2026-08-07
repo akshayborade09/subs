@@ -4,23 +4,28 @@ Rules for how tokens get consumed in actual component code. This is the file Cur
 
 ## 0. Font loading (required before anything below works)
 
-Abril Fatface and Geist Mono aren't on-device fonts — they must be bundled and registered before `font-heading`/`font-body` classes will render correctly. Load them with `expo-font` at the app root and gate first paint on `fontsLoaded`:
+Abril Fatface and Inclusive Sans aren't on-device fonts — they must be bundled and registered before `font-heading`/`font-body` classes will render correctly. Load them with `@expo-google-fonts` at the app root and gate first paint on `fontsLoaded`:
 
 ```tsx
-import { useFonts } from 'expo-font';
+import { useFonts } from '@expo-google-fonts/inclusive-sans/useFonts';
+import { InclusiveSans_400Regular } from '@expo-google-fonts/inclusive-sans/400Regular';
+import { InclusiveSans_500Medium } from '@expo-google-fonts/inclusive-sans/500Medium';
+import { InclusiveSans_600SemiBold } from '@expo-google-fonts/inclusive-sans/600SemiBold';
+import { InclusiveSans_700Bold } from '@expo-google-fonts/inclusive-sans/700Bold';
+import { AbrilFatface_400Regular } from '@expo-google-fonts/abril-fatface/400Regular';
 
 const [fontsLoaded] = useFonts({
-  'AbrilFatface-Regular': require('./assets/fonts/AbrilFatface-Regular.ttf'),
-  'GeistMono-Regular':    require('./assets/fonts/GeistMono-Regular.ttf'),
-  'GeistMono-Medium':     require('./assets/fonts/GeistMono-Medium.ttf'),
-  'GeistMono-SemiBold':   require('./assets/fonts/GeistMono-SemiBold.ttf'),
-  'GeistMono-Bold':       require('./assets/fonts/GeistMono-Bold.ttf'),
+  AbrilFatface_400Regular,
+  InclusiveSans_400Regular,
+  InclusiveSans_500Medium,
+  InclusiveSans_600SemiBold,
+  InclusiveSans_700Bold,
 });
 
 if (!fontsLoaded) return null; // or a splash screen
 ```
 
-`font-body` (the `weight-regular` default) maps to `GeistMono-Regular`. Heavier body text (`font-medium`, `font-semibold`, `font-bold` classes) needs its matching static weight file registered under a distinct family name — Geist Mono ships as separate static files per weight, not one variable font by default, so `font-body font-semibold` only renders correctly once `GeistMono-SemiBold` is loaded and wired into the theme's weight-to-family mapping in `global.css`. Abril Fatface ships one weight only — never apply `font-medium`/`font-bold` etc. to a `font-heading` element.
+`font-body` (the `weight-regular` default) maps to `InclusiveSans_400Regular`. Heavier body text (`font-body-medium`, `font-mono-semibold`, `font-mono-bold`) needs its matching static weight file registered under a distinct family name — Inclusive Sans ships as separate static files per weight, not one variable font by default, so those classes only render correctly once each weight is loaded and wired into the theme's weight-to-family mapping in `global.css`. Abril Fatface ships one weight only — never apply `font-medium`/`font-bold` etc. to a `font-heading` element.
 
 ## 1. Golden rule
 
@@ -261,7 +266,7 @@ Every list/screen that fetches data needs all three, not just the happy path:
 - **Field input value:** `font-body-medium text-body-md tracking-body-md text-foreground` (phone digits, OTP cells)
 - Secondary/help text: `font-body text-body-sm text-muted-foreground`
 - Caption/meta: `font-body text-body-xs text-muted-foreground`
-- Never set `fontFamily`, `fontSize`, or `fontWeight` as one-off numbers — always through the paired classes above. `font-heading` never takes a weight modifier (single weight only); `font-body` takes `font-body-medium` / `font-mono-semibold` / `font-mono-bold` as needed, each of which must resolve to a loaded Geist Mono static weight file per §0. **Exception:** `TextInput` on RN still needs `fontFamily: 'GeistMono_500Medium'` in `StyleSheet` when using `font-body-medium` — Uniwind weight classes alone are unreliable on native inputs.
+- Never set `fontFamily`, `fontSize`, or `fontWeight` as one-off numbers — always through the paired classes above. `font-heading` never takes a weight modifier (single weight only); `font-body` takes `font-body-medium` / `font-mono-semibold` / `font-mono-bold` as needed, each of which must resolve to a loaded Inclusive Sans static weight file per §0. **Exception:** `TextInput` on RN still needs `fontFamily: 'InclusiveSans_500Medium'` in `StyleSheet` when using `font-body-medium` — Uniwind weight classes alone are unreliable on native inputs.
 
 ## 15. Anti-patterns to flag in review
 

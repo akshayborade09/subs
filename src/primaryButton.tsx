@@ -206,11 +206,11 @@ export function AccentSwitch({ value, onValueChange, disabled = false }: { value
       disabled={disabled}
       onPress={hapticPress(() => onValueChange(!value), 'selection')}
       style={{ backgroundColor: value ? palette.accentMuted : trackOff }}
-      className={`h-4 w-14 items-center justify-center rounded-full p-0.5 ${disabled ? 'opacity-60' : ''}`}
+      className={`h-5 w-15 items-center justify-center rounded-full ${disabled ? 'opacity-60' : ''}`}
     >
       <View
         style={{ backgroundColor: value ? palette.accent : thumbOff, ...thumbShadow }}
-        className={`size-6 w-8 items-center justify-center rounded-2xl ${value ? 'self-end' : 'self-start'}`}
+        className={`size-6 w-9 items-center justify-center rounded-2xl ${value ? 'self-end' : 'self-start'}`}
       />
     </Pressable>
   );

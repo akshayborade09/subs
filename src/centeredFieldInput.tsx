@@ -11,7 +11,7 @@ export const centeredFieldInputStyle = StyleSheet.create({
     padding: 0,
     margin: 0,
     backgroundColor: 'transparent',
-    fontFamily: 'GeistMono_500Medium',
+    fontFamily: 'InclusiveSans_500Medium',
     fontSize: 16,
     lineHeight: FIELD_LINE_HEIGHT,
     letterSpacing: -0.32,

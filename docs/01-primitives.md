@@ -64,16 +64,16 @@ Two families, one job each — matches Astryx's `typography.heading` / `typograp
 
 ```
 font-heading — Abril Fatface   (display serif, headings only, one weight: 400)
-font-body    — Geist Mono      (UI text: body, labels, inputs, buttons, captions)
+font-body    — Inclusive Sans  (UI text: body, labels, inputs, buttons, captions)
 ```
 
-Abril Fatface ships one weight (400) and is decorative — never use it below `text-lg`, never for paragraphs, never for anything the user has to read quickly (form labels, error messages, button text). Geist Mono carries the rest of the UI, including numerals — its tabular figures are a deliberate fit for prices, timestamps, and stats, which happens to suit fintech-style data density well.
+Abril Fatface ships one weight (400) and is decorative — never use it below `text-lg`, never for paragraphs, never for anything the user has to read quickly (form labels, error messages, button text). Inclusive Sans carries the rest of the UI, including body copy, labels, buttons, and monetary values.
 
 Neither font ships on-device. Both must be bundled and loaded through `expo-font` before first paint (see `03-usage.md` §0 for the loading pattern) — referencing `font-heading`/`font-body` before the fonts finish loading will silently fall back to the OS default, so gate your root render on `useFonts` readiness.
 
 ## 5. Typography scale
 
-Sizes paired with default line-height. Two scale tracks — heading (Abril Fatface) and body (Geist Mono) — because a display serif and a mono face carry weight differently at the same pixel size; don't share one scale across both.
+Sizes paired with default line-height. Two scale tracks — heading (Abril Fatface) and body (Inclusive Sans) — because a display serif and a sans face carry weight differently at the same pixel size; don't share one scale across both.
 
 ```
 Heading track (font-heading, weight fixed at 400)

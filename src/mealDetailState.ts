@@ -1,10 +1,5 @@
 import { useCallback, useReducer } from 'react';
-import {
-  formatCutoffTime,
-  isBeforeMealModificationCutoff,
-  isBeforeModificationCutoffForDeliveryDay,
-  mealModificationCutoff,
-} from './mealConfig';
+import { formatCutoffTime, isBeforeMealModificationCutoff, mealModificationCutoff } from './mealConfig';
 
 export type MealPreferenceValue = 'Vegetarian' | 'Non-vegetarian' | 'Mix of both';
 
@@ -227,6 +222,17 @@ export function isSkippedMeal(meal: MealDetailGuardMeal): boolean {
   return !!meal.isSkipped || meal.status === 'skipped';
 }
 
+/** Shared delivery-modification window — skip and undo use the same rules. */
+export function canModifyMealDelivery(ctx: MealDetailGuardContext): boolean {
+  if (!ctx.isSubscriptionMeal) return false;
+  const now = ctx.now ?? new Date();
+  const today = startOfDay(now);
+  const mealDay = startOfDay(parseMealDate(ctx.meal.date, now.getFullYear()));
+  if (mealDay.getTime() < today.getTime()) return false;
+  if (isTomorrowMeal(ctx.meal, now)) return isBeforeCutoffForMeal(ctx);
+  return true;
+}
+
 function skipMetadataForUndo(ctx: MealDetailGuardContext): SkipMetadata | undefined {
   if (ctx.mealSlot) {
     const slotMetadata = skipMetadataForSlot(ctx.meal, ctx.mealSlot);
@@ -240,17 +246,10 @@ function isSkippedForUndo(ctx: MealDetailGuardContext): boolean {
   return isSkippedMeal(ctx.meal);
 }
 
-function isBeforeUndoCutoffForMeal(ctx: MealDetailGuardContext): boolean {
-  const now = ctx.now ?? new Date();
-  const deliveryDay = parseMealDate(ctx.meal.date, now.getFullYear());
-  return isBeforeModificationCutoffForDeliveryDay(deliveryDay, now, ctx.cutoff ?? mealModificationCutoff);
-}
-
 export function canUndoSkip(ctx: MealDetailGuardContext): boolean {
-  if (!ctx.isSubscriptionMeal) return false;
+  if (!canModifyMealDelivery(ctx)) return false;
   if (!isSkippedForUndo(ctx)) return false;
-  if (!skipMetadataForUndo(ctx)) return false;
-  return isBeforeUndoCutoffForMeal(ctx);
+  return !!skipMetadataForUndo(ctx);
 }
 
 export function canChangeAddress(ctx: MealDetailGuardContext): boolean {
@@ -266,13 +265,13 @@ export function canChangeMealPreference(ctx: MealDetailGuardContext): boolean {
 }
 
 export function canSkipMeal(ctx: MealDetailGuardContext): boolean {
-  if (!ctx.isSubscriptionMeal || !isFutureMeal(ctx.meal, ctx.now)) return false;
+  if (!canModifyMealDelivery(ctx)) return false;
+  if (!isFutureMeal(ctx.meal, ctx.now)) return false;
   if (ctx.planBoth && ctx.mealSlot) {
     if (isSlotSkipped(ctx.meal, ctx.mealSlot)) return false;
   } else if (isFullySkipped(ctx.meal)) {
     return false;
   }
-  if (isTomorrowMeal(ctx.meal, ctx.now)) return isBeforeCutoffForMeal(ctx);
   return true;
 }
 

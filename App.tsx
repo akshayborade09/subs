@@ -24,10 +24,10 @@ import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
 import { Geist_600SemiBold } from '@expo-google-fonts/geist/600SemiBold';
 import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
 import { AbrilFatface_400Regular } from '@expo-google-fonts/abril-fatface/400Regular';
-import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono/400Regular';
-import { GeistMono_500Medium } from '@expo-google-fonts/geist-mono/500Medium';
-import { GeistMono_600SemiBold } from '@expo-google-fonts/geist-mono/600SemiBold';
-import { GeistMono_700Bold } from '@expo-google-fonts/geist-mono/700Bold';
+import { InclusiveSans_400Regular } from '@expo-google-fonts/inclusive-sans/400Regular';
+import { InclusiveSans_500Medium } from '@expo-google-fonts/inclusive-sans/500Medium';
+import { InclusiveSans_600SemiBold } from '@expo-google-fonts/inclusive-sans/600SemiBold';
+import { InclusiveSans_700Bold } from '@expo-google-fonts/inclusive-sans/700Bold';
 import Animated, {
   Easing,
   FadeIn,
@@ -704,13 +704,14 @@ function AppFlow() {
   const [screen, setScreen] = useState<Screen>('selector');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [homeReturnState, setHomeReturnState] = useState<LifecycleStateId | null>(null);
+  const [commerceProfileLaunch, setCommerceProfileLaunch] = useState<{ initialRoute?: 'my_plan'; myPlanShowManageActions: boolean }>({ myPlanShowManageActions: true });
   const { theme } = useUniwind();
   useEffect(() => {
     if (Platform.OS !== 'web') void Location.requestForegroundPermissionsAsync();
   }, []);
   const statusStyle = screen === 'stories' ? 'light' : (theme === 'dark' ? 'light' : 'dark');
   const definition = getLifecycleDefinition(machine.selectedState);
-  const chooseState = (stateId: LifecycleStateId) => {
+  const chooseState = (stateId: LifecycleStateId, options?: { preserveCommerceLaunch?: boolean }) => {
     const selected = getLifecycleDefinition(stateId);
     if (!selected) return;
     dispatch({ type: 'SELECT_STATE', stateId });
@@ -719,7 +720,10 @@ function AppFlow() {
     else if (selected.destination === 'auth') { setScreen('stories'); setSheetOpen(true); }
     else if (selected.destination === 'onboarding') setScreen('complete');
     else if (selected.destination === 'trial_home') setScreen('trial_home');
-    else if (selected.destination === 'commerce_profile') setScreen('commerce_profile');
+    else if (selected.destination === 'commerce_profile') {
+      if (!options?.preserveCommerceLaunch) setCommerceProfileLaunch({ myPlanShowManageActions: true });
+      setScreen('commerce_profile');
+    }
     else setScreen('preview');
   };
   const openSelector = () => {
@@ -730,7 +734,13 @@ function AppFlow() {
   };
   const openProfileFromHome = () => {
     if (machine.selectedState) setHomeReturnState(machine.selectedState);
-    chooseState('AB');
+    setCommerceProfileLaunch({ myPlanShowManageActions: true });
+    chooseState('AB', { preserveCommerceLaunch: true });
+  };
+  const openMyPlanFromHome = () => {
+    if (machine.selectedState) setHomeReturnState(machine.selectedState);
+    setCommerceProfileLaunch({ initialRoute: 'my_plan', myPlanShowManageActions: false });
+    chooseState('AB', { preserveCommerceLaunch: true });
   };
   const backFromCommerceProfile = () => {
     if (homeReturnState) {
@@ -749,9 +759,9 @@ function AppFlow() {
       </View>
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
       {screen === 'complete' ? <TrialFlow /> : null}
-      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" openMealDetailOnLoad={machine.selectedState === 'AO'} lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', AO: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} /> : null}
+      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" openMealDetailOnLoad={machine.selectedState === 'AO'} lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', AO: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')} onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} onExploreMyPlanPress={openMyPlanFromHome} /> : null}
       {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} /> : null}
-      {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={machine.selectedState} stateId={machine.selectedState} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
+      {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={`${machine.selectedState}-${commerceProfileLaunch.initialRoute ?? 'profile'}-${commerceProfileLaunch.myPlanShowManageActions}`} stateId={machine.selectedState} initialRoute={commerceProfileLaunch.initialRoute} myPlanShowManageActions={commerceProfileLaunch.myPlanShowManageActions} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
       {screen !== 'selector' && screen !== 'preview' && screen !== 'stories' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-semibold text-xs text-foreground">States</Text></Pressable> : null}
     </View>
@@ -765,10 +775,10 @@ export default function App() {
     Geist_600SemiBold,
     Geist_700Bold,
     AbrilFatface_400Regular,
-    GeistMono_400Regular,
-    GeistMono_500Medium,
-    GeistMono_600SemiBold,
-    GeistMono_700Bold,
+    InclusiveSans_400Regular,
+    InclusiveSans_500Medium,
+    InclusiveSans_600SemiBold,
+    InclusiveSans_700Bold,
   });
   if (!fontsLoaded) return <View className="flex-1 bg-canvas" />;
   return <SafeAreaProvider className="bg-canvas"><SavedAddressesProvider><AppFlow /></SavedAddressesProvider></SafeAreaProvider>;

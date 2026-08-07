@@ -78,20 +78,20 @@ Progressive gray in light, progressive lift in dark. In light mode tune `--color
 
 ```css
 --font-heading: 'AbrilFatface-Regular';
---font-body:    'GeistMono-Regular';          /* default body weight */
---font-body-medium: 'GeistMono-Medium';       /* field input value text */
+--font-body:    'InclusiveSans_400Regular';          /* default body weight */
+--font-body-medium: 'InclusiveSans_500Medium';       /* field input value text */
 ```
 
 Classes: `font-heading`, `font-body`, `font-body-medium`. There is no `font-sans` in this system — `font-body` *is* the sans/default; leaving Tailwind's default `font-sans` undefined prevents anyone from accidentally shipping the OS system font.
 
-**Body weight ladder** (each maps to a loaded static Geist Mono file):
+**Body weight ladder** (each maps to a loaded static Inclusive Sans file):
 
 | Class | Font file | Use |
 |---|---|---|
-| `font-body` | Geist Mono Regular | subtitles, labels, body copy |
-| `font-body-medium` | Geist Mono Medium | **auth field values** — phone digits, OTP cells, prefix (`+91`) |
-| `font-mono-semibold` | Geist Mono SemiBold | primary CTA labels |
-| `font-mono-bold` | Geist Mono Bold | emphasis (rare) |
+| `font-body` | Inclusive Sans Regular | subtitles, labels, body copy |
+| `font-body-medium` | Inclusive Sans Medium | **auth field values** — phone digits, OTP cells, prefix (`+91`) |
+| `font-mono-semibold` | Inclusive Sans SemiBold | primary CTA labels |
+| `font-mono-bold` | Inclusive Sans Bold | emphasis (rare) |
 
 ## 3. Font-size tokens (paired with line-height, Tailwind v4 style)
 

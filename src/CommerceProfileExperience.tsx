@@ -1,18 +1,21 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import type { Icon } from 'phosphor-react-native';
 import { headingDescriptionClass } from './typographyClasses';
 import { formatRupee } from './formatCurrency';
 import { MoneyInline, moneyValueTypography } from './moneyText';
-import { FormHeader, FormPageSection, SectionHeading } from './formLayout';
-import { GhostCanvasButton, GhostFieldButton, PrimaryShimmerButton, AccentSwitch, accentSecondarySurfaceClass } from './primaryButton';
+import { FormHeader, FormModalLayout, FormPageSection, SectionHeading } from './formLayout';
+import { GhostCanvasButton, GhostFieldButton, PrimaryShimmerButton, AccentSwitch } from './primaryButton';
+import { SheetBackdrop } from './sheetOverlay';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { CalendarIcon } from 'phosphor-react-native/src/icons/Calendar';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 import { CaretRightIcon } from 'phosphor-react-native/src/icons/CaretRight';
 import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
+import { CopyIcon } from 'phosphor-react-native/src/icons/Copy';
 import { CreditCardIcon } from 'phosphor-react-native/src/icons/CreditCard';
 import { GearIcon } from 'phosphor-react-native/src/icons/Gear';
 import { GiftIcon } from 'phosphor-react-native/src/icons/Gift';
@@ -32,6 +35,7 @@ import { Toast as AppToast } from './toast';
 import { addressLabelDisplay, formatSavedAddressLines } from './addressTypes';
 import { useSavedAddresses } from './savedAddressesStore';
 import { foodImages } from './foodImages';
+import { MealPreferenceImage } from './MealPreferenceImage';
 
 const userFoodPreference = 'Mix of both';
 const foodPreferenceOptions = ['Vegetarian', 'Non-vegetarian', 'Mix of both'] as const;
@@ -49,6 +53,37 @@ function foodPreferenceLabel(preference: string) {
   return 'Veg';
 }
 
+function preferenceImageFor(value: string) {
+  return foodImages[value as keyof typeof foodImages] ?? foodImages.Vegetarian;
+}
+
+function MyPlanPreferenceCard({ caption, title, image, onEdit }: { caption: string; title: string; image: number; onEdit?: () => void }) {
+  const { theme } = useUniwind();
+  const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${caption.toLowerCase()} preference`}
+      onPress={onEdit}
+      className="min-w-0 flex-1 overflow-hidden rounded-field border border-border bg-canvas"
+    >
+      <View className="h-[88px] w-full items-center overflow-hidden bg-field">
+        <MealPreferenceImage source={image} label={title} delayMs={0} width={106} height={88} imageSize={106} />
+      </View>
+      <View className="flex-row items-center gap-1 px-2 py-2">
+        <View className="min-w-0 flex-1 gap-0.5">
+          <Text className="font-body text-body-xs text-muted">{caption}</Text>
+          <Text numberOfLines={1} className="font-mono-semibold text-body-sm text-foreground">{title}</Text>
+        </View>
+        <View className="size-4 shrink-0 items-center justify-center">
+          <PencilSimpleIcon size={16} weight="bold" color={iconColor} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 function FoodPreferenceTabs({ value, onChange }: { value: FoodPreference; onChange: (value: FoodPreference) => void }) {
   const tabs: { id: FoodPreference; label: string }[] = [
     { id: 'Vegetarian', label: 'Veg' },
@@ -63,7 +98,7 @@ function FoodPreferenceTabs({ value, onChange }: { value: FoodPreference; onChan
           accessibilityRole="tab"
           accessibilityState={{ selected: value === tab.id }}
           onPress={() => onChange(tab.id)}
-          className={`min-h-field flex-1 items-center justify-center rounded-field border bg-canvas px-2 ${value === tab.id ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}
+          className={`min-h-field flex-1 items-center justify-center rounded-full border bg-canvas px-2 ${value === tab.id ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}
         >
           <Text numberOfLines={1} adjustsFontSizeToFit className={`font-mono-semibold text-body-sm ${value === tab.id ? 'text-foreground' : 'text-muted'}`}>{tab.label}</Text>
         </Pressable>
@@ -72,7 +107,7 @@ function FoodPreferenceTabs({ value, onChange }: { value: FoodPreference; onChan
   );
 }
 
-type Route = 'checkout' | 'coupon' | 'profile' | 'edit_profile' | 'addresses' | 'transactions' | 'settings' | 'notifications' | 'permissions' | 'referral' | 'loyalty' | 'leaderboard' | 'reward' | 'redeem';
+type Route = 'checkout' | 'coupon' | 'profile' | 'my_plan' | 'edit_profile' | 'addresses' | 'transactions' | 'settings' | 'notifications' | 'permissions' | 'referral' | 'loyalty' | 'leaderboard' | 'reward' | 'redeem';
 
 const stateRoute: Partial<Record<LifecycleStateId, Route>> = {
   V: 'checkout', W: 'coupon', X: 'checkout', AB: 'profile', AC: 'edit_profile', AD: 'addresses', AE: 'transactions', AF: 'settings', AG: 'notifications', AH: 'permissions', AI: 'referral', AJ: 'loyalty', AN: 'loyalty', AK: 'leaderboard', AL: 'reward', AM: 'redeem',
@@ -226,8 +261,40 @@ function ActionChip({ label, onPress, danger = false }: { label: string; onPress
 const priceBefore = 2799;
 const discountValue = 300;
 
-function CheckoutPage({ onBack, go, onPayment, couponApplied, setCouponApplied }: { onBack: () => void; go: (route: Route) => void; onPayment: () => void; couponApplied: boolean; setCouponApplied: (value: boolean) => void }) {
-  const total = priceBefore - (couponApplied ? discountValue : 0);
+function BottomSheetOverlay({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ zIndex: 100 }} className="absolute inset-0 justify-end">
+      <SheetBackdrop />
+      <Pressable accessibilityRole="button" accessibilityLabel="Close sheet" className="absolute inset-0" onPress={onClose} />
+      <Animated.View entering={FadeInUp.duration(240)} style={{ marginBottom: Math.max(16, insets.bottom + 8) }} className="mx-4 rounded-sheet bg-canvas p-sheet">
+        {children}
+      </Animated.View>
+    </KeyboardAvoidingView>
+  );
+}
+
+function CancelSubscriptionSheet({ onPause, onCancel }: { onPause: () => void; onCancel: () => void }) {
+  return (
+    <FormModalLayout
+      title="Confirm cancel subscription"
+      subtitle="A cancellation fee of 20% of your remaining plan value will be charged. Consider pausing instead to keep your plan and preferences saved."
+      extra={(
+        <View className="rounded-field bg-field p-sheet">
+          <Text className="font-body text-body-sm leading-5 text-muted">Pausing stops upcoming deliveries without losing your meal preferences, address or nutrition history.</Text>
+        </View>
+      )}
+      primaryAction={<PrimaryShimmerButton label="Pause subscription" onPress={onPause} />}
+      secondaryAction={(
+        <Pressable accessibilityRole="button" onPress={onCancel} className="h-12 items-center justify-center">
+          <Text className="font-mono-semibold text-body-sm text-destructive">Cancel subscription</Text>
+        </Pressable>
+      )}
+    />
+  );
+}
+
+function CheckoutPage({ onBack, go, couponApplied, setCouponApplied }: { onBack: () => void; go: (route: Route) => void; couponApplied: boolean; setCouponApplied: (value: boolean) => void }) {
   return <>
     <Header onBack={onBack} title="Review your subscription" description="Confirm your plan, meals, delivery and payment before subscribing." />
     <Section title="Plan">
@@ -263,7 +330,7 @@ function CheckoutPage({ onBack, go, onPayment, couponApplied, setCouponApplied }
         <ListMetaRow label="Delivery charges" value="Included" />
         <ListMetaRow label="Taxes" value="Included" />
         {couponApplied ? <ListMetaRow label="Coupon discount" value={`− ${formatRupee(300)}`} valueTone="text-accent" /> : null}
-        <ListMetaRow label="Total payable" value={formatRupee(total)} showDivider={false} />
+        <ListMetaRow label="Total payable" value={formatRupee(priceBefore - (couponApplied ? discountValue : 0))} showDivider={false} />
       </ListContainer>
     </Section>
     <Section title="Payment method">
@@ -272,7 +339,43 @@ function CheckoutPage({ onBack, go, onPayment, couponApplied, setCouponApplied }
       </Pressable>
     </Section>
     <Text className="mt-6 font-body text-body-xs leading-5 text-muted">By continuing, you agree to the subscription, cancellation and refund terms.</Text>
-    <View className="mt-5"><PrimaryShimmerButton label={`Subscribe · Pay ${formatRupee(total)}`} onPress={onPayment} /></View>
+  </>;
+}
+
+function MyPlanPage({ onBack, go }: { onBack: () => void; go: (route: Route) => void }) {
+  return <>
+    <Header onBack={onBack} title="My plan" description="Review your active subscription, preferences and delivery settings." />
+    <Section title="Plan">
+      <Card compact>
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="min-w-0 flex-1">
+            <Text className="font-mono-semibold text-body-md text-foreground">Monthly</Text>
+            <Text className="mt-1 font-body text-body-sm text-muted">4 weeks · 40 meals</Text>
+          </View>
+          <SolidBadge label="Active" tone="success" />
+        </View>
+        <View className="my-3 h-px bg-border" />
+        <MetaRow label="Meals" value="Lunch & dinner" />
+        <MetaRow label="Started" value="26 July 2026" />
+        <MetaRow label="Renews" value="26 August 2026" compact />
+      </Card>
+    </Section>
+    <Section title="Current preferences">
+      <View className="flex-row gap-2">
+        <MyPlanPreferenceCard caption="Food" title={foodPreferenceLabel(userFoodPreference)} image={foodImageForPreference(userFoodPreference)} />
+        <MyPlanPreferenceCard caption="Bread" title="Chapati" image={preferenceImageFor('Chapati')} />
+        <MyPlanPreferenceCard caption="Rice" title="Jeera rice" image={preferenceImageFor('Jeera Rice')} />
+      </View>
+    </Section>
+    <Section title="Delivery address" right={<Pressable accessibilityRole="button" onPress={() => go('addresses')}><Text className="font-mono-semibold text-body-sm text-accent">Edit</Text></Pressable>}>
+      <Card compact><IconText icon={MapPinIcon} tone="accent" title="Home · B-704, Green View Apartments, Baner Road, Pune 411045" titleClassName="font-body-medium text-body-sm text-foreground" /></Card>
+    </Section>
+    <Section title="Payment method">
+      <Pressable accessibilityRole="button">
+        <Card compact><IconText icon={CreditCardIcon} title="UPI" description="Pay using any UPI app" trailing={<Text className="font-mono-semibold text-body-sm text-accent">Change</Text>} /></Card>
+      </Pressable>
+    </Section>
+    <View className="h-10" />
   </>;
 }
 
@@ -313,7 +416,7 @@ function CouponPage({ onBack, apply }: { onBack: () => void; apply: () => void }
 }
 
 const profileMenu: { icon: Icon; title: string; detail?: string; route: Route }[] = [
-  { icon: WalletIcon, title: 'My plan', detail: 'Monthly · Active', route: 'checkout' },
+  { icon: WalletIcon, title: 'My plan', detail: 'Monthly · Active', route: 'my_plan' },
   { icon: GiftIcon, title: 'Loyalty & rewards', detail: '18 of 28 days completed', route: 'loyalty' },
   { icon: MapPinIcon, title: 'Saved addresses', detail: '2 addresses', route: 'addresses' },
   { icon: ReceiptIcon, title: 'Transactions', route: 'transactions' },
@@ -371,7 +474,6 @@ function EditProfilePage({ onBack, toast }: { onBack: () => void; toast: (messag
         <SolidBadge label="Verified" tone="success" />
       </View>
     </Section>
-    <View className="mt-auto pt-6"><PrimaryShimmerButton label="Save changes" onPress={() => { toast('Profile updated'); onBack(); }} /></View>
   </>;
 }
 
@@ -444,7 +546,6 @@ function NotificationsPage({ onBack, toast }: { onBack: () => void; toast: (mess
     <Header onBack={onBack} title="Notifications" description="Choose which updates you receive. Essential service messages remain enabled." />
     <Section title="Operational"><ListContainer><ToggleRow title="Delivery and meal status" description="Required while you have active deliveries." value={values.delivery} onChange={() => {}} locked /><ToggleRow title="Payment and account security" description="Required for payment and account protection." value={values.payment} onChange={() => {}} locked showDivider={false} /></ListContainer></Section>
     <Section title="Personalised"><ListContainer><ToggleRow title="Meal reminders" value={values.reminders} onChange={(value) => update('reminders', value)} /><ToggleRow title="Nutrition insights" value={values.nutrition} onChange={(value) => update('nutrition', value)} /><ToggleRow title="Rewards and leaderboard" value={values.rewards} onChange={(value) => update('rewards', value)} /><ToggleRow title="Offers and promotions" value={values.offers} onChange={(value) => update('offers', value)} showDivider={false} /></ListContainer></Section>
-    <View className="mt-6"><PrimaryShimmerButton label="Save preferences" onPress={() => { toast('Notification preferences saved'); onBack(); }} /></View>
   </>;
 }
 
@@ -458,7 +559,7 @@ function PermissionsPage({ onBack, toast }: { onBack: () => void; toast: (messag
 
 function ReferralPage({ onBack, toast }: { onBack: () => void; toast: (message: string) => void }) {
   const { theme } = useUniwind();
-  const dark = theme === 'dark';
+  const palette = themePalette[theme === 'dark' ? 'dark' : 'light'];
   const steps = ['Friend signs up with your code', 'Friend completes first payment', 'Your account credit is unlocked'];
   return <>
     <Header onBack={onBack} eyebrow="REFER & EARN" title="Share healthy meals" description="Your friend gets a welcome offer. Your reward unlocks after their first successful payment." />
@@ -467,8 +568,9 @@ function ReferralPage({ onBack, toast }: { onBack: () => void; toast: (message: 
         <Text className="font-mono-semibold text-body-xs text-accent">YOUR CODE</Text>
         <View className="mt-2 flex-row items-center justify-between gap-3">
           <Text className="font-heading text-heading-md text-foreground">AKSHAY250</Text>
-          <Pressable onPress={() => toast('Referral code copied')} className={`h-9 shrink-0 justify-center rounded-full px-4 ${accentSecondarySurfaceClass({ elevated: true, dark })}`}>
-            <Text className="font-mono-semibold text-body-sm text-accent">COPY</Text>
+          <Pressable onPress={() => toast('Referral code copied')} className="h-9 shrink-0 flex-row items-center gap-1.5 justify-center rounded-full bg-accent-light px-4">
+            <CopyIcon size={16} weight="bold" color={palette.accent} />
+            <Text className="font-mono-semibold text-body-sm text-accent">Copy</Text>
           </Pressable>
         </View>
         <View className="mt-3"><PrimaryShimmerButton label="Share invite" onPress={() => toast('Share sheet opened')} /></View>
@@ -564,10 +666,6 @@ function LoyaltyPage({ onBack, go, completed = false, subscribed = true }: { onB
         <ListMetaRow label="Paused days" value="Extend the end date" showDivider={false} />
       </ListContainer>
     </Section>
-    <View className="mt-6 gap-3">
-      <PrimaryShimmerButton label="View monthly leaderboard" onPress={() => go('leaderboard')} />
-      {!completed ? <GhostFieldButton label="Preview earned reward" onPress={() => go('reward')} /> : null}
-    </View>
   </>;
 }
 
@@ -609,9 +707,9 @@ function LeaderboardPage({ onBack }: { onBack: () => void }) {
   </>;
 }
 
-function RewardPage({ onBack, go, foodPreference, onFoodPreferenceChange }: { onBack: () => void; go: (route: Route) => void; foodPreference: FoodPreference; onFoodPreferenceChange: (value: FoodPreference) => void }) {
+function RewardPage({ onBack, foodPreference, onFoodPreferenceChange }: { onBack: () => void; foodPreference: FoodPreference; onFoodPreferenceChange: (value: FoodPreference) => void }) {
   return (
-    <View className="flex-1">
+    <>
       <Header onBack={onBack} eyebrow="REWARD EARNED" title="Your free meal day is ready" description="You completed one qualifying paid month. Choose an eligible delivery day within 60 days." />
       <View className="mt-6">
         <FoodPreferenceTabs value={foodPreference} onChange={onFoodPreferenceChange} />
@@ -629,12 +727,11 @@ function RewardPage({ onBack, go, foodPreference, onFoodPreferenceChange }: { on
           <MetaRow label="Value" value="Applied automatically" compact />
         </Card>
       </Section>
-      <View className="mt-auto pt-6"><PrimaryShimmerButton label="Choose free meal day" onPress={() => go('redeem')} /></View>
-    </View>
+    </>
   );
 }
 
-function RedeemPage({ onBack, onTransition, foodPreference }: { onBack: () => void; onTransition: (id: LifecycleStateId) => void; foodPreference: FoodPreference }) {
+function RedeemPage({ onBack, foodPreference }: { onBack: () => void; foodPreference: FoodPreference }) {
   const dates = [
     { day: '27', weekday: 'Mon' },
     { day: '28', weekday: 'Tue' },
@@ -643,47 +740,50 @@ function RedeemPage({ onBack, onTransition, foodPreference }: { onBack: () => vo
     { day: '31', weekday: 'Fri' },
   ];
   const [selected, setSelected] = useState(2);
-  return <>
-    <Header onBack={onBack} title="Choose your free meal day" description="Select an eligible date. Your current meal and address settings will be used." />
-    <Section title="Eligible dates">
-      <View className="flex-row justify-between gap-2">
-        {dates.map((date, index) => (
-          <Pressable key={`${date.day}-${date.weekday}`} onPress={() => setSelected(index)} className={`min-h-[72px] flex-1 items-center justify-center gap-1 px-1 py-3 ${selectionClass(selected === index)}`}>
-            <Text className="font-mono-semibold text-body-md text-foreground">{date.day}</Text>
-            <Text className="font-body text-body-xs text-muted">{date.weekday}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </Section>
-    <Section title="Reward details">
-      <View className="rounded-field bg-accent-soft p-3">
-        <MetaRow compact label="Meal" value="Lunch & dinner" />
-        <MetaRow compact label="Food" value={foodPreferenceLabel(foodPreference)} />
-        <MetaRow compact label="Payable" value="₹0" valueTone="text-accent" />
-      </View>
-    </Section>
-    <Section title="Delivery address">
-      <Card compact><IconText icon={MapPinIcon} tone="accent" title="Home" description="B-704, Green View Apartments, Baner Road, Pune 411045" titleClassName="font-body-medium text-body-sm text-foreground" /></Card>
-    </Section>
-    <View className="mt-6"><PrimaryShimmerButton label="Confirm free meal" onPress={() => onTransition('K')} /></View>
-  </>;
+  return (
+    <>
+      <Header onBack={onBack} title="Choose your free meal day" description="Select an eligible date. Your current meal and address settings will be used." />
+      <Section title="Eligible dates">
+        <View className="flex-row justify-between gap-2">
+          {dates.map((date, index) => (
+            <Pressable key={`${date.day}-${date.weekday}`} onPress={() => setSelected(index)} className={`min-h-[72px] flex-1 items-center justify-center gap-1 px-1 py-3 ${selectionClass(selected === index)}`}>
+              <Text className="font-mono-semibold text-body-md text-foreground">{date.day}</Text>
+              <Text className="font-body text-body-xs text-muted">{date.weekday}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </Section>
+      <Section title="Reward details">
+        <View className="rounded-field bg-accent-soft p-3">
+          <MetaRow compact label="Meal" value="Lunch & dinner" />
+          <MetaRow compact label="Food" value={foodPreferenceLabel(foodPreference)} />
+          <MetaRow compact label="Payable" value="₹0" valueTone="text-accent" />
+        </View>
+      </Section>
+      <Section title="Delivery address">
+        <Card compact><IconText icon={MapPinIcon} tone="accent" title="Home" description="B-704, Green View Apartments, Baner Road, Pune 411045" titleClassName="font-body-medium text-body-sm text-foreground" /></Card>
+      </Section>
+    </>
+  );
 }
 
-export default function CommerceProfileExperience({ stateId, onBack, onTransition }: { stateId: LifecycleStateId; onBack: () => void; onTransition: (id: LifecycleStateId) => void }) {
+export default function CommerceProfileExperience({ stateId, onBack, onTransition, initialRoute, myPlanShowManageActions = true }: { stateId: LifecycleStateId; onBack: () => void; onTransition: (id: LifecycleStateId) => void; initialRoute?: Route; myPlanShowManageActions?: boolean }) {
   const insets = useSafeAreaInsets();
-  const initial = stateRoute[stateId] ?? 'profile';
+  const initial = initialRoute ?? stateRoute[stateId] ?? 'profile';
   const [stack, setStack] = useState<Route[]>([initial]);
   const [couponApplied, setCouponApplied] = useState(stateId === 'X');
   const [rewardFoodPreference, setRewardFoodPreference] = useState<FoodPreference>(userFoodPreference as FoodPreference);
   const [toastMessage, setToastMessage] = useState('');
+  const [cancelSubscriptionOpen, setCancelSubscriptionOpen] = useState(false);
   const route = stack[stack.length - 1] ?? initial;
   const go = (next: Route) => setStack((items) => [...items, next]);
   const back = () => setStack((items) => { if (items.length <= 1) { onBack(); return items; } return items.slice(0, -1); });
   const toast = (message: string) => setToastMessage(message);
   const page = useMemo(() => {
-    if (route === 'checkout') return <CheckoutPage onBack={back} go={go} onPayment={() => onTransition('Y')} couponApplied={couponApplied} setCouponApplied={setCouponApplied} />;
+    if (route === 'checkout') return <CheckoutPage onBack={back} go={go} couponApplied={couponApplied} setCouponApplied={setCouponApplied} />;
     if (route === 'coupon') return <CouponPage onBack={back} apply={() => { setCouponApplied(true); setStack((items) => [...items.slice(0, -1), 'checkout']); toast('HEALTHY300 applied'); }} />;
     if (route === 'profile') return <ProfilePage onBack={back} go={go} />;
+    if (route === 'my_plan') return <MyPlanPage onBack={back} go={go} />;
     if (route === 'edit_profile') return <EditProfilePage onBack={back} toast={toast} />;
     if (route === 'addresses') return <AddressesPage onBack={back} toast={toast} />;
     if (route === 'transactions') return <TransactionsPage onBack={back} />;
@@ -693,14 +793,59 @@ export default function CommerceProfileExperience({ stateId, onBack, onTransitio
     if (route === 'referral') return <ReferralPage onBack={back} toast={toast} />;
     if (route === 'loyalty') return <LoyaltyPage onBack={back} go={go} completed={stateId === 'AN'} subscribed={isSubscribedState(stateId)} />;
     if (route === 'leaderboard') return <LeaderboardPage onBack={back} />;
-    if (route === 'reward') return <RewardPage onBack={back} go={go} foodPreference={rewardFoodPreference} onFoodPreferenceChange={setRewardFoodPreference} />;
-    return <RedeemPage onBack={back} onTransition={onTransition} foodPreference={rewardFoodPreference} />;
+    if (route === 'reward') return <RewardPage onBack={back} foodPreference={rewardFoodPreference} onFoodPreferenceChange={setRewardFoodPreference} />;
+    return <RedeemPage onBack={back} foodPreference={rewardFoodPreference} />;
   }, [couponApplied, onTransition, route, stateId, rewardFoodPreference]);
+  const checkoutTotal = priceBefore - (couponApplied ? discountValue : 0);
+  const fixedFooterRoutes: Route[] = ['loyalty', 'reward', 'redeem', 'checkout', 'edit_profile', 'notifications', ...(myPlanShowManageActions ? ['my_plan' as const] : [])];
+  const hasFixedFooter = fixedFooterRoutes.includes(route);
+  const fixedFooterScrollPadding = route === 'my_plan' && myPlanShowManageActions ? insets.bottom + 168 : insets.bottom + 92;
+  const fixedFooter = route === 'loyalty'
+    ? <PrimaryShimmerButton label="View monthly leaderboard" onPress={() => go('leaderboard')} />
+    : route === 'reward'
+      ? <PrimaryShimmerButton label="Choose free meal day" onPress={() => go('redeem')} />
+      : route === 'redeem'
+        ? <PrimaryShimmerButton label="Confirm free meal" onPress={() => onTransition('K')} />
+        : route === 'checkout'
+          ? <PrimaryShimmerButton label={`Subscribe · Pay ${formatRupee(checkoutTotal)}`} onPress={() => onTransition('Y')} />
+          : route === 'my_plan' && myPlanShowManageActions
+            ? (
+              <View className="gap-3">
+                <PrimaryShimmerButton label="Pause subscription" onPress={() => toast('Pause subscription selected')} />
+                <Pressable accessibilityRole="button" onPress={() => setCancelSubscriptionOpen(true)} className="h-12 items-center justify-center">
+                  <Text className="font-mono-semibold text-body-sm text-muted">Cancel subscription</Text>
+                </Pressable>
+              </View>
+            )
+          : route === 'edit_profile'
+            ? <PrimaryShimmerButton label="Save changes" onPress={() => { toast('Profile updated'); back(); }} />
+            : route === 'notifications'
+              ? <PrimaryShimmerButton label="Save preferences" onPress={() => { toast('Notification preferences saved'); back(); }} />
+              : null;
   return (
     <View className="flex-1 bg-canvas">
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} className="flex-1" contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} className="flex-1" contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 20, paddingBottom: hasFixedFooter ? fixedFooterScrollPadding : insets.bottom + 24 }}>
         <View className="flex-1 px-5">{page}</View>
       </ScrollView>
+      {hasFixedFooter && fixedFooter ? (
+        <View style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
+          {fixedFooter}
+        </View>
+      ) : null}
+      {cancelSubscriptionOpen ? (
+        <BottomSheetOverlay onClose={() => setCancelSubscriptionOpen(false)}>
+          <CancelSubscriptionSheet
+            onPause={() => {
+              setCancelSubscriptionOpen(false);
+              toast('Pause subscription selected');
+            }}
+            onCancel={() => {
+              setCancelSubscriptionOpen(false);
+              toast('Subscription cancelled');
+            }}
+          />
+        </BottomSheetOverlay>
+      ) : null}
       {toastMessage ? <AppToast message={toastMessage} onDismiss={() => setToastMessage('')} /> : null}
     </View>
   );

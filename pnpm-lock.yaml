@@ -14,9 +14,9 @@ importers:
       '@expo-google-fonts/geist':
         specifier: ^0.4.2
         version: 0.4.2
-      '@expo-google-fonts/geist-mono':
-        specifier: ^0.4.3
-        version: 0.4.3
+      '@expo-google-fonts/inclusive-sans':
+        specifier: ^0.4.2
+        version: 0.4.2
       expo:
         specifier: ~54.0.36
         version: 54.0.36(@babel/core@7.29.7(supports-color@8.1.1))(@expo/dom-webview@57.0.1)(graphql@16.8.1)(react-native@0.81.5(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.1.17)(react@19.1.0)(supports-color@8.1.1))(react@19.1.0)(supports-color@8.1.1)(typescript@5.9.3)
@@ -84,6 +84,9 @@ importers:
       eas-cli:
         specifier: ^21.6.0
         version: 21.6.0(@types/node@26.1.1)(supports-color@8.1.1)(typescript@5.9.3)
+      playwright:
+        specifier: 1.49.0
+        version: 1.49.0
       typescript:
         specifier: ~5.9.2
         version: 5.9.3
@@ -612,11 +615,11 @@ packages:
   '@expo-google-fonts/abril-fatface@0.4.1':
     resolution: {integrity: sha512-OFschWuI/9M9JP2/ppdnlAHTF24UiZXMYBSbZhWq8lY5t8K4Fi9o+fJl5hseEGN+P8Rr+FMLUlaNR1FLXPmbJw==}
 
-  '@expo-google-fonts/geist-mono@0.4.3':
-    resolution: {integrity: sha512-gjnwv1QOG4meZpMhrLjTIPC/+lhyNu8EcXa2eJPVbPrYvguVjCfBq+Ezq6cWKWW8ung6fqb2TjvuTalE6lqlnw==}
-
   '@expo-google-fonts/geist@0.4.2':
     resolution: {integrity: sha512-cTsqJRQrvK5EniTVwH7UDK18RFf9Bc6yxciAuM936aViQ+eR6j3mLEI2rQkJXz5JP9kwtn8tHJviDyZ0ulH6oA==}
+
+  '@expo-google-fonts/inclusive-sans@0.4.2':
+    resolution: {integrity: sha512-kLMRtCaTJnReDBXeC63iEBtgtXOc6KaGJri9DQkl3eT5P4FUB5SAMGvemKMH4Sf8QycZlajjQDOaYpZYv38FHw==}
 
   '@expo/apple-utils@2.1.22':
     resolution: {integrity: sha512-3EWFfJ8lN0whytDSyyEMS9c+RixGQarb2NEtDYJLwN9q4blhEcMUI/XQox4f2Sfl18FXPrln1nLaCe2jHCruOA==}
@@ -2203,6 +2206,11 @@ packages:
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -3256,6 +3264,16 @@ packages:
   pkg-dir@4.2.0:
     resolution: {integrity: sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==}
     engines: {node: '>=8'}
+
+  playwright-core@1.49.0:
+    resolution: {integrity: sha512-R+3KKTQF3npy5GTiKH/T+kdhoJfJojjHESR1YEWhYuEKRVfVaxH3+4+GvXE5xyCngCxhxnykk0Vlah9v8fs3jA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.49.0:
+    resolution: {integrity: sha512-eKpmys0UFDnfNb3vfsf8Vx2LEOtflgRebl0Im2eQQnYMA4Aqd+Zw8bEOB+7ZKvN76901mRnqdsiOGKxzVTbi7A==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   plist@3.1.1:
     resolution: {integrity: sha512-ZIfcLJC+7E7FBFnDxm9MPmt7D+DidyQ26lewieO75AdhA2ayMtsJSES0iWzqJQbcVRSrTufQoy0DR94xHue0oA==}
@@ -4710,9 +4728,9 @@ snapshots:
 
   '@expo-google-fonts/abril-fatface@0.4.1': {}
 
-  '@expo-google-fonts/geist-mono@0.4.3': {}
-
   '@expo-google-fonts/geist@0.4.2': {}
+
+  '@expo-google-fonts/inclusive-sans@0.4.2': {}
 
   '@expo/apple-utils@2.1.22': {}
 
@@ -7060,6 +7078,9 @@ snapshots:
 
   fs.realpath@1.0.0: {}
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -8268,6 +8289,14 @@ snapshots:
   pkg-dir@4.2.0:
     dependencies:
       find-up: 4.1.0
+
+  playwright-core@1.49.0: {}
+
+  playwright@1.49.0:
+    dependencies:
+      playwright-core: 1.49.0
+    optionalDependencies:
+      fsevents: 2.3.2
 
   plist@3.1.1:
     dependencies:

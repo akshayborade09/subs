@@ -5,7 +5,7 @@ export function isMoneyText(value: string) {
   return value.includes('₹');
 }
 
-/** Apply Geist Mono to monetary values while keeping surrounding typography classes. */
+/** Apply Inclusive Sans semibold to monetary values while keeping surrounding typography classes. */
 export function moneyValueTypography(value: string, sizeClass: string, toneClass = 'text-foreground') {
   if (!isMoneyText(value)) {
     return `text-right font-body-medium leading-6 ${toneClass} ${sizeClass}`;
@@ -31,7 +31,7 @@ type MoneyInlineProps = {
   className?: string;
 };
 
-/** Renders plain text with monetary segments in Geist Mono. */
+/** Renders plain text with monetary segments in Inclusive Sans semibold. */
 export function MoneyInline({ children, className = '' }: MoneyInlineProps) {
   const parts = children.split(/(₹[\d,]+(?:\.\d+)?)/g);
   if (parts.length === 1) {

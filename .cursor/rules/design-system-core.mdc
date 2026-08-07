@@ -29,7 +29,7 @@ src/themeColors.ts     →  JS hex mirror for native APIs only (Switch, icon col
 ## Typography pairs
 
 - Headings: `font-heading` + `text-heading-*` (Abril Fatface)
-- Everything else: `font-body` + `text-body-*` (Geist Mono)
+- Everything else: `font-body` + `text-body-*` (Inclusive Sans)
 - Never cross pairs (`font-heading text-body-sm` is invalid)
 
 ## Color roles in this app

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated as NativeAnimated, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Animated as NativeAnimated, Easing, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -63,7 +63,7 @@ import {
   useMealDetailMachine,
 } from './mealDetailState';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
-import { SubscriptionPreferenceFlow, type SubscriptionPreferences } from './SubscriptionPreferenceFlow';
+import { type SubscriptionPreferences } from './SubscriptionPreferenceFlow';
 import { MealPreferenceImage } from './MealPreferenceImage';
 import { SubscriptionPreferencePickerModal, type PickerAnchor } from './subscriptionPreferencePickerModal';
 import { type SubscriptionPreferenceKind } from './subscriptionPreferenceOptions';
@@ -880,6 +880,8 @@ function MealDetailSheet({
             onSkipMeal(meal.id, mealSlot, projectedEndDate, metadata);
             send({ type: 'MEAL_SKIPPED' });
             onToast(`${slotLabel(mealSlot)} skipped. Your subscription end date has been updated.`);
+            scrollY.value = 0;
+            requestAnimationFrame(() => scrollTo(contentRef, 0, 0, true));
           }}
         />
       ) : null}
@@ -894,7 +896,14 @@ const plans = [
   { id: 'quarterly' as const, name: 'Quarterly', duration: '12 weeks', meals: 60, price: 14999, discount: 2000, badge: 'Best value' as const, badgeGhost: false },
 ];
 const lockedFeatures = ['Nutrient calculator', 'Personalised diet plan', 'Meal and nutrition history', 'Weekly nutrition insights'];
-const standardBenefits = ['Daily home-style meals', 'Nutrition values for every item', 'Complete-meal nutrition totals', 'Pause upcoming meals', 'Change bread or rice preferences', 'Manage delivery addresses', 'Ratings and feedback'];
+const planBenefitCarouselItems = [
+  { title: 'Daily home style meals', image: require('../assets/choose-subs/daily-home.png') },
+  { title: 'Nutrition values for every item', image: require('../assets/choose-subs/nutrition-values.png') },
+  { title: 'Pause upcoming meals', image: require('../assets/choose-subs/pause-meal.png') },
+  { title: 'Change meal preferences anytime/', image: require('../assets/choose-subs/meal-preferences.png') },
+  { title: 'Manage delivery addresses', image: require('../assets/choose-subs/manage-delivery.png') },
+  { title: 'Rate every food and delivery', image: require('../assets/choose-subs/rate-food.png') },
+] as const;
 const toolBenefits = ['Nutrient calculator', 'Personalised diet plan', 'Weekly nutrition insights', 'Meal and nutrition history'];
 
 function SubscriptionCard({ active, daysLeft, caption, title, description, buttonLabel, onPress }: { active: boolean; daysLeft: number; caption?: string; title?: string; description?: string; buttonLabel?: string; onPress: () => void }) {
@@ -956,12 +965,12 @@ function SubscriptionMealSelector({ value, onChange }: { value: MealChoice; onCh
   );
 }
 
-function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, index, onPress }: { caption: string; title: string; image: number; animate: boolean; index: number; onPress: (anchor: PickerAnchor) => void }) {
+function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, index, onEdit }: { caption: string; title: string; image: number; animate: boolean; index: number; onEdit: (anchor: PickerAnchor) => void }) {
   const cardRef = useRef<View>(null);
 
-  const handlePress = () => {
+  const handleEditPress = () => {
     cardRef.current?.measureInWindow((x, y, width, height) => {
-      onPress({ x, y, width, height });
+      onEdit({ x, y, width, height });
     });
   };
 
@@ -970,7 +979,7 @@ function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, in
       ref={cardRef}
       accessibilityRole="button"
       accessibilityLabel={`Edit ${caption.toLowerCase()} preference`}
-      onPress={hapticPress(handlePress, 'light')}
+      onPress={hapticPress(handleEditPress, 'light')}
       className="w-[161px] shrink-0 overflow-hidden rounded-field border border-border bg-canvas"
     >
       {animate ? (
@@ -978,9 +987,14 @@ function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, in
       ) : (
         <View className="h-[116px] w-full bg-field" />
       )}
-      <View className="gap-0.5 px-3 py-2.5">
-        <Text className="font-body text-body-xs text-muted">{caption}</Text>
-        <Text className="font-mono-semibold text-body-sm text-foreground">{title}</Text>
+      <View className="flex-row items-center gap-2 px-3 py-2.5">
+        <View className="min-w-0 flex-1 gap-0.5">
+          <Text className="font-body text-body-xs text-muted">{caption}</Text>
+          <Text className="font-mono-semibold text-body-sm text-foreground">{title}</Text>
+        </View>
+        <View className="size-4 shrink-0 items-center justify-center">
+          <HomeGlyph icon={PencilSimpleIcon} size={20} weight="bold" />
+        </View>
       </View>
     </Pressable>
   );
@@ -991,7 +1005,6 @@ function SubscriptionPreferencesCard({
   mealChoice,
   bread,
   rice,
-  onEdit,
   scrollSignal,
   onOpenPicker,
 }: {
@@ -999,7 +1012,6 @@ function SubscriptionPreferencesCard({
   mealChoice: string;
   bread: string;
   rice: string;
-  onEdit: () => void;
   scrollSignal: number;
   onOpenPicker: (kind: SubscriptionPreferenceKind, anchor: PickerAnchor) => void;
 }) {
@@ -1030,12 +1042,7 @@ function SubscriptionPreferencesCard({
 
   return (
     <View ref={sectionRef} onLayout={revealImages} className="gap-3">
-      <View className="flex-row items-center justify-between gap-3">
-        <SectionHeading>Current preferences</SectionHeading>
-        <Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={hapticPress(onEdit, 'light')} className="size-icon-button items-center justify-center rounded-full bg-icon-surface">
-          <HomeGlyph icon={PencilSimpleIcon} size={18} weight="bold" />
-        </Pressable>
-      </View>
+      <SectionHeading>Current preferences</SectionHeading>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -1050,12 +1057,23 @@ function SubscriptionPreferencesCard({
               image={card.image}
               animate={animateImages}
               index={index}
-              onPress={(anchor) => onOpenPicker(card.kind, anchor)}
+              onEdit={(anchor) => onOpenPicker(card.kind, anchor)}
             />
           ))}
       </ScrollView>
     </View>
   );
+}
+
+function subscriptionPlanCardClass(planId: PlanId, selected: boolean) {
+  if (!selected) return 'border-border bg-canvas';
+  if (planId === 'weekly') {
+    return 'border-2 border-foreground bg-field';
+  }
+  if (planId === 'quarterly') {
+    return 'border-2 border-success bg-success-soft';
+  }
+  return 'border-2 border-accent bg-accent-soft';
 }
 
 function SubscriptionPlanCard({ plan, selected, multiplier, trialCredit, onPress }: { plan: typeof plans[number]; selected: boolean; multiplier: number; trialCredit: number; onPress: () => void }) {
@@ -1068,7 +1086,7 @@ function SubscriptionPlanCard({ plan, selected, multiplier, trialCredit, onPress
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       onPress={hapticPress(onPress, 'selection')}
-      className={`rounded-field border p-sheet ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
+      className={`rounded-field border p-sheet ${subscriptionPlanCardClass(plan.id, selected)}`}
     >
       <View className="flex-row items-start justify-between gap-2">
         <View className="min-w-0 flex-1">
@@ -1097,20 +1115,126 @@ function SubscriptionPlanCard({ plan, selected, multiplier, trialCredit, onPress
   );
 }
 
-function SubscriptionBenefitsSection() {
+const PLAN_BENEFIT_CARD_WIDTH = 161;
+const PLAN_BENEFIT_CARD_GAP = 12;
+const PLAN_BENEFIT_IMAGE_ASPECT = 744 / 720;
+const PLAN_BENEFIT_MARQUEE_LOOP_WIDTH = planBenefitCarouselItems.length * (PLAN_BENEFIT_CARD_WIDTH + PLAN_BENEFIT_CARD_GAP);
+
+function planBenefitImageHeight(_image: number, cardWidth = PLAN_BENEFIT_CARD_WIDTH) {
+  if (typeof Image.resolveAssetSource === 'function') {
+    const asset = Image.resolveAssetSource(_image);
+    if (asset.width > 0 && asset.height > 0) {
+      return cardWidth * (asset.height / asset.width);
+    }
+  }
+  return cardWidth * PLAN_BENEFIT_IMAGE_ASPECT;
+}
+
+function SubscriptionPlanBenefitCarouselCard({ title, image, animate, index }: { title: string; image: number; animate: boolean; index: number }) {
+  const opacity = useRef(new NativeAnimated.Value(0)).current;
+  const imageHeight = planBenefitImageHeight(image);
+
+  useEffect(() => {
+    if (!animate) return;
+    NativeAnimated.timing(opacity, {
+      toValue: 1,
+      duration: 320,
+      delay: index * 50,
+      useNativeDriver: true,
+    }).start();
+  }, [animate, index, opacity]);
+
   return (
-    <View className="gap-sheet-gap">
-      <View className="rounded-field bg-field p-sheet">
-        <Text className="font-body-medium text-body-sm text-muted">INCLUDED WITH EVERY PLAN</Text>
-        <View className="mt-3">
-          {standardBenefits.map((item) => (
-            <View key={item} className="min-h-9 flex-row items-center gap-3">
-              <HomeGlyph icon={CheckIcon} size={18} weight="bold" tone="success" />
-              <Text className="flex-1 font-body text-body-sm text-foreground">{item}</Text>
+    <View style={{ width: PLAN_BENEFIT_CARD_WIDTH }} className="shrink-0 overflow-hidden rounded-field border border-border bg-canvas">
+      {animate ? (
+        <NativeAnimated.View style={{ opacity, width: PLAN_BENEFIT_CARD_WIDTH, height: imageHeight }}>
+          <Image
+            source={image}
+            accessibilityLabel={title}
+            resizeMode="stretch"
+            style={{ width: PLAN_BENEFIT_CARD_WIDTH, height: imageHeight }}
+          />
+        </NativeAnimated.View>
+      ) : (
+        <View style={{ width: PLAN_BENEFIT_CARD_WIDTH, height: imageHeight }} className="bg-field" />
+      )}
+      <View className="px-3 pb-3 pt-2">
+        <Text className="font-mono-semibold text-body-sm leading-5 text-foreground">{title}</Text>
+      </View>
+    </View>
+  );
+}
+
+function SubscriptionPlanBenefitsCarousel({ scrollSignal }: { scrollSignal: number }) {
+  const [animateImages, setAnimateImages] = useState(false);
+  const sectionRef = useRef<View>(null);
+  const hasAnimated = useRef(false);
+  const translateX = useRef(new NativeAnimated.Value(0)).current;
+  const { height: windowHeight } = useWindowDimensions();
+  const marqueeItems = useMemo(
+    () => [...planBenefitCarouselItems, ...planBenefitCarouselItems],
+    [],
+  );
+
+  const revealImages = useCallback(() => {
+    if (hasAnimated.current) return;
+    sectionRef.current?.measureInWindow((_x, y, _width, height) => {
+      if (y + height * 0.2 < windowHeight) {
+        hasAnimated.current = true;
+        setAnimateImages(true);
+      }
+    });
+  }, [windowHeight]);
+
+  useEffect(() => {
+    revealImages();
+  }, [scrollSignal, revealImages]);
+
+  useEffect(() => {
+    if (!animateImages) return;
+    translateX.setValue(0);
+    const animation = NativeAnimated.loop(
+      NativeAnimated.timing(translateX, {
+        toValue: -PLAN_BENEFIT_MARQUEE_LOOP_WIDTH,
+        duration: PLAN_BENEFIT_MARQUEE_LOOP_WIDTH * 32,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [animateImages, translateX]);
+
+  return (
+    <View ref={sectionRef} onLayout={revealImages} className="gap-3">
+      <SectionHeading>Included with every plan</SectionHeading>
+      <View style={{ marginHorizontal: -20, overflow: 'hidden' }} className="py-2">
+        <NativeAnimated.View
+          style={{
+            flexDirection: 'row',
+            paddingHorizontal: 20,
+            transform: [{ translateX }],
+          }}
+        >
+          {marqueeItems.map((item, index) => (
+            <View key={`${item.title}-${index}`} style={{ marginRight: PLAN_BENEFIT_CARD_GAP }}>
+              <SubscriptionPlanBenefitCarouselCard
+                title={item.title}
+                image={item.image}
+                animate={animateImages}
+                index={index % planBenefitCarouselItems.length}
+              />
             </View>
           ))}
-        </View>
+        </NativeAnimated.View>
       </View>
+    </View>
+  );
+}
+
+function SubscriptionBenefitsSection({ scrollSignal }: { scrollSignal: number }) {
+  return (
+    <View className="gap-sheet-gap">
       <View className="rounded-field bg-field p-sheet">
         <FormHeader title="Unlock nutrition tools" subtitle="Personalised nutrition insights become available after you subscribe." size="sheet" />
         <View className="mt-3">
@@ -1122,19 +1246,19 @@ function SubscriptionBenefitsSection() {
           ))}
         </View>
       </View>
+      <SubscriptionPlanBenefitsCarousel scrollSignal={scrollSignal} />
       <LockedPreview title="A meal plan built around your goals" goals={['Balanced meals', 'Increase protein', 'Manage calories', 'Improve meal consistency']} />
     </View>
   );
 }
 
-function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initialRice, address, initialMeal, dailyMeals: initialDailyMeals = [], onClose, onActivated, onToast }: { food: string; bread: string; rice: string; address: string; initialMeal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; onClose: () => void; onActivated: (plan: string, meal: string, total: number, startDate: string) => void; onToast: (text: string) => void }) {
+function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initialRice, address, initialMeal, dailyMeals: initialDailyMeals = [], sheetTitle = 'Choose your subscription', onClose, onActivated, onExploreMyPlanPress, onToast }: { food: string; bread: string; rice: string; address: string; initialMeal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; sheetTitle?: string; onClose: () => void; onActivated: (plan: string, meal: string, total: number, startDate: string) => void; onExploreMyPlanPress?: () => void; onToast: (text: string) => void }) {
   const insets = useSafeAreaInsets();
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   const [planId, setPlanId] = useState<PlanId>('monthly');
   const [mealChoice, setMealChoice] = useState<MealChoice>(initialMeal === 'Dinner' ? 'Dinner' : initialMeal === 'Both' ? 'Both' : 'Lunch');
   const [success, setSuccess] = useState(false);
-  const [preferenceFlowOpen, setPreferenceFlowOpen] = useState(false);
   const [openPreferencePicker, setOpenPreferencePicker] = useState<SubscriptionPreferenceKind | null>(null);
   const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor | null>(null);
   const [preferencesScrollSignal, setPreferencesScrollSignal] = useState(0);
@@ -1153,17 +1277,6 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
   const taxes = Math.round((planPrice - discount) * 0.05);
   const total = planPrice - discount - trialCredit + taxes;
   const perMeal = Math.round(total / (selectedPlan.meals * multiplier));
-
-  const handlePreferencesComplete = (next: SubscriptionPreferences, meta: { source: 'choose-subscription' | 'onboarding'; completed: true }) => {
-    setPreferences(next);
-    if (next.meal === 'Lunch' || next.meal === 'Dinner' || next.meal === 'Both') {
-      setMealChoice(next.meal);
-    }
-    setPreferenceFlowOpen(false);
-    if (meta.source === 'choose-subscription') {
-      onToast('Preferences updated');
-    }
-  };
 
   const handlePreferencePickerSelect = (value: string) => {
     if (openPreferencePicker === 'food') setPreferences((current) => ({ ...current, food: value }));
@@ -1202,7 +1315,7 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
                 <Meta compact label="Next meal" value="26 July · Lunch" />
               </View>
             )}
-            primaryAction={<Primary label="Explore My Plan" onPress={() => { onActivated(selectedPlan.name, mealChoice, total, '26 July'); onClose(); }} />}
+            primaryAction={<Primary label="Explore My Plan" onPress={() => { onActivated(selectedPlan.name, mealChoice, total, '26 July'); onClose(); onExploreMyPlanPress?.(); }} />}
           />
         </Animated.View>
       </Overlay>
@@ -1216,7 +1329,7 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
           <Pressable accessibilityRole="button" accessibilityLabel="Back to home" onPress={onClose} hitSlop={8} className="size-6 items-center justify-center">
             <CaretLeftIcon size={24} weight="regular" color={iconColor} />
           </Pressable>
-          <Text className="flex-1 font-heading text-heading-md text-foreground">Choose your subscription</Text>
+          <Text className="flex-1 font-heading text-heading-md text-foreground">{sheetTitle}</Text>
         </View>
       </View>
 
@@ -1259,14 +1372,13 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
                 bread={preferences.bread}
                 rice={preferences.rice}
                 scrollSignal={preferencesScrollSignal}
-                onEdit={() => setPreferenceFlowOpen(true)}
                 onOpenPicker={(kind, anchor) => {
                   setOpenPreferencePicker(kind);
                   setPickerAnchor(anchor);
                 }}
               />
 
-              <SubscriptionBenefitsSection />
+              <SubscriptionBenefitsSection scrollSignal={preferencesScrollSignal} />
 
               <View className="gap-3">
                 <SectionHeading>Price breakdown</SectionHeading>
@@ -1282,10 +1394,8 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
                     <MoneyText amount={total} className="text-body-md text-foreground" />
                   </View>
                 </View>
-                <Text className="font-body text-body-xs leading-5 text-muted">
                 <Text className="font-body text-body-xs leading-4 text-muted">
                   {selectedPlan.name} · <MoneyInline className="font-body text-body-xs leading-4 text-muted">{`${formatRupee(perMeal)}/meal after trial credit and savings.`}</MoneyInline>
-                </Text>
                 </Text>
               </View>
             </View>
@@ -1308,19 +1418,11 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
           onSelect={handlePreferencePickerSelect}
         />
       ) : null}
-      {preferenceFlowOpen ? (
-        <SubscriptionPreferenceFlow
-          initial={preferences}
-          completionSource="choose-subscription"
-          onClose={() => setPreferenceFlowOpen(false)}
-          onComplete={handlePreferencesComplete}
-        />
-      ) : null}
     </Animated.View>
   );
 }
 
-export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, openSubscriptionOnLoad = false, openMealDetailOnLoad = false, lifecycleVariant = 'trial_active', onPaymentStatusPress, onProfilePress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; openSubscriptionOnLoad?: boolean; openMealDetailOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; onPaymentStatusPress?: () => void; onProfilePress?: () => void }) {
+export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, openSubscriptionOnLoad = false, openMealDetailOnLoad = false, lifecycleVariant = 'trial_active', onPaymentStatusPress, onProfilePress, onExploreMyPlanPress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; openSubscriptionOnLoad?: boolean; openMealDetailOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; onPaymentStatusPress?: () => void; onProfilePress?: () => void; onExploreMyPlanPress?: () => void }) {
   const insets = useSafeAreaInsets();
   const { theme } = useUniwind();
   const dark = theme === 'dark';
@@ -1342,7 +1444,7 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
     return trial;
   }, [address, bread, dailyMeals, food, lifecycleVariant, meal, rice]);
   const isSubscriptionHome = lifecycleVariant.startsWith('subscription_');
-  const initiallySubscribed = lifecycleVariant === 'trial_subscription_purchased' || isSubscriptionHome;
+  const initiallySubscribed = (lifecycleVariant === 'trial_subscription_purchased' || isSubscriptionHome) && lifecycleVariant !== 'subscription_expired';
   const configs: Record<HomeLifecycleVariant, { eyebrow: string; title: string; description: string; caption?: string; selectedLabel: string }> = {
     trial_payment_pending: { eyebrow: 'Payment pending', title: 'Your trial payment is being checked', description: 'Your trial dates are saved while the payment confirmation is pending.', caption: 'Payment not confirmed', selectedLabel: 'First trial meal' },
     trial_scheduled: { eyebrow: 'Trial scheduled', title: 'Your trial starts soon', description: 'Your three selected trial dates are ready. Tap a meal-status circle to review details.', caption: 'Trial starts 27 July', selectedLabel: 'First trial meal' },
@@ -1381,8 +1483,12 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
           : undefined;
   const [meals, setMeals] = useState(seed);
   const upcomingMeal = useMemo(() => {
-    const eligible = meals.filter((item) => item.isPlanDay !== false);
-    return eligible.find((item) => item.status !== 'delivered' && item.status !== 'inactive' && item.status !== 'skipped' && !item.isSkipped) ?? eligible[eligible.length - 1]!;
+    const eligible = planMealsFrom(meals);
+    const today = demoStartOfDay();
+    return eligible.find((item) => {
+      if (item.status === 'delivered' || item.status === 'inactive' || item.status === 'skipped' || item.isSkipped) return false;
+      return parseMealDate(item.date).getTime() >= today.getTime();
+    }) ?? eligible[eligible.length - 1]!;
   }, [meals]);
   const [detailId, setDetailId] = useState(upcomingMeal.id);
   const [detailSlot, setDetailSlot] = useState<MealSlot>('lunch');
@@ -1471,7 +1577,14 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
       return current ? { ...current, endDate: restoredEndDate } : current;
     });
   };
-  const openPlan = () => subscription ? showToast(`${subscription.plan} subscription active`) : setSubscriptionOpen(true);
+  const subscriptionSheetTitle = lifecycleVariant === 'subscription_expired' ? 'Renew subscription' : 'Choose your subscription';
+  const openPlan = () => {
+    if (subscription && lifecycleVariant !== 'subscription_expired') {
+      onExploreMyPlanPress?.();
+      return;
+    }
+    setSubscriptionOpen(true);
+  };
   const stateNoticeSurfaceClass = lifecycleVariant === 'trial_payment_pending' || lifecycleVariant === 'subscription_ending'
     ? 'rounded-field p-sheet bg-accent-soft'
     : lifecycleVariant === 'subscription_offline' || lifecycleVariant === 'subscription_delivery_failed' || lifecycleVariant === 'subscription_delivery_delayed'
@@ -1499,7 +1612,7 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
         onToast={showToast}
       />
     ) : null}
-    {subscriptionOpen ? <SubscriptionSheet food={food} bread={bread} rice={rice} address={address} initialMeal={meal} dailyMeals={dailyMeals} onClose={() => setSubscriptionOpen(false)} onToast={showToast} onActivated={(plan, selectedMeal, total, startDate) => { setSubscription({ plan, meal: selectedMeal, total, startDate, endDate: demoAddDays(demoStartOfDay(), 14) }); showToast(`${plan} plan activated for ${selectedMeal}`); }} /> : null}
+    {subscriptionOpen ? <SubscriptionSheet food={food} bread={bread} rice={rice} address={address} initialMeal={meal} dailyMeals={dailyMeals} sheetTitle={subscriptionSheetTitle} onClose={() => setSubscriptionOpen(false)} onToast={showToast} onExploreMyPlanPress={onExploreMyPlanPress} onActivated={(plan, selectedMeal, total, startDate) => { setSubscription({ plan, meal: selectedMeal, total, startDate, endDate: demoAddDays(demoStartOfDay(), 14) }); showToast(`${plan} plan activated for ${selectedMeal}`); }} /> : null}
     {toast ? <Toast message={toast} onDismiss={() => setToast('')} /> : null}
   </View>;
 }
