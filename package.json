@@ -10,7 +10,12 @@
     "web": "expo start --web",
     "export": "expo export",
     "typecheck": "tsc --noEmit",
-    "doctor": "expo-doctor"
+    "doctor": "expo-doctor",
+    "eas:login": "./node_modules/.bin/eas login",
+    "eas:init": "./node_modules/.bin/eas init",
+    "build:android": "./node_modules/.bin/eas build --platform android --profile preview",
+    "build:ios": "./node_modules/.bin/eas build --platform ios --profile preview",
+    "build:all": "./node_modules/.bin/eas build --platform all --profile preview"
   },
   "dependencies": {
     "@expo-google-fonts/abril-fatface": "^0.4.1",
@@ -37,6 +42,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.17",
+    "eas-cli": "^21.6.0",
     "typescript": "~5.9.2"
   }
 }
