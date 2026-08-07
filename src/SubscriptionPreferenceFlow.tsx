@@ -6,6 +6,7 @@ import { useUniwind } from 'uniwind';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 import { FormPageSection } from './formLayout';
 import { PrimaryShimmerButton } from './primaryButton';
+import { hapticPress } from './haptics';
 import { foodImages } from './foodImages';
 import { MealPreferenceImage } from './MealPreferenceImage';
 
@@ -65,7 +66,7 @@ function PreferenceCards({ options, value, onChange }: { options: FoodChoice[]; 
             key={option.title}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
-            onPress={() => onChange(option.title)}
+            onPress={hapticPress(() => onChange(option.title), 'selection')}
             className={`flex-row items-stretch ${selectionCardClass(selected)}`}
           >
             <View className="min-w-0 flex-1 justify-center gap-2 p-sheet">
@@ -102,7 +103,7 @@ function DailyMealPlan({ meal, value, onChange }: { meal: string; value: DailyMe
                         key={choice}
                         accessibilityRole="radio"
                         accessibilityState={{ checked: selected }}
-                        onPress={() => update(dayIndex, mealKey, choice)}
+                        onPress={hapticPress(() => update(dayIndex, mealKey, choice), 'selection')}
                         className={`h-9 flex-1 items-center justify-center rounded-field border bg-canvas ${selected ? 'border-2 border-accent' : 'border-border'}`}
                       >
                         <Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice === 'Vegetarian' ? 'Veg' : 'Non-veg'}</Text>
@@ -194,7 +195,7 @@ export function SubscriptionPreferenceFlow({
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 96 }}>
           <View className="px-5">
-            <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} hitSlop={8} className="mb-6 size-6 items-center justify-center">
+            <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={hapticPress(back, 'light')} hitSlop={8} className="mb-6 size-6 items-center justify-center">
               <CaretLeftIcon size={24} weight="regular" color={iconColor} />
             </Pressable>
             <FormPageSection subheading={copy.subheading}>

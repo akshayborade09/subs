@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Image, Keyboard, KeyboardAvoidingView, Pla
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { SheetBackdrop } from './sheetOverlay';
+import { hapticPress } from './haptics';
 import * as Location from 'expo-location';
 import Animated, { Easing, Extrapolation, FadeIn, FadeInUp, interpolate, interpolateColor, LinearTransition, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
@@ -144,7 +145,7 @@ function PersonalGenderCard({ label, icon: Glyph, selected, onPress }: { label: 
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
-      onPress={onPress}
+      onPress={hapticPress(onPress, 'selection')}
       className={`min-h-[86px] flex-1 overflow-hidden rounded-field border px-sheet py-3.5 ${selected ? 'border-2 border-accent' : 'border-border bg-canvas'}`}
     >
       {selected ? (
@@ -316,7 +317,7 @@ function ChoiceCards({ options, value, onChange }: { options: Choice[]; value: s
             key={option.title}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
-            onPress={() => onChange(option.title)}
+            onPress={hapticPress(() => onChange(option.title), 'selection')}
             className={`gap-2 p-sheet ${selectionCardClass(selected)}`}
           >
             <Text className="font-mono-semibold text-body-md text-foreground">{option.title}</Text>
@@ -338,7 +339,7 @@ function PreferenceCards({ options, value, onChange }: { options: FoodChoice[]; 
             key={option.title}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
-            onPress={() => onChange(option.title)}
+            onPress={hapticPress(() => onChange(option.title), 'selection')}
             className={`flex-row items-stretch ${selectionCardClass(selected)}`}
           >
             <View className="min-w-0 flex-1 justify-center gap-2 p-sheet">

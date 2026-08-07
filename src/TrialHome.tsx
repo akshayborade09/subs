@@ -24,6 +24,7 @@ import { themePalette } from './themeColors';
 import { BottomToast } from './bottomToast';
 import { SheetBackdrop } from './sheetOverlay';
 import { PrimaryShimmerButton, GhostFieldButton, GhostCanvasButton, AccentSecondaryButton } from './primaryButton';
+import { hapticPress } from './haptics';
 import {
   FormHeader,
   FormModalLayout,
@@ -228,7 +229,7 @@ function SheetCloseButton({ onPress, label }: { onPress: () => void; label: stri
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={8} className="size-icon-button shrink-0 items-center justify-center">
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={hapticPress(onPress, 'light')} hitSlop={8} className="size-icon-button shrink-0 items-center justify-center">
       <XIcon size={24} weight="regular" color={iconColor} />
     </Pressable>
   );
@@ -378,7 +379,7 @@ function TrialDayTracker({ meals, selectedId, showBoth, animateUpcoming = true, 
   const skippedSurface = themePalette[dark ? 'dark' : 'light'].skippedSurface;
   const skippedBorder = themePalette[dark ? 'dark' : 'light'].skippedBorder;
   let upcomingRippleAssigned = false;
-  return <View className="w-full flex-row">{meals.map((meal) => { const excluded = meal.isPlanDay === false; const selected = meal.id === selectedId; const markers = meal.mealMarkers?.slice(0, showBoth ? 2 : 1) ?? Array.from({ length: showBoth ? 2 : 1 }, (_, markerIndex) => ({ foodPreference: meal.foodPreference, status: meal.status, slot: (markerIndex === 0 ? 'lunch' : 'dinner') as MealSlot })); return <View key={meal.id} className="flex-1 items-center"><Pressable disabled={excluded} accessibilityRole="button" accessibilityLabel={excluded ? `${meal.date}, no meal selected` : `Select ${meal.date}`} accessibilityState={{ selected, disabled: excluded }} onPress={() => onSelectDate(meal)} className={`h-14 w-full max-w-[46px] items-center justify-center rounded-field border ${selected ? 'border-foreground bg-canvas' : excluded ? 'border-transparent bg-field opacity-45' : 'border-border bg-field'}`}><Text className="font-mono-semibold text-body-md text-foreground">{meal.shortDate}</Text><Text className="mt-0.5 font-body text-body-xs text-muted">{meal.dayLabel}</Text></Pressable><View className="mt-2 items-center gap-1">{markers.map((marker, markerIndex) => { const slot: MealSlot = marker.slot ?? (markerIndex === 0 ? 'lunch' : 'dinner'); const nonVeg = marker.foodPreference.toLowerCase().includes('non'); const delayed = marker.status === 'delayed'; const failed = marker.status === 'delivery_failed' || marker.status === 'issue'; const skipped = marker.status === 'skipped'; const active = animateUpcoming && !excluded && !skipped && !upcomingRippleAssigned && (marker.status === 'upcoming' || delayed); if (active) upcomingRippleAssigned = true; const delivered = marker.status === 'delivered'; const borderColor = skipped ? skippedBorder : excluded || marker.status === 'inactive' || marker.status === 'paused' ? '#d8d8d8' : failed ? '#dc2626' : delayed ? '#f59e0b' : nonVeg ? '#dc2626' : '#078a4b'; return <Pressable key={`${meal.id}-${markerIndex}`} disabled={excluded} accessibilityRole="button" accessibilityLabel={`${slot === 'lunch' ? 'Lunch' : 'Dinner'}, ${marker.foodPreference}, ${marker.status}`} onPress={() => onOpenMeal(meal, slot)} className={`h-7 w-9 items-center justify-center ${excluded ? 'opacity-45' : ''}`}>{active ? <UpcomingRipple color={delayed ? 'orange' : nonVeg ? 'red' : 'green'} /> : null}<View style={{ borderColor, backgroundColor: skipped ? skippedSurface : delivered || failed ? borderColor : 'transparent' }} className="h-5 w-5 items-center justify-center rounded-full border-[3px]">{delivered && !excluded ? <HomeGlyph icon={CheckIcon} size={16} weight="bold" tone="white" /> : failed && !excluded ? <HomeGlyph icon={XIcon} size={15} weight="bold" tone="white" /> : null}</View></Pressable>; })}</View></View>; })}</View>;
+  return <View className="w-full flex-row">{meals.map((meal) => { const excluded = meal.isPlanDay === false; const selected = meal.id === selectedId; const markers = meal.mealMarkers?.slice(0, showBoth ? 2 : 1) ?? Array.from({ length: showBoth ? 2 : 1 }, (_, markerIndex) => ({ foodPreference: meal.foodPreference, status: meal.status, slot: (markerIndex === 0 ? 'lunch' : 'dinner') as MealSlot })); return <View key={meal.id} className="flex-1 items-center"><Pressable disabled={excluded} accessibilityRole="button" accessibilityLabel={excluded ? `${meal.date}, no meal selected` : `Select ${meal.date}`} accessibilityState={{ selected, disabled: excluded }} onPress={hapticPress(() => onSelectDate(meal), 'selection')} className={`h-14 w-full max-w-[46px] items-center justify-center rounded-field border ${selected ? 'border-foreground bg-canvas' : excluded ? 'border-transparent bg-field opacity-45' : 'border-border bg-field'}`}><Text className="font-mono-semibold text-body-md text-foreground">{meal.shortDate}</Text><Text className="mt-0.5 font-body text-body-xs text-muted">{meal.dayLabel}</Text></Pressable><View className="mt-2 items-center gap-1">{markers.map((marker, markerIndex) => { const slot: MealSlot = marker.slot ?? (markerIndex === 0 ? 'lunch' : 'dinner'); const nonVeg = marker.foodPreference.toLowerCase().includes('non'); const delayed = marker.status === 'delayed'; const failed = marker.status === 'delivery_failed' || marker.status === 'issue'; const skipped = marker.status === 'skipped'; const active = animateUpcoming && !excluded && !skipped && !upcomingRippleAssigned && (marker.status === 'upcoming' || delayed); if (active) upcomingRippleAssigned = true; const delivered = marker.status === 'delivered'; const borderColor = skipped ? skippedBorder : excluded || marker.status === 'inactive' || marker.status === 'paused' ? '#d8d8d8' : failed ? '#dc2626' : delayed ? '#f59e0b' : nonVeg ? '#dc2626' : '#078a4b'; return <Pressable key={`${meal.id}-${markerIndex}`} disabled={excluded} accessibilityRole="button" accessibilityLabel={`${slot === 'lunch' ? 'Lunch' : 'Dinner'}, ${marker.foodPreference}, ${marker.status}`} onPress={() => onOpenMeal(meal, slot)} className={`h-7 w-9 items-center justify-center ${excluded ? 'opacity-45' : ''}`}>{active ? <UpcomingRipple color={delayed ? 'orange' : nonVeg ? 'red' : 'green'} /> : null}<View style={{ borderColor, backgroundColor: skipped ? skippedSurface : delivered || failed ? borderColor : 'transparent' }} className="h-5 w-5 items-center justify-center rounded-full border-[3px]">{delivered && !excluded ? <HomeGlyph icon={CheckIcon} size={16} weight="bold" tone="white" /> : failed && !excluded ? <HomeGlyph icon={XIcon} size={15} weight="bold" tone="white" /> : null}</View></Pressable>; })}</View></View>; })}</View>;
 }
 
 function selectionClass(selected: boolean) {
@@ -421,7 +422,7 @@ function NutritionSection({ meal }: { meal: TrialMeal }) {
 function FloatingNav({ active, onChange }: { active: 'home' | 'profile'; onChange: (tab: 'home' | 'profile') => void }) {
   const noShadow = { elevation: 0, shadowColor: 'transparent', shadowOpacity: 0, shadowRadius: 0, shadowOffset: { width: 0, height: 0 } } as const;
   const tabs = [{ id: 'home' as const, icon: HouseIcon, label: 'Home' }, { id: 'profile' as const, icon: UserCircleIcon, label: 'Profile' }];
-  const content = <View className={`flex-1 flex-row p-1.5 ${Platform.OS === 'android' ? 'bg-surface-raised/40' : 'bg-surface-raised/55'}`}>{tabs.map(({ id, icon, label }) => <Pressable key={id} accessibilityRole="tab" accessibilityState={{ selected: active === id }} accessibilityLabel={label} onPress={() => onChange(id)} className={`flex-1 flex-row items-center justify-center gap-2 rounded-full ${active === id ? 'bg-foreground' : ''}`}><HomeGlyph icon={icon} size={20} weight={active === id ? 'fill' : 'regular'} tone={active === id ? 'canvas' : 'foreground'} /><Text className={`font-mono-semibold text-body-sm ${active === id ? 'text-canvas' : 'text-foreground'}`}>{label}</Text></Pressable>)}</View>;
+  const content = <View className={`flex-1 flex-row p-1.5 ${Platform.OS === 'android' ? 'bg-surface-raised/40' : 'bg-surface-raised/55'}`}>{tabs.map(({ id, icon, label }) => <Pressable key={id} accessibilityRole="tab" accessibilityState={{ selected: active === id }} accessibilityLabel={label} onPress={hapticPress(() => onChange(id), 'selection')} className={`flex-1 flex-row items-center justify-center gap-2 rounded-full ${active === id ? 'bg-foreground' : ''}`}><HomeGlyph icon={icon} size={20} weight={active === id ? 'fill' : 'regular'} tone={active === id ? 'canvas' : 'foreground'} /><Text className={`font-mono-semibold text-body-sm ${active === id ? 'text-canvas' : 'text-foreground'}`}>{label}</Text></Pressable>)}</View>;
   return <View pointerEvents="box-none" style={{ bottom: 20 }} className="absolute inset-x-0 z-30 items-center"><View style={noShadow} className="h-16 w-[220px] overflow-hidden rounded-full">{isLiquidGlassAvailable() ? <GlassView glassEffectStyle="regular" isInteractive style={[StyleSheet.absoluteFill, noShadow]}>{content}</GlassView> : <View style={noShadow} className="flex-1"><BlurView intensity={Platform.OS === 'android' ? 8 : 55} tint="default" experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'} style={[StyleSheet.absoluteFill, noShadow]} /><View className={`absolute inset-0 ${Platform.OS === 'android' ? 'bg-surface-raised/15' : 'bg-surface-raised/20'}`} />{content}</View>}</View></View>;
 }
 
@@ -472,7 +473,7 @@ function Feedback({ meal, onSave, onFocusTellMore }: { meal: TrialMeal; onSave: 
             accessibilityRole="radio"
             accessibilityLabel={`${star} star${star > 1 ? 's' : ''}`}
             accessibilityState={{ checked: rating === star }}
-            onPress={() => setRating(star)}
+            onPress={hapticPress(() => setRating(star), 'selection')}
             className="size-11 items-center justify-center"
           >
             <HomeGlyph icon={StarIcon} size={30} weight={star <= rating ? 'fill' : 'regular'} tone={star <= rating ? 'accent' : 'muted'} />
@@ -486,7 +487,7 @@ function Feedback({ meal, onSave, onFocusTellMore }: { meal: TrialMeal; onSave: 
           return (
             <Pressable
               key={tag}
-              onPress={() => setTags(active ? tags.filter((item) => item !== tag) : [...tags, tag])}
+              onPress={hapticPress(() => setTags(active ? tags.filter((item) => item !== tag) : [...tags, tag]), 'selection')}
               className={`min-h-11 justify-center rounded-field border px-3 ${active ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
             >
               <Text className={`font-mono-semibold text-body-xs ${active ? 'text-foreground' : 'text-muted'}`}>{tag}</Text>
@@ -538,7 +539,7 @@ function IssueSheet({ mealDate, onClose, onSubmit }: { mealDate: string; onClose
             {issueCategories.map((item) => (
               <Pressable
                 key={item}
-                onPress={() => setCategory(item)}
+                onPress={hapticPress(() => setCategory(item), 'selection')}
                 className={`min-h-11 justify-center rounded-field border px-3 ${category === item ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
               >
                 <Text className={`font-mono-semibold text-body-xs ${category === item ? 'text-foreground' : 'text-muted'}`}>{item}</Text>
@@ -599,7 +600,7 @@ function MealDetailActionList({ actions, onAction }: { actions: ReturnType<typeo
           key={action.id}
           title={action.title}
           subtitle={action.subtitle}
-          onPress={() => onAction(action.id)}
+          onPress={hapticPress(() => onAction(action.id), 'light')}
           showDivider={index < actions.length - 1}
         />
       ))}
@@ -938,7 +939,7 @@ function SubscriptionMealSelector({ value, onChange }: { value: MealChoice; onCh
             key={choice}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
-            onPress={() => onChange(choice)}
+            onPress={hapticPress(() => onChange(choice), 'selection')}
             className={`py-2.5 flex-1 items-center justify-center rounded-full border bg-canvas ${selected ? 'border-2 border-accent' : 'border-border'}`}
           >
             <Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice}</Text>
@@ -951,7 +952,7 @@ function SubscriptionMealSelector({ value, onChange }: { value: MealChoice; onCh
 
 function SubscriptionPreferencesCard({ food, mealChoice, bread, rice, address, onEdit }: { food: string; mealChoice: string; bread: string; rice: string; address: string; onEdit: () => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={onEdit} className="gap-3 rounded-field bg-field p-sheet">
+    <Pressable accessibilityRole="button" accessibilityLabel="Edit current preferences" onPress={hapticPress(onEdit, 'light')} className="gap-3 rounded-field bg-field p-sheet">
       <View className="flex-row items-center justify-between gap-3">
         <SectionHeading>Current preferences</SectionHeading>
         <View className="size-icon-button items-center justify-center rounded-full bg-icon-surface">
@@ -978,7 +979,7 @@ function SubscriptionPlanCard({ plan, selected, multiplier, trialCredit, onPress
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
-      onPress={onPress}
+      onPress={hapticPress(onPress, 'selection')}
       className={`rounded-field border p-sheet ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
     >
       <View className="flex-row items-start justify-between gap-2">

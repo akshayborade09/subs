@@ -8,6 +8,7 @@ import { foodImages } from './foodImages';
 import { FormHeader } from './formLayout';
 import { MealPreferenceImage } from './MealPreferenceImage';
 import { PrimaryShimmerButton } from './primaryButton';
+import { hapticPress } from './haptics';
 import type { MealPreferenceValue } from './mealDetailState';
 
 type FoodOption = {
@@ -36,7 +37,7 @@ function FoodPreferenceCards({ value, onChange }: { value: MealPreferenceValue; 
             key={option.title}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
-            onPress={() => onChange(option.title)}
+            onPress={hapticPress(() => onChange(option.title), 'selection')}
             className={`flex-row items-stretch ${selectionCardClass(selected)}`}
           >
             <View className="min-w-0 flex-1 justify-center gap-2 p-sheet">
@@ -73,7 +74,7 @@ export function FoodPreferencePicker({
         <View className="flex-1 pr-3">
           <FormHeader title="What do you enjoy eating?" subtitle={`Only for ${mealDate}`} size="sheet" />
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close food preference editor" onPress={onClose} hitSlop={8} className="size-icon-button shrink-0 items-center justify-center">
+        <Pressable accessibilityRole="button" accessibilityLabel="Close food preference editor" onPress={hapticPress(onClose, 'light')} hitSlop={8} className="size-icon-button shrink-0 items-center justify-center">
           <XIcon size={24} weight="regular" color={iconColor} />
         </Pressable>
       </View>

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SheetBackdrop } from './sheetOverlay';
+import { hapticPress } from './haptics';
 import {
   geocodeLocationQuery,
   searchLocationSuggestions,
@@ -380,7 +381,7 @@ export function SearchLocationScreen({ initialValue, onBack, onSelect }: { initi
             ) : (
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {suggestions.map((location, index) => (
-                  <Pressable key={`${index}-${location}`} onPress={() => selectSuggestion(location)} className="min-h-16 flex-row items-center border-b border-border py-3">
+                  <Pressable key={`${index}-${location}`} onPress={hapticPress(() => selectSuggestion(location), 'selection')} className="min-h-16 flex-row items-center border-b border-border py-3">
                     <View className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-icon-surface">
                       <FlowGlyph icon={MapPinIcon} size={20} />
                     </View>
@@ -424,7 +425,7 @@ export function AddressLabelSection({ labelType, customLabel, onSelectLabel, onC
             key={option.id}
             accessibilityRole="radio"
             accessibilityState={{ selected: labelType === option.id }}
-            onPress={() => onSelectLabel(option.id)}
+            onPress={hapticPress(() => onSelectLabel(option.id), 'selection')}
             className={`h-9 justify-center rounded-full border px-4 ${labelType === option.id ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
           >
             <Text className={`font-mono-semibold text-body-sm ${labelType === option.id ? 'text-foreground' : 'text-muted'}`}>{option.label}</Text>
@@ -532,7 +533,7 @@ export function SavedAddressesSheet({
           >
             <Pressable
               accessibilityRole="button"
-              onPress={() => onSelect(address)}
+              onPress={hapticPress(() => onSelect(address), 'selection')}
               className="min-w-0 flex-1"
             >
               <Text className="font-mono-semibold text-body-md text-foreground">{addressLabelDisplay(address)}</Text>
@@ -541,12 +542,12 @@ export function SavedAddressesSheet({
             </Pressable>
             <View className="shrink-0 flex-row items-center gap-1 pt-0.5">
               {onEdit ? (
-                <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${addressLabelDisplay(address)}`} onPress={() => onEdit(address)} hitSlop={8} className="size-icon-button items-center justify-center">
+                <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${addressLabelDisplay(address)}`} onPress={hapticPress(() => onEdit(address), 'light')} hitSlop={8} className="size-icon-button items-center justify-center">
                   <PencilSimpleIcon size={20} weight="regular" color={iconColor} />
                 </Pressable>
               ) : null}
               {onDelete && address.id !== defaultAddressId ? (
-                <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${addressLabelDisplay(address)}`} onPress={() => onDelete(address)} hitSlop={8} className="size-icon-button items-center justify-center">
+                <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${addressLabelDisplay(address)}`} onPress={hapticPress(() => onDelete(address), 'warning')} hitSlop={8} className="size-icon-button items-center justify-center">
                   <TrashSimpleIcon size={20} weight="regular" color={destructiveColor} />
                 </Pressable>
               ) : null}

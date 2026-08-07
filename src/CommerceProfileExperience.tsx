@@ -7,6 +7,7 @@ import { headingDescriptionClass } from './typographyClasses';
 import { formatRupee } from './formatCurrency';
 import { FormHeader, FormPageSection, SectionHeading } from './formLayout';
 import { GhostCanvasButton, GhostFieldButton, PrimaryShimmerButton, AccentSwitch, accentSecondarySurfaceClass } from './primaryButton';
+import { hapticPress } from './haptics';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { CalendarIcon } from 'phosphor-react-native/src/icons/Calendar';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
@@ -215,7 +216,7 @@ function ToggleRow({ title, description, value, onChange, locked = false, showDi
 
 function ActionChip({ label, onPress, danger = false }: { label: string; onPress: () => void; danger?: boolean }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} className={`h-9 justify-center rounded-full border px-4 ${danger ? 'border-destructive bg-destructive' : 'border-border bg-canvas'}`}>
+    <Pressable accessibilityRole="button" onPress={hapticPress(onPress, danger ? 'warning' : 'light')} className={`h-9 justify-center rounded-full border px-4 ${danger ? 'border-destructive bg-destructive' : 'border-border bg-canvas'}`}>
       <Text className={`font-mono-semibold text-body-sm ${danger ? 'text-white' : 'text-foreground'}`}>{label}</Text>
     </Pressable>
   );
@@ -408,7 +409,7 @@ function TransactionsPage({ onBack }: { onBack: () => void }) {
     <Header onBack={onBack} title="Transactions" description="Payments, refunds, credits and rewards in one place." />
     <View className="mt-6 flex-row gap-2">
       {['All', 'Payments', 'Rewards'].map((item, index) => (
-        <Pressable key={item} onPress={() => setFilter(index)} className={`rounded-full px-4 py-2 ${index === filter ? 'bg-accent' : 'border border-border bg-canvas'}`}>
+        <Pressable key={item} onPress={hapticPress(() => setFilter(index), 'selection')} className={`rounded-full px-4 py-2 ${index === filter ? 'bg-accent' : 'border border-border bg-canvas'}`}>
           <Text className={`font-mono-semibold text-body-sm ${index === filter ? 'text-white' : 'text-foreground'}`}>{item}</Text>
         </Pressable>
       ))}

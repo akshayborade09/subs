@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated as NativeAnimated, Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
+import { hapticPress } from './haptics';
 import { useThemePalette } from './themeColors';
 
 const SHIMMER_WIDTH = 48;
@@ -42,7 +43,7 @@ export function PrimaryShimmerButton({ label, onPress, enabled = true, loading =
         accessibilityLabel={label}
         accessibilityState={{ disabled: !enabled, busy: loading }}
         disabled={!enabled || loading}
-        onPress={onPress}
+        onPress={hapticPress(onPress, 'medium')}
         onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
         className={`w-full overflow-hidden rounded-button-outer border p-button-wrap ${accent ? 'border-accent' : 'border-foreground'} ${enabled ? 'opacity-100' : 'opacity-40'}`}
@@ -99,7 +100,7 @@ export function AccentSecondaryButton({ label, onPress, enabled = true, elevated
         accessibilityLabel={label}
         accessibilityState={{ disabled: !enabled }}
         disabled={!enabled}
-        onPress={onPress}
+        onPress={hapticPress(onPress, 'light')}
         onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
         className={`w-full rounded-button-outer ${enabled ? 'opacity-100' : 'opacity-40'}`}
@@ -123,7 +124,7 @@ function GhostButton({ label, onPress, surface }: { label: string; onPress: () =
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
-        onPress={onPress}
+        onPress={hapticPress(onPress, 'light')}
         onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
         className="w-full rounded-button-outer"
@@ -157,7 +158,7 @@ export function WarningFieldButton({ label, onPress, enabled = true }: { label: 
         accessibilityLabel={label}
         accessibilityState={{ disabled: !enabled }}
         disabled={!enabled}
-        onPress={onPress}
+        onPress={hapticPress(onPress, 'medium')}
         onPressIn={() => { scale.value = withSpring(0.98, { damping: 20, stiffness: 360 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 300 }); }}
         className={`w-full rounded-button-outer ${enabled ? 'opacity-100' : 'opacity-40'}`}
@@ -203,7 +204,7 @@ export function AccentSwitch({ value, onValueChange, disabled = false }: { value
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
-      onPress={() => onValueChange(!value)}
+      onPress={hapticPress(() => onValueChange(!value), 'selection')}
       style={{ backgroundColor: value ? palette.accentMuted : trackOff }}
       className={`h-4 w-14 items-center justify-center rounded-full p-0.5 ${disabled ? 'opacity-60' : ''}`}
     >
