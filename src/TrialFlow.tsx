@@ -32,21 +32,18 @@ import { foodImages } from './foodImages';
 import { MealPreferenceImage } from './MealPreferenceImage';
 import {
   AddressDetailsForm,
-  AddressLocationSummary,
   DeliveryCoverageSheet,
-  LocationPanel,
   SearchLocationScreen,
   usePincodeAvailability,
 } from './deliveryAddressComponents';
 import {
-  addressDetailsValid,
   addressLabelDisplay,
   emptyAddressDetails,
   extractPincodeFromText,
   formatSavedAddressLines,
   type AddressDetails,
 } from './addressTypes';
-import { canContinueFromMapSelection, extractPincode } from './deliveryServiceability';
+import { extractPincode } from './deliveryServiceability';
 import { submitCoverageRequest } from './coverageRequestStore';
 import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST } from './toast';
 import { useSavedAddresses } from './savedAddressesStore';

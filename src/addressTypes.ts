@@ -4,12 +4,23 @@ export type AddressFlowMode = 'onboarding' | 'meal-edit' | 'add-address' | 'subs
 
 export type MealDeliverySlot = 'lunch' | 'dinner';
 
-export function mealDeliveryLocationTitle(slot: MealDeliverySlot) {
-  return `Delivery location - ${slot === 'lunch' ? 'Lunch' : 'Dinner'}`;
+export function deliveryAddressHeaderTitle(slot?: MealDeliverySlot) {
+  if (slot) return `Delivery address - ${slot === 'lunch' ? 'Lunch' : 'Dinner'}`;
+  return 'Delivery address';
 }
 
+export function editAddressHeaderTitle() {
+  return 'Edit address';
+}
+
+/** @deprecated Use deliveryAddressHeaderTitle */
+export function mealDeliveryLocationTitle(slot: MealDeliverySlot) {
+  return deliveryAddressHeaderTitle(slot);
+}
+
+/** @deprecated Address details are on the combined delivery address screen */
 export function mealAddressDetailsTitle(slot: MealDeliverySlot) {
-  return `Address details - ${slot === 'lunch' ? 'Lunch' : 'Dinner'}`;
+  return deliveryAddressHeaderTitle(slot);
 }
 
 export function mealConfirmDeliveryTitle(slot: MealDeliverySlot) {
@@ -118,11 +129,30 @@ export function detailsFromSavedAddress(address: SavedAddress): AddressDetails {
   };
 }
 
-export function addressDetailsValid(details: AddressDetails, availability: 'available' | 'checking' | 'idle' | 'unavailable' | 'error'): boolean {
-  if (!details.number.trim() || !details.society.trim()) return false;
-  if (details.labelType === 'custom' && !details.customLabel.trim()) return false;
+export function canSaveDeliveryAddress(
+  deliveryLocation: string,
+  details: AddressDetails,
+  availability: 'available' | 'checking' | 'idle' | 'unavailable' | 'error',
+): boolean {
+  const pincode = details.pincode.trim() || extractPincodeFromText(deliveryLocation);
+  if (deliveryLocation.trim().length <= 2) return false;
+  if (pincode.length !== 6) return false;
   if (availability !== 'available') return false;
-  return (details.pincode.trim() || extractPincodeFromText(details.deliveryLocation)).length === 6;
+  if (!details.number.trim()) return false;
+  if (details.labelType === 'custom' && !details.customLabel.trim()) return false;
+  return true;
+}
+
+export function addressDetailLine(details: Pick<AddressDetails, 'number' | 'society' | 'landmark'>): string {
+  return [details.number, details.society, details.landmark]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+/** @deprecated Use canSaveDeliveryAddress */
+export function addressDetailsValid(details: AddressDetails, availability: 'available' | 'checking' | 'idle' | 'unavailable' | 'error'): boolean {
+  return canSaveDeliveryAddress(details.deliveryLocation, details, availability);
 }
 
 export function mealOverrideFromSavedAddress(address: SavedAddress) {

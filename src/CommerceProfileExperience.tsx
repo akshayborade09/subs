@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
@@ -30,7 +30,8 @@ import { TrophyIcon } from 'phosphor-react-native/src/icons/Trophy';
 import { UserIcon } from 'phosphor-react-native/src/icons/User';
 import { WalletIcon } from 'phosphor-react-native/src/icons/Wallet';
 import type { LifecycleStateId } from './lifecycleStateMachine';
-import { themePalette, useFieldPlaceholderColor } from './themeColors';
+import { themePalette, useForegroundColor } from './themeColors';
+import { CenteredFieldInput } from './centeredFieldInput';
 import { Toast as AppToast } from './toast';
 import { addressLabelDisplay, formatSavedAddressLines } from './addressTypes';
 import { useSavedAddresses } from './savedAddressesStore';
@@ -336,7 +337,7 @@ function CheckoutPage({ onBack, go, couponApplied, setCouponApplied }: { onBack:
     </Section>
     <Section title="Coupon and rewards">
       <Pressable accessibilityRole="button" onPress={() => go('coupon')}>
-        <Card compact borderless tone={couponApplied ? 'success' : 'default'}>
+        <Card compact tone={couponApplied ? 'success' : 'default'}>
           <IconText icon={TagIcon} tone="accent" title={couponApplied ? 'HEALTHY300 applied' : 'Apply coupon'} description={couponApplied ? <MoneyInline className="font-body text-body-sm leading-5 text-muted">You save ₹300 on this subscription.</MoneyInline> : 'View eligible offers and rewards.'} trailing={<Text className="font-mono-semibold text-body-sm text-accent">{couponApplied ? 'Change' : 'View'}</Text>} />
         </Card>
       </Pressable>
@@ -440,12 +441,12 @@ function MyPlanPage({ onBack, go, toast }: { onBack: () => void; go: (route: Rou
 function CouponPage({ onBack, apply }: { onBack: () => void; apply: () => void }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
-  const placeholderColor = useFieldPlaceholderColor();
+  const foregroundColor = useForegroundColor();
   const submit = () => { if (code.trim().toUpperCase() === 'HEALTHY300') apply(); else setError('This coupon does not exist or is not eligible for this plan.'); };
   return <>
     <Header onBack={onBack} title="Apply coupon" description="Choose an eligible offer or enter a coupon code." />
     <View className="mt-6 flex-row items-center gap-2">
-      <TextInput value={code} onChangeText={(value) => { setCode(value.toUpperCase()); setError(''); }} placeholder="Enter coupon code" placeholderTextColor={placeholderColor} autoCapitalize="characters" style={{ paddingVertical: 0, textAlignVertical: 'center' }} className="h-field flex-1 rounded-field border border-border bg-field px-sheet font-body-medium text-body-md text-foreground" />
+      <CenteredFieldInput value={code} onChangeText={(value) => { setCode(value.toUpperCase()); setError(''); }} placeholder="Enter coupon code" selectionColor={foregroundColor} shellClassName="flex-1 border border-border bg-field" autoCapitalize="characters" />
       <Pressable accessibilityRole="button" accessibilityLabel="Apply" onPress={submit} disabled={code.trim().length === 0} className={`h-field w-[100px] items-center justify-center rounded-button-inner bg-foreground ${code.trim().length > 0 ? 'opacity-100' : 'opacity-40'}`}>
         <Text className="font-mono-semibold text-body-md text-canvas">Apply</Text>
       </Pressable>
@@ -506,11 +507,11 @@ function ProfilePage({ onBack, go }: { onBack: () => void; go: (route: Route) =>
 function EditProfilePage({ onBack, toast }: { onBack: () => void; toast: (message: string) => void }) {
   const [name, setName] = useState('Akshay Borade');
   const [gender, setGender] = useState('Man');
-  const placeholderColor = useFieldPlaceholderColor();
+  const foregroundColor = useForegroundColor();
   return <>
     <Header onBack={onBack} title="Personal information" description="Keep your profile details accurate for a more personalised experience." />
     <Section title="Full name">
-      <TextInput value={name} onChangeText={setName} placeholder="Your full name" placeholderTextColor={placeholderColor} style={{ paddingVertical: 0, textAlignVertical: 'center' }} className="h-field rounded-field border border-border bg-field px-sheet font-body-medium text-body-md text-foreground" />
+      <CenteredFieldInput value={name} onChangeText={setName} placeholder="Your full name" selectionColor={foregroundColor} shellClassName="border border-border bg-field" />
     </Section>
     <Section title="Date of birth">
       <Pressable className="h-field justify-center rounded-field border border-border bg-field px-sheet">

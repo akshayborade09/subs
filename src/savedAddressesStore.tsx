@@ -2,6 +2,30 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import type { SavedAddress } from './addressTypes';
 import { savedAddressFromDetails, type AddressDetails } from './addressTypes';
 
+export const demoSavedAddresses: SavedAddress[] = [
+  {
+    id: 'demo-home',
+    labelType: 'home',
+    deliveryLocation: 'Baner Road, Pune',
+    number: 'B-704',
+    society: 'Green View Apartments',
+    landmark: '',
+    instructions: 'Leave with security if unavailable.',
+    pincode: '411045',
+    isDefault: true,
+  },
+  {
+    id: 'demo-office',
+    labelType: 'office',
+    deliveryLocation: 'Baner Road, Pune',
+    number: '402',
+    society: 'Sky Vista',
+    landmark: 'Near Balewadi High Street',
+    instructions: '',
+    pincode: '411045',
+  },
+];
+
 type SavedAddressesContextValue = {
   savedAddresses: SavedAddress[];
   defaultAddressId: string | null;
@@ -14,8 +38,8 @@ type SavedAddressesContextValue = {
 const SavedAddressesContext = createContext<SavedAddressesContextValue | null>(null);
 
 export function SavedAddressesProvider({ children }: { children: ReactNode }) {
-  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
-  const [defaultAddressId, setDefaultAddressId] = useState<string | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>(demoSavedAddresses);
+  const [defaultAddressId, setDefaultAddressId] = useState<string | null>('demo-home');
 
   const upsertAddress = useCallback((details: AddressDetails, existingId?: string) => {
     const next = savedAddressFromDetails(details, existingId);

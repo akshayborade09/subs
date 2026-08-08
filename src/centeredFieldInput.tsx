@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, TextInput, type TextInputProps } from 
 import { useFieldPlaceholderColor, useForegroundColor } from './themeColors';
 
 export const FIELD_LINE_HEIGHT = 24;
+export const FIELD_HEIGHT = 52;
 export const fieldValueTextClass = 'font-body-medium text-body-md leading-6 tracking-body-md';
 
 const fieldTypography = {
@@ -11,6 +12,12 @@ const fieldTypography = {
   letterSpacing: -0.32,
 } as const;
 
+/**
+ * Single-line field text. iOS repositions glyphs inside the line box once a TextInput
+ * enters editing mode, so text set with an explicit `lineHeight` jumps on focus — it is
+ * omitted there and the shell's `items-center` does the centring instead. Android still
+ * needs `lineHeight` + `textAlignVertical` to centre correctly.
+ */
 export const centeredFieldInputStyle = StyleSheet.create({
   field: {
     flex: 1,
@@ -19,8 +26,9 @@ export const centeredFieldInputStyle = StyleSheet.create({
     margin: 0,
     backgroundColor: 'transparent',
     ...fieldTypography,
-    lineHeight: FIELD_LINE_HEIGHT,
-    ...(Platform.OS === 'android' ? { includeFontPadding: false, textAlignVertical: 'center' as const } : { paddingVertical: 0 }),
+    ...(Platform.OS === 'android'
+      ? { includeFontPadding: false, textAlignVertical: 'center' as const, lineHeight: FIELD_LINE_HEIGHT }
+      : { paddingVertical: 0 }),
   },
 }).field;
 
@@ -46,6 +54,7 @@ type CenteredFieldInputProps = {
   onFocus?: () => void;
   onBlur?: () => void;
   prefix?: ReactNode;
+  suffix?: ReactNode;
 } & Pick<TextInputProps, 'autoFocus' | 'returnKeyType' | 'onSubmitEditing' | 'keyboardType' | 'inputMode' | 'maxLength' | 'accessibilityLabel' | 'textContentType' | 'autoComplete' | 'autoCapitalize'>;
 
 export function CenteredFieldInput({
@@ -58,6 +67,7 @@ export function CenteredFieldInput({
   onFocus,
   onBlur,
   prefix,
+  suffix,
   autoFocus,
   returnKeyType,
   onSubmitEditing,
@@ -107,6 +117,7 @@ export function CenteredFieldInput({
         textAlignVertical="center"
         style={[centeredFieldInputStyle, { color: foregroundColor }]}
       />
+      {suffix}
     </Pressable>
   );
 }

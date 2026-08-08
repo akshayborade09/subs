@@ -13,6 +13,7 @@ export default function SelectableMap({
   thumbnail = false,
   searchQuery = '',
   fill = false,
+  fullWidth = false,
   onAddressChange,
   onCoordinateChange,
 }: {
@@ -20,6 +21,7 @@ export default function SelectableMap({
   thumbnail?: boolean;
   searchQuery?: string;
   fill?: boolean;
+  fullWidth?: boolean;
   onAddressChange?: (address: string) => void;
   onCoordinateChange?: (coordinate: { latitude: number; longitude: number }) => void;
 }) {
@@ -129,7 +131,7 @@ export default function SelectableMap({
   }
 
   return (
-    <View className={`${fill ? 'flex-1' : compact ? 'h-36' : 'h-[330px]'} overflow-hidden rounded-[16px] border border-border`}>
+    <View className={`${fill ? 'flex-1' : fullWidth ? 'h-[280px]' : compact ? 'h-36' : 'h-[330px]'} overflow-hidden ${fullWidth ? '' : 'rounded-[16px] border border-border'}`}>
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}

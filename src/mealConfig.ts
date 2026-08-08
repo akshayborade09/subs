@@ -24,6 +24,19 @@ export function isBeforeMealModificationCutoff(now = new Date(), cutoff = mealMo
   return now.getTime() < cutoffAt.getTime();
 }
 
+export function mealModificationCutoffAt(
+  deliveryDay: Date,
+  cutoff = mealModificationCutoff,
+): Date {
+  const mealDay = new Date(deliveryDay.getFullYear(), deliveryDay.getMonth(), deliveryDay.getDate());
+  const cutoffDay = new Date(mealDay);
+  cutoffDay.setDate(cutoffDay.getDate() - 1);
+  const { hours, minutes } = parseCutoffTime(cutoff);
+  const cutoffAt = new Date(cutoffDay);
+  cutoffAt.setHours(hours, minutes, 0, 0);
+  return cutoffAt;
+}
+
 /** True until the configured cutoff on the calendar day before delivery. */
 export function isBeforeModificationCutoffForDeliveryDay(
   deliveryDay: Date,
@@ -33,10 +46,5 @@ export function isBeforeModificationCutoffForDeliveryDay(
   const mealDay = new Date(deliveryDay.getFullYear(), deliveryDay.getMonth(), deliveryDay.getDate());
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (mealDay.getTime() <= today.getTime()) return false;
-  const cutoffDay = new Date(mealDay);
-  cutoffDay.setDate(cutoffDay.getDate() - 1);
-  const { hours, minutes } = parseCutoffTime(cutoff);
-  const cutoffAt = new Date(cutoffDay);
-  cutoffAt.setHours(hours, minutes, 0, 0);
-  return now.getTime() < cutoffAt.getTime();
+  return now.getTime() < mealModificationCutoffAt(mealDay, cutoff).getTime();
 }

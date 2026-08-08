@@ -2,9 +2,10 @@ import * as Location from 'expo-location';
 
 /** Approximate centroids for supported delivery pincodes (Mumbai). */
 const PINCODE_CENTROIDS: Record<string, { latitude: number; longitude: number; area: string }> = {
+  '400100': { latitude: 19.1868, longitude: 72.9482, area: 'Malad East' },
+  '400051': { latitude: 19.159, longitude: 72.998, area: 'Airoli' },
   '400068': { latitude: 19.1663, longitude: 72.8526, area: 'Goregaon East' },
   '400081': { latitude: 19.1136, longitude: 72.8697, area: 'Andheri East' },
-  '400101': { latitude: 19.2038, longitude: 72.8629, area: 'Kandivali East' },
 };
 
 export function isPincodeQuery(query: string): boolean {

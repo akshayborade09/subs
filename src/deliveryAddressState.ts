@@ -1,20 +1,16 @@
 import { useCallback, useReducer } from 'react';
 import type { AddressDetails, AddressFlowMode, SavedAddress } from './addressTypes';
-import { emptyAddressDetails } from './addressTypes';
+import { detailsFromSavedAddress, emptyAddressDetails } from './addressTypes';
 import { extractPincode, type DeliveryAvailabilityState } from './deliveryServiceability';
 import type { CoverageRequestState } from './coverageRequestStore';
 
 export type DeliveryAddressPhase =
-  | 'mapSelection'
-  | 'addressDetails'
+  | 'deliveryAddress'
   | 'selectingSavedAddress'
-  | 'confirmingAddress'
   | 'completed';
 
 export type DeliveryAddressEvent =
   | { type: 'LOCATION_SELECTED'; location: string }
-  | { type: 'NEXT_FROM_MAP' }
-  | { type: 'BACK_TO_MAP' }
   | { type: 'OPEN_SAVED_ADDRESSES' }
   | { type: 'CLOSE_SAVED_ADDRESSES' }
   | { type: 'SELECT_SAVED_ADDRESS'; address: SavedAddress }
@@ -28,8 +24,6 @@ export type DeliveryAddressEvent =
   | { type: 'SUBMIT_COVERAGE_REQUEST' }
   | { type: 'COVERAGE_REQUEST_SUBMITTED' }
   | { type: 'COVERAGE_REQUEST_FAILED' }
-  | { type: 'CONTINUE_TO_CONFIRM' }
-  | { type: 'EDIT_ADDRESS' }
   | { type: 'ADDRESS_CONFIRMED' }
   | { type: 'RESET'; mode: AddressFlowMode; initialLocation?: string; initialDetails?: AddressDetails };
 
@@ -58,12 +52,9 @@ function reducer(state: DeliveryAddressState, event: DeliveryAddressEvent): Deli
           deliveryLocation: event.location,
           pincode,
         },
+        selectedSavedAddressId: undefined,
       };
     }
-    case 'NEXT_FROM_MAP':
-      return { ...state, phase: 'addressDetails' };
-    case 'BACK_TO_MAP':
-      return { ...state, phase: 'mapSelection' };
     case 'OPEN_SAVED_ADDRESSES':
       return { ...state, phase: 'selectingSavedAddress', savedAddressesReturnPhase: state.phase };
     case 'CLOSE_SAVED_ADDRESSES':
@@ -71,19 +62,10 @@ function reducer(state: DeliveryAddressState, event: DeliveryAddressEvent): Deli
     case 'SELECT_SAVED_ADDRESS':
       return {
         ...state,
-        phase: 'addressDetails',
+        phase: state.savedAddressesReturnPhase === 'selectingSavedAddress' ? 'deliveryAddress' : state.phase,
         selectedSavedAddressId: event.address.id,
         deliveryLocation: event.address.deliveryLocation,
-        details: {
-          deliveryLocation: event.address.deliveryLocation,
-          number: event.address.number,
-          society: event.address.society,
-          landmark: event.address.landmark,
-          instructions: event.address.instructions,
-          labelType: event.address.labelType,
-          customLabel: event.address.customLabel ?? '',
-          pincode: event.address.pincode,
-        },
+        details: detailsFromSavedAddress(event.address),
       };
     case 'UPDATE_ADDRESS_DETAILS':
       return { ...state, details: { ...state.details, ...event.details }, selectedSavedAddressId: undefined };
@@ -122,20 +104,16 @@ function reducer(state: DeliveryAddressState, event: DeliveryAddressEvent): Deli
       return { ...state, coverageRequestState: 'submitted', coverageOpen: false };
     case 'COVERAGE_REQUEST_FAILED':
       return { ...state, coverageRequestState: 'error' };
-    case 'CONTINUE_TO_CONFIRM':
-      return { ...state, phase: 'confirmingAddress' };
-    case 'EDIT_ADDRESS':
-      return { ...state, phase: 'addressDetails' };
     case 'ADDRESS_CONFIRMED':
       return { ...state, phase: 'completed' };
     case 'RESET':
       return {
-        phase: 'mapSelection',
+        phase: 'deliveryAddress',
         mode: event.mode,
         deliveryLocation: event.initialLocation ?? '',
         details: event.initialDetails ?? emptyAddressDetails(event.initialLocation ?? ''),
         selectedSavedAddressId: undefined,
-        savedAddressesReturnPhase: 'mapSelection',
+        savedAddressesReturnPhase: 'deliveryAddress',
         availability: 'idle',
         coverageOpen: false,
         coverageRequestPincode: '',
@@ -148,11 +126,11 @@ function reducer(state: DeliveryAddressState, event: DeliveryAddressEvent): Deli
 
 export function useDeliveryAddressMachine(mode: AddressFlowMode, initialLocation = '', initialDetails?: AddressDetails) {
   const [state, dispatch] = useReducer(reducer, {
-    phase: 'mapSelection',
+    phase: 'deliveryAddress',
     mode,
     deliveryLocation: initialLocation,
     details: initialDetails ?? emptyAddressDetails(initialLocation),
-    savedAddressesReturnPhase: 'mapSelection',
+    savedAddressesReturnPhase: 'deliveryAddress',
     availability: 'idle',
     coverageOpen: false,
     coverageRequestPincode: '',

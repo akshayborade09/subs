@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
+import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
 import { LockKeyIcon } from 'phosphor-react-native/src/icons/LockKey';
 import { PencilSimpleIcon } from 'phosphor-react-native/src/icons/PencilSimple';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
@@ -25,6 +26,7 @@ import { foodImages } from './foodImages';
 import { MealPreferenceImage } from './MealPreferenceImage';
 import { PrimaryShimmerButton } from './primaryButton';
 import { SheetBackdrop } from './sheetOverlay';
+import { themePalette } from './themeColors';
 import { hapticPress } from './haptics';
 import { addressLabelDisplay, formatSavedAddressLines } from './addressTypes';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
@@ -155,7 +157,7 @@ export function calculateSubscriptionPricing(plan: typeof plans[number], mealCho
   };
 }
 
-type GlyphTone = 'foreground' | 'muted' | 'accent' | 'success' | 'canvas';
+type GlyphTone = 'foreground' | 'muted' | 'accent' | 'accent-foreground' | 'success' | 'canvas';
 function SheetGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foreground' }: { icon: Icon; size?: number; weight?: IconWeight; tone?: GlyphTone }) {
   const { theme } = useUniwind();
   const dark = theme === 'dark';
@@ -163,6 +165,7 @@ function SheetGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregr
     foreground: dark ? '#ffffff' : '#101010',
     muted: dark ? '#ababab' : '#5e5e5e',
     accent: dark ? '#60a5fa' : '#2563eb',
+    'accent-foreground': themePalette[dark ? 'dark' : 'light'].accentForeground,
     success: dark ? '#4ade80' : '#16a34a',
     canvas: dark ? '#0e0e0e' : '#ffffff',
   };
@@ -406,6 +409,45 @@ function SubscriptionMealConfigContent({
         onOpenPicker={onOpenPicker}
         carouselSectionHeadings={carouselSectionHeadings}
       />
+    </View>
+  );
+}
+
+function MealSlotCheckbox({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${label.toLowerCase()}`}
+      onPress={hapticPress(onPress, 'selection')}
+      className={`h-field flex-row items-center gap-field-inline rounded-full border-2 px-4  ${selected ? 'border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
+    >
+      <View className={`size-5 shrink-0 items-center justify-center rounded-sm border-2 ${selected ? 'border-accent bg-accent' : 'border-border bg-transparent'}`}>
+        {selected ? <SheetGlyph icon={CheckIcon} size={16} weight="bold" tone="accent-foreground" /> : null}
+      </View>
+      <Text numberOfLines={1} className={`font-mono-semibold text-body-md ${selected ? 'text-accent' : 'text-foreground'}`}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SubscriptionMealSlotSelector({
+  lunchSelected,
+  dinnerSelected,
+  onToggle,
+}: {
+  lunchSelected: boolean;
+  dinnerSelected: boolean;
+  onToggle: (slot: SubscriptionMealSlot) => void;
+}) {
+  return (
+    <View className="gap-3">
+      <SectionHeading>Select meal</SectionHeading>
+      <View className="flex-row gap-2">
+        <MealSlotCheckbox label="Lunch" selected={lunchSelected} onPress={() => onToggle('lunch')} />
+        <MealSlotCheckbox label="Dinner" selected={dinnerSelected} onPress={() => onToggle('dinner')} />
+      </View>
     </View>
   );
 }
@@ -663,21 +705,18 @@ function SubscriptionPlanBenefitsCarousel({ scrollSignal }: { scrollSignal: numb
   );
 }
 
-function SubscriptionBenefitsSection({ scrollSignal }: { scrollSignal: number }) {
+function SubscriptionBenefitsSection() {
   return (
-    <View className="gap-sheet-gap">
-      <View className="rounded-field bg-field p-sheet">
-        <FormHeader title="Unlock nutrition tools" subtitle="Personalised nutrition insights become available after you subscribe." size="sheet" />
-        <View className="mt-3">
-          {toolBenefits.map((item) => (
-            <View key={item} className="min-h-9 flex-row items-center gap-3">
-              <SheetGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />
-              <Text className="flex-1 font-body text-body-sm text-muted">{item}</Text>
-            </View>
-          ))}
-        </View>
+    <View className="rounded-field bg-field p-sheet">
+      <FormHeader title="Unlock nutrition tools" subtitle="Personalised nutrition insights become available after you subscribe." size="sheet" />
+      <View className="mt-3">
+        {toolBenefits.map((item) => (
+          <View key={item} className="min-h-9 flex-row items-center gap-3">
+            <SheetGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />
+            <Text className="flex-1 font-body text-body-sm text-muted">{item}</Text>
+          </View>
+        ))}
       </View>
-      <SubscriptionPlanBenefitsCarousel scrollSignal={scrollSignal} />
     </View>
   );
 }
@@ -782,9 +821,11 @@ export function SubscriptionSheet({
   const insets = useSafeAreaInsets();
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
-  const mealChoice = mealChoiceFromInitial(initialMeal);
+  const [mealChoice, setMealChoice] = useState<MealChoice>(() => mealChoiceFromInitial(initialMeal));
   const showMealCarousel = mealChoice === 'Both';
   const activeMealSlot: SubscriptionMealSlot = mealChoice === 'Dinner' ? 'dinner' : 'lunch';
+  const lunchSelected = mealChoice === 'Lunch' || mealChoice === 'Both';
+  const dinnerSelected = mealChoice === 'Dinner' || mealChoice === 'Both';
 
   const [planId, setPlanId] = useState<PlanId>('monthly');
   const [success, setSuccess] = useState(false);
@@ -805,6 +846,21 @@ export function SubscriptionSheet({
   const selectedPlan = plans.find((plan) => plan.id === planId)!;
   const pricing = calculateSubscriptionPricing(selectedPlan, mealChoice);
   const activeConfig = activeMealSlot === 'dinner' ? dinnerConfig : lunchConfig;
+
+  const toggleMealSlot = (slot: SubscriptionMealSlot) => {
+    setMealChoice((current) => {
+      const lunchOn = current === 'Lunch' || current === 'Both';
+      const dinnerOn = current === 'Dinner' || current === 'Both';
+      const nextLunch = slot === 'lunch' ? !lunchOn : lunchOn;
+      const nextDinner = slot === 'dinner' ? !dinnerOn : dinnerOn;
+      // At least one meal has to stay subscribed — ignore a tap that would clear both.
+      if (!nextLunch && !nextDinner) return current;
+      if (nextLunch && nextDinner) return 'Both';
+      return nextLunch ? 'Lunch' : 'Dinner';
+    });
+    // The carousel remounts scrolled to the first card whenever the slot set changes.
+    setActiveMealCard(0);
+  };
 
   const handlePreferencePickerSelect = (value: string) => {
     const apply = (current: SubscriptionMealConfig): SubscriptionMealConfig => ({
@@ -880,7 +936,13 @@ export function SubscriptionSheet({
       >
         <Animated.View entering={FadeInUp.delay(170).duration(280)} style={{ overflow: 'visible' }} className="mx-5 mt-4 gap-sheet-gap">
           <FormPageSection>
-            <View className="gap-sheet-gap">
+            <View className="gap-page-section">
+              <SubscriptionMealSlotSelector
+                lunchSelected={lunchSelected}
+                dinnerSelected={dinnerSelected}
+                onToggle={toggleMealSlot}
+              />
+
               {showMealCarousel ? (
                 <SubscriptionMealConfigCarousel
                   lunchConfig={lunchConfig}
@@ -924,7 +986,8 @@ export function SubscriptionSheet({
                 </View>
               </View>
 
-              <SubscriptionBenefitsSection scrollSignal={preferencesScrollSignal} />
+              <SubscriptionBenefitsSection />
+              <SubscriptionPlanBenefitsCarousel scrollSignal={preferencesScrollSignal} />
             </View>
           </FormPageSection>
         </Animated.View>

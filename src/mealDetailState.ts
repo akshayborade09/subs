@@ -1,5 +1,5 @@
 import { useCallback, useReducer } from 'react';
-import { formatCutoffTime, isBeforeMealModificationCutoff, mealModificationCutoff } from './mealConfig';
+import { formatCutoffTime, isBeforeModificationCutoffForDeliveryDay, mealModificationCutoff, mealModificationCutoffAt } from './mealConfig';
 
 export type MealPreferenceValue = 'Vegetarian' | 'Non-vegetarian' | 'Mix of both';
 
@@ -93,8 +93,6 @@ export type MealDetailGuardContext = {
   planBoth?: boolean;
   now?: Date;
   cutoff?: string;
-  /** Earliest upcoming delivery in the plan — shares today's 8 PM cutoff when it is not calendar tomorrow. */
-  isNextDeliveryMeal?: boolean;
 };
 
 export function mealSlotIndex(slot: MealSlot): number {
@@ -260,7 +258,31 @@ export function isTomorrowMeal(meal: MealDetailGuardMeal, now = new Date()): boo
 }
 
 export function isBeforeCutoffForMeal(ctx: MealDetailGuardContext): boolean {
-  return isBeforeMealModificationCutoff(ctx.now ?? new Date(), ctx.cutoff ?? mealModificationCutoff);
+  const now = ctx.now ?? new Date();
+  const mealDay = startOfDay(parseMealDate(ctx.meal.date, now.getFullYear()));
+  return isBeforeModificationCutoffForDeliveryDay(mealDay, now, ctx.cutoff ?? mealModificationCutoff);
+}
+
+function isModificationCutoffClosed(ctx: MealDetailGuardContext): boolean {
+  if (!ctx.isSubscriptionMeal) return true;
+  return !isBeforeCutoffForMeal(ctx);
+}
+
+function modificationCutoffClosedMessage(ctx: MealDetailGuardContext): string {
+  const now = ctx.now ?? new Date();
+  const cutoff = ctx.cutoff ?? mealModificationCutoff;
+  const cutoffLabel = formatCutoffTime(cutoff);
+  const today = startOfDay(now);
+  const mealDay = startOfDay(parseMealDate(ctx.meal.date, now.getFullYear()));
+  const cutoffDay = startOfDay(mealModificationCutoffAt(mealDay, cutoff));
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (mealDay.getTime() === today.getTime() || cutoffDay.getTime() === yesterday.getTime()) {
+    return `Can't change the preferences beyond the cutoff time, cut-off time was yesterday at ${cutoffLabel}.`;
+  }
+
+  return `Can't change the preferences beyond the cutoff time, cut-off time was at ${cutoffLabel}.`;
 }
 
 function isSlotDelivered(meal: MealDetailGuardMeal, slot?: MealSlot): boolean {
@@ -285,10 +307,13 @@ function isFutureMealForSlot(ctx: MealDetailGuardContext): boolean {
   return isFutureMeal(meal, now);
 }
 
-function canModifyNextDeliveryMeal(ctx: MealDetailGuardContext): boolean {
-  if (!ctx.isSubscriptionMeal || !ctx.isNextDeliveryMeal) return false;
+function canModifyFutureMealSlot(ctx: MealDetailGuardContext): boolean {
+  if (!ctx.isSubscriptionMeal || !isFutureMealForSlot(ctx)) return false;
+  if (isFullySkipped(ctx.meal)) return false;
+  if (ctx.planBoth && ctx.mealSlot && isSlotSkipped(ctx.meal, ctx.mealSlot)) return false;
   if (ctx.planBoth && ctx.mealSlot && isSlotDelivered(ctx.meal, ctx.mealSlot)) return false;
-  return isBeforeCutoffForMeal(ctx);
+  if (isModificationCutoffClosed(ctx)) return false;
+  return true;
 }
 
 export function isSkippedMeal(meal: MealDetailGuardMeal): boolean {
@@ -302,23 +327,20 @@ export function canModifyMealDelivery(ctx: MealDetailGuardContext): boolean {
   const today = startOfDay(now);
   const mealDay = startOfDay(parseMealDate(ctx.meal.date, now.getFullYear()));
   if (mealDay.getTime() < today.getTime()) return false;
-  return canModifyNextDeliveryMeal(ctx);
+  if (isModificationCutoffClosed(ctx)) return false;
+  return isFutureMealForSlot(ctx) || isSkippedForUndo(ctx);
 }
 
 export function canChangeAddress(ctx: MealDetailGuardContext): boolean {
-  if (!ctx.isSubscriptionMeal || !isFutureMealForSlot(ctx)) return false;
-  if (isFullySkipped(ctx.meal)) return false;
-  if (ctx.planBoth && ctx.mealSlot && isSlotSkipped(ctx.meal, ctx.mealSlot)) return false;
-  return canModifyNextDeliveryMeal(ctx);
+  return canModifyFutureMealSlot(ctx);
 }
 
 export function canChangeMealPreference(ctx: MealDetailGuardContext): boolean {
-  return canChangeAddress(ctx);
+  return canModifyFutureMealSlot(ctx);
 }
 
 export function canSkipMeal(ctx: MealDetailGuardContext): boolean {
-  if (!canModifyNextDeliveryMeal(ctx)) return false;
-  if (!isFutureMealForSlot(ctx)) return false;
+  if (!canModifyFutureMealSlot(ctx)) return false;
   if (ctx.planBoth && ctx.mealSlot) {
     if (isSlotSkipped(ctx.meal, ctx.mealSlot)) return false;
   } else if (isFullySkipped(ctx.meal)) {
@@ -419,18 +441,18 @@ export function calculateExtendedSubscriptionEndDate(currentEndDate: Date): Date
 }
 
 export function cutoffHelperMessage(ctx: MealDetailGuardContext): string | null {
-  if (!ctx.isSubscriptionMeal || !ctx.isNextDeliveryMeal || !isFutureMealForSlot(ctx)) return null;
+  if (!ctx.isSubscriptionMeal || !isFutureMealForSlot(ctx)) return null;
+  if (isModificationCutoffClosed(ctx)) return null;
+  const now = ctx.now ?? new Date();
+  if (!isTomorrowMeal(ctx.meal, now)) return null;
   const cutoffLabel = formatCutoffTime(ctx.cutoff ?? mealModificationCutoff);
-  return isBeforeCutoffForMeal(ctx)
-    ? `Changes for tomorrow's meal are available until ${cutoffLabel}.`
-    : "Changes for tomorrow's meal are closed.";
+  return `Changes for tomorrow's meal are available until ${cutoffLabel}.`;
 }
 
 export function preferenceCutoffNotice(ctx: MealDetailGuardContext): string | null {
   if (!ctx.isSubscriptionMeal || !isFutureMealForSlot(ctx)) return null;
-  if (canModifyNextDeliveryMeal(ctx)) return null;
-  const cutoffLabel = formatCutoffTime(ctx.cutoff ?? mealModificationCutoff);
-  return `Can't change the preferences beyond the cutoff time, cut-off time is at ${cutoffLabel}.`;
+  if (!isModificationCutoffClosed(ctx)) return null;
+  return modificationCutoffClosedMessage(ctx);
 }
 
 const subscriptionActions: MealDetailActionId[] = [

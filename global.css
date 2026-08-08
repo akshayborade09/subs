@@ -50,6 +50,7 @@ textarea:focus {
   --radius-button-inner: 12px;
   --spacing-sheet: 16px;
   --spacing-sheet-gap: 24px;
+  --spacing-page-section: 40px;
   --spacing-auth-block: 9px;
   --spacing-field-inline: 10px;
   --spacing-otp: 8px;
@@ -71,7 +72,7 @@ textarea:focus {
       --color-icon-surface: #eeeeee;
       --color-surface: #f6f6f6;
       --color-field: #f6f6f6; /* tune independently — one step darker than sheet/canvas when ready */
-      --color-ghost-on-field: #e0e0e0; /* ghost CTA fill on gray field/surface cards */
+      --color-ghost-on-field: #eaeaea; /* ghost CTA fill on gray field/surface cards */
       --color-surface-2: #eeeeee;
       --color-surface-raised: #eeeeee;
       --color-foreground: #101010;

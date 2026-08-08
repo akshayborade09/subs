@@ -4,19 +4,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
-import { FormPageSection } from './formLayout';
-import { PrimaryShimmerButton, GhostFieldButton } from './primaryButton';
 import { geocodeLocationQuery } from './locationGeocoding';
 import { isSameLocationText, isWithinProximity, type MapCoordinate } from './locationProximity';
 import { submitCoverageRequest } from './coverageRequestStore';
 import type { TrialMealDeliveryState } from './trialOnboardingSummary';
 import {
-  addressDetailsValid,
+  addressDetailLine,
+  canSaveDeliveryAddress,
+  deliveryAddressHeaderTitle,
+  detailsFromSavedAddress,
+  editAddressHeaderTitle,
   emptyAddressDetails,
   extractPincodeFromText,
-  mealAddressDetailsTitle,
-  mealConfirmDeliveryTitle,
-  mealDeliveryLocationTitle,
   mealOverrideFromSavedAddress,
   savedAddressFromDetails,
   type AddressDetails,
@@ -24,15 +23,17 @@ import {
   type MealDeliverySlot,
   type SavedAddress,
 } from './addressTypes';
-import { canContinueFromMapSelection, extractPincode } from './deliveryServiceability';
+import { extractPincode } from './deliveryServiceability';
 import { useDeliveryAddressMachine } from './deliveryAddressState';
 import {
   AddressDetailsForm,
-  AddressLocationSummary,
-  ConfirmDeliveryAddressSheet,
+  AddressLabelSection,
+  CurrentLocationSection,
+  DeliveryAddressMap,
   DeliveryCoverageSheet,
+  DeliveryLocationAvailabilityNotice,
   FocusScrollContext,
-  LocationPanel,
+  LocationSearchBar,
   SavedAddressesSheet,
   SameAsReferenceMealSheet,
   SearchLocationScreen,
@@ -40,6 +41,7 @@ import {
   usePincodeAvailability,
 } from './deliveryAddressComponents';
 import { useSavedAddresses } from './savedAddressesStore';
+import { PrimaryShimmerButton } from './primaryButton';
 import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST } from './toast';
 
 export function DeliveryAddressFlow({
@@ -47,6 +49,8 @@ export function DeliveryAddressFlow({
   mealSlot,
   initialLocation = '',
   initialDetails,
+  editingAddressId,
+  headerTitleOverride,
   referenceMealDelivery,
   onClose,
   onConfirmed,
@@ -56,6 +60,8 @@ export function DeliveryAddressFlow({
   mealSlot?: MealDeliverySlot;
   initialLocation?: string;
   initialDetails?: AddressDetails;
+  editingAddressId?: string;
+  headerTitleOverride?: string;
   referenceMealDelivery?: TrialMealDeliveryState | null;
   onClose: () => void;
   onConfirmed: (address: SavedAddress, mealOverride: ReturnType<typeof mealOverrideFromSavedAddress>) => void;
@@ -72,36 +78,29 @@ export function DeliveryAddressFlow({
     coverageOpen,
     coverageRequestPincode,
     coverageRequestState,
+    selectedSavedAddressId,
     send,
   } = useDeliveryAddressMachine(mode, initialLocation, initialDetails ?? emptyAddressDetails(initialLocation));
   const [locationSearchOpen, setLocationSearchOpen] = useState(false);
-  const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
   const [sameLocationSheetOpen, setSameLocationSheetOpen] = useState(false);
   const [mapCoordinate, setMapCoordinate] = useState<MapCoordinate | null>(null);
   const [referenceCoordinate, setReferenceCoordinate] = useState<MapCoordinate | null>(null);
   const [toastMessage, setToastMessage] = useState('');
-  const scrollRef = useRef<ScrollView>(null);
-  const { scrollOffset, positionFocusedField } = useFocusScrollField(scrollRef);
-  const numberRef = useRef<TextInput>(null);
+  const [activeEditId, setActiveEditId] = useState<string | undefined>(editingAddressId);
+  const addressRef = useRef<TextInput>(null);
   const societyRef = useRef<TextInput>(null);
   const landmarkRef = useRef<TextInput>(null);
   const instructionsRef = useRef<TextInput>(null);
-  const mapPincode = extractPincode(deliveryLocation);
-  const mapAvailability = usePincodeAvailability(mapPincode);
-  const detailsPincode = details.pincode || extractPincodeFromText(details.deliveryLocation);
-  const detailsAvailability = usePincodeAvailability(phase === 'addressDetails' ? detailsPincode : '');
+  const pincode = details.pincode || extractPincode(deliveryLocation) || extractPincodeFromText(deliveryLocation);
+  const availability = usePincodeAvailability(pincode);
+  const footerHeight = 88 + insets.bottom;
+  const fixedHeaderHeight = insets.top + 12 + 33 + 8 + 68 + 8;
+  const scrollRef = useRef<ScrollView>(null);
+  const { scrollOffset, positionFocusedField } = useFocusScrollField(scrollRef, { visibleTopOffset: fixedHeaderHeight });
 
   useEffect(() => {
-    if (phase === 'mapSelection') {
-      send({ type: 'SET_PINCODE_AVAILABILITY', availability: mapAvailability });
-    }
-  }, [deliveryLocation, mapAvailability, phase, send]);
-
-  useEffect(() => {
-    if (phase === 'addressDetails') {
-      send({ type: 'SET_PINCODE_AVAILABILITY', availability: detailsAvailability });
-    }
-  }, [detailsAvailability, phase, send]);
+    send({ type: 'SET_PINCODE_AVAILABILITY', availability });
+  }, [availability, send]);
 
   useEffect(() => {
     if (!referenceMealDelivery) {
@@ -120,11 +119,53 @@ export function DeliveryAddressFlow({
     return () => { active = false; };
   }, [referenceMealDelivery]);
 
-  const availability = phase === 'mapSelection' ? mapAvailability : detailsAvailability;
-  const pincode = phase === 'mapSelection' ? mapPincode : detailsPincode;
-  const canContinueMap = canContinueFromMapSelection(deliveryLocation, mapAvailability);
-  const canContinueDetails = addressDetailsValid({ ...details, pincode }, detailsAvailability);
-  const showSavedPicker = mode !== 'onboarding' && savedAddresses.length > 0;
+  const syncMapCoordinate = (address: SavedAddress) => {
+    if (address.latitude != null && address.longitude != null) {
+      setMapCoordinate({ latitude: address.latitude, longitude: address.longitude });
+      return;
+    }
+    void geocodeLocationQuery(address.deliveryLocation).then((resolved) => {
+      if (!resolved) return;
+      setMapCoordinate({ latitude: resolved.latitude, longitude: resolved.longitude });
+    }).catch(() => {});
+  };
+
+  const handleSelectSavedAddress = (address: SavedAddress) => {
+    const line = addressDetailLine(address);
+    send({
+      type: 'SELECT_SAVED_ADDRESS',
+      address: {
+        ...address,
+        number: line,
+        society: '',
+        landmark: '',
+      },
+    });
+    syncMapCoordinate(address);
+  };
+
+  const handleEditSavedAddress = (address: SavedAddress) => {
+    send({ type: 'CLOSE_SAVED_ADDRESSES' });
+    setActiveEditId(address.id);
+    handleSelectSavedAddress(address);
+  };
+
+  const handleAddNewAddress = () => {
+    send({ type: 'CLOSE_SAVED_ADDRESSES' });
+    setActiveEditId(undefined);
+    send({ type: 'LOCATION_SELECTED', location: '' });
+    send({
+      type: 'UPDATE_ADDRESS_DETAILS',
+      details: {
+        ...emptyAddressDetails(''),
+        number: '',
+        society: '',
+        landmark: '',
+        instructions: '',
+      },
+    });
+    setMapCoordinate(null);
+  };
 
   const matchesReferenceLocation = () => {
     if (!referenceMealDelivery) return false;
@@ -132,20 +173,7 @@ export function DeliveryAddressFlow({
     return isSameLocationText(deliveryLocation, referenceMealDelivery.deliveryLocation);
   };
 
-  const proceedFromMap = () => {
-    send({ type: 'NEXT_FROM_MAP' });
-  };
-
-  const handleMapNext = () => {
-    if (!canContinueMap) return;
-    if (mealSlot === 'dinner' && referenceMealDelivery && onUseSameAsReference && matchesReferenceLocation()) {
-      setSameLocationSheetOpen(true);
-      return;
-    }
-    proceedFromMap();
-  };
-
-  const finishConfirm = (address: SavedAddress) => {
+  const finishSave = (address: SavedAddress) => {
     const saved = upsertAddress(
       {
         deliveryLocation: address.deliveryLocation,
@@ -164,6 +192,25 @@ export function DeliveryAddressFlow({
     onConfirmed(saved, mealOverrideFromSavedAddress(saved));
   };
 
+  const handleSaveContinue = () => {
+    const resolvedEditId = editingAddressId ?? activeEditId ?? selectedSavedAddressId;
+    const draft = savedAddressFromDetails({ ...details, deliveryLocation, pincode }, resolvedEditId);
+    const pendingAddress: SavedAddress = {
+      ...draft,
+      latitude: mapCoordinate?.latitude,
+      longitude: mapCoordinate?.longitude,
+    };
+    if (!canSaveDeliveryAddress(deliveryLocation, { ...details, pincode }, availability)) return;
+
+    if (mealSlot === 'dinner' && referenceMealDelivery && onUseSameAsReference && matchesReferenceLocation()) {
+      setSameLocationSheetOpen(true);
+      return;
+    }
+
+    Keyboard.dismiss();
+    finishSave(pendingAddress);
+  };
+
   const submitCoverage = () => {
     send({ type: 'SUBMIT_COVERAGE_REQUEST' });
     void submitCoverageRequest(coverageRequestPincode)
@@ -173,6 +220,11 @@ export function DeliveryAddressFlow({
       })
       .catch(() => send({ type: 'COVERAGE_REQUEST_FAILED' }));
   };
+
+  const canSave = canSaveDeliveryAddress(deliveryLocation, { ...details, pincode }, availability);
+  const hasLocation = deliveryLocation.trim().length > 2;
+  const resolvedEditId = editingAddressId ?? activeEditId;
+  const headerTitle = headerTitleOverride ?? (resolvedEditId ? editAddressHeaderTitle() : deliveryAddressHeaderTitle(mealSlot));
 
   if (locationSearchOpen) {
     return (
@@ -189,111 +241,99 @@ export function DeliveryAddressFlow({
     );
   }
 
-  const title = phase === 'mapSelection'
-    ? (mealSlot ? mealDeliveryLocationTitle(mealSlot) : 'Where should we deliver?')
-    : (mealSlot ? mealAddressDetailsTitle(mealSlot) : 'Add address details');
-  const mapSubtitle = 'Search for a location, then adjust the pin on the map.';
-  const footerExtraActions = phase === 'mapSelection' && showSavedPicker;
-
   return (
     <View className="absolute inset-0 z-[80] bg-canvas">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} enabled={!coverageOpen && phase !== 'confirmingAddress' && !sameLocationSheetOpen} className="flex-1">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} enabled={!coverageOpen && !sameLocationSheetOpen} className="flex-1">
+        <View style={{ paddingTop: insets.top + 12 }} className="bg-canvas px-5 gap-2 pb-2">
+          <View className="flex-row items-center gap-2">
+            <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onClose} hitSlop={8} className="size-6 items-center justify-center">
+              <CaretLeftIcon size={24} weight="regular" color={iconColor} />
+            </Pressable>
+            <Text numberOfLines={1} className="min-w-0 flex-1 font-heading text-heading-md text-foreground">{headerTitle}</Text>
+          </View>
+          <View style={{ paddingTop: 8, paddingBottom: 8 }}>
+            <LocationSearchBar
+              value={deliveryLocation}
+              onPress={() => setLocationSearchOpen(true)}
+              onClear={() => {
+                send({ type: 'LOCATION_SELECTED', location: '' });
+                setMapCoordinate(null);
+              }}
+            />
+          </View>
+        </View>
+
         <FocusScrollContext.Provider value={positionFocusedField}>
           <ScrollView
             ref={scrollRef}
-            automaticallyAdjustKeyboardInsets={!coverageOpen}
+            style={{ flex: 1 }}
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             onScroll={(event) => { scrollOffset.current = event.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
-            contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + (footerExtraActions ? 160 : 96) }}
+            contentContainerStyle={{ paddingBottom: footerHeight + 8 }}
           >
-            <View className="px-5">
-              <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => { if (phase === 'addressDetails') send({ type: 'BACK_TO_MAP' }); else onClose(); }} hitSlop={8} className="mb-6 size-6 items-center justify-center">
-                <CaretLeftIcon size={24} weight="regular" color={iconColor} />
-              </Pressable>
-              <FormPageSection>
-                {phase !== 'mapSelection' ? (
-                  <Text className="font-heading text-heading-md text-foreground">{title}</Text>
-                ) : null}
-                {phase === 'mapSelection' ? (
-                  <View className="gap-auth-block">
-                    <Text className="font-heading text-heading-md text-foreground">{title}</Text>
-                    <Text className="font-body text-body-sm leading-5 text-muted">{mapSubtitle}</Text>
-                    <LocationPanel
-                      addressText={deliveryLocation}
-                      onAddressChange={(value) => send({ type: 'LOCATION_SELECTED', location: value })}
-                      onCoordinateChange={setMapCoordinate}
-                      onOpenSearch={() => setLocationSearchOpen(true)}
-                      availability={mapAvailability}
-                      onOpenCoverage={() => send({ type: 'OPEN_COVERAGE' })}
-                    />
-                  </View>
-                ) : (
-                  <>
-                    <AddressLocationSummary
-                      location={deliveryLocation}
-                      onPressMap={() => send({ type: 'BACK_TO_MAP' })}
-                      availability={detailsAvailability}
-                      onOpenCoverage={() => send({ type: 'OPEN_COVERAGE' })}
-                    />
-                    <AddressDetailsForm
-                      details={{ ...details, pincode }}
-                      onChange={(patch) => send({ type: 'UPDATE_ADDRESS_DETAILS', details: patch })}
-                      refs={{ number: numberRef, society: societyRef, landmark: landmarkRef, instructions: instructionsRef }}
-                      topMargin={false}
-                    />
-                  </>
-                )}
-              </FormPageSection>
+            <DeliveryAddressMap
+              searchQuery={deliveryLocation}
+              onAddressChange={(value) => send({ type: 'LOCATION_SELECTED', location: value })}
+              onCoordinateChange={setMapCoordinate}
+            />
+
+            <View className="mt-4 gap-5 px-5">
+              <View className="gap-1.5">
+                <CurrentLocationSection location={deliveryLocation} />
+                <DeliveryLocationAvailabilityNotice
+                  state={availability}
+                  hasLocation={hasLocation}
+                  onOpenCoverage={() => send({ type: 'OPEN_COVERAGE' })}
+                />
+              </View>
+              <AddressDetailsForm
+                details={{ ...details, pincode }}
+                onChange={(patch) => send({ type: 'UPDATE_ADDRESS_DETAILS', details: patch })}
+                refs={{ number: addressRef, society: societyRef, landmark: landmarkRef, instructions: instructionsRef }}
+                topMargin={false}
+                singleField
+              />
+              <AddressLabelSection
+                labelType={details.labelType}
+                customLabel={details.customLabel}
+                onSelectLabel={(labelType) => send({ type: 'SELECT_ADDRESS_LABEL', labelType })}
+                onCustomLabelChange={(label) => send({ type: 'SET_CUSTOM_ADDRESS_LABEL', label })}
+              />
             </View>
           </ScrollView>
         </FocusScrollContext.Provider>
-        {phase !== 'confirmingAddress' ? (
-        <Animated.View entering={FadeInUp.duration(220)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
-          {phase === 'mapSelection' ? (
-            <View className="gap-2">
-              <PrimaryShimmerButton
-                label="Next"
-                enabled={canContinueMap}
-                onPress={handleMapNext}
-              />
-              {showSavedPicker ? (
-                <GhostFieldButton label="Select address from list" onPress={() => send({ type: 'OPEN_SAVED_ADDRESSES' })} />
-              ) : null}
-            </View>
-          ) : (
-            <PrimaryShimmerButton
-              label="Continue"
-              enabled={canContinueDetails}
-              onPress={() => {
-                Keyboard.dismiss();
-                const draft = savedAddressFromDetails({ ...details, deliveryLocation, pincode });
-                setPendingAddress({
-                  ...draft,
-                  latitude: mapCoordinate?.latitude,
-                  longitude: mapCoordinate?.longitude,
-                });
-                send({ type: 'CONTINUE_TO_CONFIRM' });
-              }}
-            />
-          )}
+
+        <Animated.View
+          entering={FadeInUp.duration(220)}
+          style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }}
+          className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2"
+        >
+          <PrimaryShimmerButton
+            label="Save address - Continue"
+            enabled={canSave}
+            onPress={handleSaveContinue}
+          />
         </Animated.View>
-        ) : null}
       </KeyboardAvoidingView>
+
       {phase === 'selectingSavedAddress' ? (
         <SavedAddressesSheet
           addresses={savedAddresses}
           defaultAddressId={defaultAddressId}
           onClose={() => send({ type: 'CLOSE_SAVED_ADDRESSES' })}
-          onSelect={(address) => send({ type: 'SELECT_SAVED_ADDRESS', address })}
-          onEdit={(address) => send({ type: 'SELECT_SAVED_ADDRESS', address })}
+          onAddNew={handleAddNewAddress}
+          onSelect={handleSelectSavedAddress}
+          onEdit={handleEditSavedAddress}
           onDelete={(address) => {
             removeAddress(address.id);
             if (savedAddresses.length <= 1) send({ type: 'CLOSE_SAVED_ADDRESSES' });
           }}
         />
       ) : null}
+
       {coverageOpen ? (
         <DeliveryCoverageSheet
           initialPincode={coverageRequestPincode}
@@ -303,16 +343,7 @@ export function DeliveryAddressFlow({
           onSubmit={submitCoverage}
         />
       ) : null}
-      {phase === 'confirmingAddress' && pendingAddress ? (
-        <ConfirmDeliveryAddressSheet
-          address={pendingAddress}
-          title={mealSlot ? mealConfirmDeliveryTitle(mealSlot) : 'Confirm delivery address'}
-          confirmLabel={mealSlot ? 'Confirm' : 'Confirm delivery address'}
-          onClose={() => send({ type: 'EDIT_ADDRESS' })}
-          onEdit={() => send({ type: 'EDIT_ADDRESS' })}
-          onConfirm={() => finishConfirm(pendingAddress)}
-        />
-      ) : null}
+
       {sameLocationSheetOpen ? (
         <SameAsReferenceMealSheet
           mealSlot="dinner"
@@ -323,10 +354,16 @@ export function DeliveryAddressFlow({
           }}
           onUseDifferent={() => {
             setSameLocationSheetOpen(false);
-            proceedFromMap();
+            const draft = savedAddressFromDetails({ ...details, deliveryLocation, pincode }, editingAddressId ?? activeEditId ?? selectedSavedAddressId);
+            finishSave({
+              ...draft,
+              latitude: mapCoordinate?.latitude,
+              longitude: mapCoordinate?.longitude,
+            });
           }}
         />
       ) : null}
+
       {toastMessage ? <Toast message={toastMessage} onDismiss={() => setToastMessage('')} /> : null}
     </View>
   );

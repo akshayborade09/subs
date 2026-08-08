@@ -41,7 +41,6 @@ import { headingDescriptionClass } from './typographyClasses';
 import { formatInr, formatRupee } from './formatCurrency';
 import { MoneyInline, MoneyText, moneyValueTypography } from './moneyText';
 import { foodImages } from './foodImages';
-import { FoodPreferencePicker } from './FoodPreferencePicker';
 import {
   buildMealDetailActions,
   buildSkipMetadata,
@@ -61,9 +60,7 @@ import {
   parseMealDate,
   skipMetadataForSlot,
   slotLabel,
-  firstFullyUpcomingPlanDay,
   subscriptionReferenceNow,
-  startOfDay,
   type MealAddressOverride,
   type MealDetailActionId,
   type MealPreferenceValue,
@@ -72,8 +69,12 @@ import {
   phaseToSheetFlags,
   useMealDetailMachine,
 } from './mealDetailState';
-import { formatSavedAddressLines } from './addressTypes';
+import { addressDetailLine, detailsFromSavedAddress, emptyAddressDetails, formatSavedAddressLines, mealOverrideFromSavedAddress, editAddressHeaderTitle, type SavedAddress } from './addressTypes';
+import { SavedAddressesSheet } from './deliveryAddressComponents';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
+import { useSavedAddresses } from './savedAddressesStore';
+import { SubscriptionPreferencePickerModal, type PickerAnchor } from './subscriptionPreferencePickerModal';
+import { subscriptionFoodOptions } from './subscriptionPreferenceOptions';
 import { SubscriptionSheet } from './subscriptionSheet';
 import type { TrialMealDeliveryState } from './trialOnboardingSummary';
 import { MealPreferenceImage } from './MealPreferenceImage';
@@ -202,9 +203,14 @@ function firstUpcomingPlanMeal(meals: TrialMeal[]) {
   return eligible.find((item) => item.status === 'upcoming') ?? eligible[0]!;
 }
 
-function planDayFocusMeal(meals: TrialMeal[], planDay: Date) {
-  const target = startOfDay(planDay).getTime();
-  return planMealsFrom(meals).find((item) => demoStartOfDay(parseMealDate(item.date)).getTime() === target) ?? null;
+function firstPendingSlotForMeal(meal: TrialMeal): MealSlot {
+  if (meal.mealMarkers?.length) {
+    const pendingIndex = meal.mealMarkers.findIndex((marker) => !isMarkerComplete(marker.status));
+    if (pendingIndex >= 0) {
+      return meal.mealMarkers[pendingIndex]?.slot ?? (pendingIndex === 0 ? 'lunch' : 'dinner');
+    }
+  }
+  return meal.mealType === 'Dinner' ? 'dinner' : 'lunch';
 }
 
 function calendarTrackerFocusId(
@@ -212,8 +218,7 @@ function calendarTrackerFocusId(
   lifecycleVariant: HomeLifecycleVariant,
 ) {
   if (lifecycleVariant === 'subscription_active') {
-    const nextPlanDay = firstFullyUpcomingPlanDay(meals);
-    return nextPlanDay ? planDayFocusMeal(meals, nextPlanDay)?.id ?? pendingFocusMeal(meals).id : pendingFocusMeal(meals).id;
+    return pendingFocusMeal(meals).id;
   }
   if (lifecycleVariant === 'subscription_restarted') {
     return firstUpcomingPlanMeal(meals).id;
@@ -233,8 +238,7 @@ function calendarTrackerFocusId(
 
 function bottomCardFocusMeal(meals: TrialMeal[], lifecycleVariant: HomeLifecycleVariant) {
   if (lifecycleVariant === 'subscription_active') {
-    const nextPlanDay = firstFullyUpcomingPlanDay(meals);
-    return nextPlanDay ? planDayFocusMeal(meals, nextPlanDay) ?? pendingFocusMeal(meals) : pendingFocusMeal(meals);
+    return pendingFocusMeal(meals);
   }
   if (lifecycleVariant === 'subscription_restarted') {
     return firstUpcomingPlanMeal(meals);
@@ -740,7 +744,7 @@ function MealDetailOverviewList({
   foodPreference: string;
   mealType: string;
   actions: ReturnType<typeof buildMealDetailActions>;
-  onAction: (action: MealDetailActionId) => void;
+  onAction: (action: MealDetailActionId, anchor?: PickerAnchor) => void;
   showTiffin: boolean;
 }) {
   type OverviewRow =
@@ -749,6 +753,7 @@ function MealDetailOverviewList({
 
   const skipAction = actions.find((action) => action.id === 'skipMeal');
   const primaryActions = actions.filter((action) => action.id !== 'skipMeal');
+  const preferenceActionRef = useRef<View>(null);
 
   const rows: OverviewRow[] = primaryActions.map((action) => ({ key: action.id, kind: 'action', action }));
   if (showTiffin) {
@@ -780,19 +785,35 @@ function MealDetailOverviewList({
         const isFirst = index === 0;
         const isLast = index === rows.length - 1;
         if (row.kind === 'action') {
-          return (
+          const openAction = () => {
+            if (row.action.id === 'changeMealPreference' && preferenceActionRef.current) {
+              preferenceActionRef.current.measureInWindow((x, y, width, height) => {
+                onAction(row.action.id, { x, y, width, height });
+              });
+              return;
+            }
+            onAction(row.action.id);
+          };
+          const rowContent = (
             <MealDetailActionRow
-              key={row.key}
               title={row.action.title}
               subtitle={row.action.subtitle}
               icon={mealDetailActionIcons[row.action.id]}
-              onPress={hapticPress(() => onAction(row.action.id), 'light')}
+              onPress={hapticPress(openAction, 'light')}
               showDivider={showDivider}
               isFirst={isFirst}
               isLast={isLast}
               tone={row.action.id === 'skipMeal' ? 'destructive' : 'default'}
             />
           );
+          if (row.action.id === 'changeMealPreference') {
+            return (
+              <View key={row.key} ref={preferenceActionRef} collapsable={false}>
+                {rowContent}
+              </View>
+            );
+          }
+          return <View key={row.key}>{rowContent}</View>;
         }
         return (
           <MealDetailInfoRow
@@ -1156,7 +1177,7 @@ function MealDetailSheet({
   onToast: (text: string) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: windowHeight } = useWindowDimensions();
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   const effectiveFoodPreference = getEffectiveFoodPreference(meal);
@@ -1165,8 +1186,15 @@ function MealDetailSheet({
   const mealImage = foodImageForPreference(heroFoodPreference);
   const { phase, send, closeFlow } = useMealDetailMachine();
   const sheets = phaseToSheetFlags(phase);
+  const { savedAddresses, defaultAddressId, removeAddress } = useSavedAddresses();
+  const [savedAddressSheetOpen, setSavedAddressSheetOpen] = useState(false);
+  const [addressFlowOpen, setAddressFlowOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor | null>(null);
   const contentRef = useAnimatedRef<Animated.ScrollView>();
   const scrollAtTop = useRef(true);
+  const isDismissing = useRef(false);
+  const setScrollAtTop = useCallback((atTop: boolean) => { scrollAtTop.current = atTop; }, []);
   const pendingNavDirection = useRef<'next' | 'prev' | null>(null);
   const navEntries = useMemo(() => buildMealDetailNavEntries(allMeals, planBoth), [allMeals, planBoth]);
   const navIndex = findMealDetailNavIndex(navEntries, meal.id, mealSlot);
@@ -1178,15 +1206,6 @@ function MealDetailSheet({
     () => (isSubscriptionMeal ? subscriptionReferenceNow(allMeals) : new Date()),
     [allMeals, isSubscriptionMeal],
   );
-  const nextPlanDay = useMemo(
-    () => (isSubscriptionMeal ? firstFullyUpcomingPlanDay(allMeals, referenceNow) : null),
-    [allMeals, isSubscriptionMeal, referenceNow],
-  );
-  const isNextDeliveryMeal = useMemo(() => {
-    if (!nextPlanDay) return false;
-    const mealDay = startOfDay(parseMealDate(meal.date, referenceNow.getFullYear()));
-    return mealDay.getTime() === nextPlanDay.getTime();
-  }, [meal.date, nextPlanDay, referenceNow]);
   const guardContext = {
     meal,
     isSubscriptionMeal,
@@ -1194,7 +1213,6 @@ function MealDetailSheet({
     mealSlot,
     planBoth,
     now: referenceNow,
-    isNextDeliveryMeal,
   };
   const actionRows = buildMealDetailActions(guardContext);
   const upcomingPrimaryActions = actionRows.filter((row) => upcomingMealActionIds.includes(row.id));
@@ -1217,7 +1235,15 @@ function MealDetailSheet({
   const showModificationDetails = overviewActions.length > 0;
   const projectedEndDate = calculateExtendedSubscriptionEndDate(subscriptionEndDate);
 
-  const handleAction = (actionId: MealDetailActionId) => {
+  const handleAction = (actionId: MealDetailActionId, anchor?: PickerAnchor) => {
+    if (actionId === 'changeAddress') {
+      setSavedAddressSheetOpen(true);
+      return;
+    }
+    if (actionId === 'changeMealPreference') {
+      if (anchor) setPickerAnchor(anchor);
+      return;
+    }
     const event = mealDetailEventForAction(actionId);
     if (!event) return;
     send(event);
@@ -1235,15 +1261,37 @@ function MealDetailSheet({
   const canvasColor = theme === 'dark' ? '#000000' : '#ffffff';
 
   const scrollY = useSharedValue(0);
+  const atTopShared = useSharedValue(true);
   const swipeX = useSharedValue(0);
+  const dismissY = useSharedValue(0);
   const plateNavY = useSharedValue(0);
   const plateNavOpacity = useSharedValue(1);
   const plateEnterOffset = heroHeight + 80;
   const plateEasing = Easing.out(Easing.quad);
+  const nestedSheetOpen = sheets.issueOpen || sheets.skipOpen || savedAddressSheetOpen || addressFlowOpen || !!pickerAnchor;
+  const finishDismiss = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  const triggerDismiss = useCallback(() => {
+    if (isDismissing.current) return;
+    isDismissing.current = true;
+    dismissY.value = withTiming(windowHeight, { duration: 220, easing: plateEasing }, (finished) => {
+      if (finished) runOnJS(finishDismiss)();
+    });
+  }, [dismissY, finishDismiss, plateEasing, windowHeight]);
+
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = Math.max(0, event.contentOffset.y);
-      scrollAtTop.current = event.contentOffset.y <= 2;
+      const offsetY = event.contentOffset.y;
+      scrollY.value = Math.max(0, offsetY);
+      // Mirror "is the sheet back at its default position" onto the JS thread so the
+      // pan responder can read it — worklets cannot mutate refs across threads.
+      const nextAtTop = offsetY <= 8;
+      if (atTopShared.value !== nextAtTop) {
+        atTopShared.value = nextAtTop;
+        runOnJS(setScrollAtTop)(nextAtTop);
+      }
     },
     onEndDrag: (event) => {
       if (event.contentOffset.y < 0) scrollTo(contentRef, 0, 0, true);
@@ -1283,6 +1331,13 @@ function MealDetailSheet({
     pendingNavDirection.current = null;
     scrollY.value = 0;
     scrollAtTop.current = true;
+    atTopShared.value = true;
+    isDismissing.current = false;
+    dismissY.value = 0;
+    setPickerAnchor(null);
+    setSavedAddressSheetOpen(false);
+    setAddressFlowOpen(false);
+    setEditingAddress(null);
     requestAnimationFrame(() => scrollTo(contentRef, 0, 0, false));
     swipeX.value = direction === 'next' ? screenWidth : -screenWidth;
     swipeX.value = withTiming(0, { duration: 240, easing: plateEasing });
@@ -1291,19 +1346,36 @@ function MealDetailSheet({
     plateNavY.value = withTiming(0, { duration: 300, easing: plateEasing });
   }, [contentRef, meal.id, mealSlot, plateEnterOffset, plateEasing, plateNavOpacity, plateNavY, screenWidth, scrollY, swipeX]);
 
+  const isPullDown = (gesture: { dx: number; dy: number }) => gesture.dy > 8 && gesture.dy > Math.abs(gesture.dx);
+
   const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => (
-      swipeEnabled
-      && scrollAtTop.current
-      && Math.abs(gesture.dx) > 10
-      && Math.abs(gesture.dx) > Math.abs(gesture.dy)
-    ),
+    // Pull-to-close is only armed once the sheet is back at its default position,
+    // so the first swipe collapses the sheet and only the next one closes the screen.
+    onMoveShouldSetPanResponderCapture: (_, gesture) =>
+      !nestedSheetOpen && !isDismissing.current && scrollAtTop.current && isPullDown(gesture),
+    onMoveShouldSetPanResponder: (_, gesture) => {
+      if (nestedSheetOpen || isDismissing.current) return false;
+      if (scrollAtTop.current && isPullDown(gesture)) return true;
+      return swipeEnabled
+        && scrollAtTop.current
+        && Math.abs(gesture.dx) > 10
+        && Math.abs(gesture.dx) > Math.abs(gesture.dy);
+    },
     onPanResponderMove: (_, gesture) => {
+      if (gesture.dy > 0 && gesture.dy > Math.abs(gesture.dx)) {
+        dismissY.value = gesture.dy;
+        return;
+      }
       const atStart = gesture.dx > 0 && !hasPrevMeal;
       const atEnd = gesture.dx < 0 && !hasNextMeal;
       swipeX.value = (atStart || atEnd) ? gesture.dx * 0.25 : gesture.dx;
     },
     onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy > 0 && gesture.dy > Math.abs(gesture.dx)) {
+        if (gesture.dy > 90 || gesture.vy > 0.9) triggerDismiss();
+        else dismissY.value = withTiming(0, { duration: 180, easing: plateEasing });
+        return;
+      }
       if (gesture.dx < -screenWidth * 0.18 && hasNextMeal) {
         navigateMeal('next');
         return;
@@ -1315,9 +1387,10 @@ function MealDetailSheet({
       swipeX.value = withTiming(0, { duration: 180, easing: plateEasing });
     },
     onPanResponderTerminate: () => {
+      dismissY.value = withTiming(0, { duration: 180, easing: plateEasing });
       swipeX.value = withTiming(0, { duration: 180, easing: plateEasing });
     },
-  }), [hasNextMeal, hasPrevMeal, navigateMeal, plateEasing, screenWidth, swipeEnabled, swipeX]);
+  }), [dismissY, hasNextMeal, hasPrevMeal, navigateMeal, nestedSheetOpen, plateEasing, screenWidth, swipeEnabled, swipeX, triggerDismiss]);
 
   const { rootBgStyle, heroAnimatedStyle, sheetPositionStyle, contentLiftStyle } = useHeroScrollSheetMotion({
     scrollY,
@@ -1338,8 +1411,27 @@ function MealDetailSheet({
     transform: [{ translateY: plateNavY.value }],
   }));
 
+  const dismissRadius = 24;
+
+  const dismissStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: dismissY.value }],
+    borderRadius: interpolate(
+      dismissY.value,
+      [0, 120],
+      [0, dismissRadius],
+      Extrapolation.CLAMP,
+    ),
+    overflow: dismissY.value > 0 ? 'hidden' : 'visible',
+    opacity: interpolate(
+      dismissY.value,
+      [0, windowHeight * 0.5, windowHeight],
+      [1, 1, 0],
+      Extrapolation.CLAMP,
+    ),
+  }), [windowHeight]);
+
   return (
-    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, { overflow: 'visible' }]} className="absolute inset-0 z-50 flex-1">
+    <Animated.View entering={FadeIn.duration(180)} style={[rootBgStyle, dismissStyle]} className="absolute inset-0 z-50 flex-1">
       <View style={{ paddingTop: headerTop }} className="absolute inset-x-0 top-0 z-20 flex-row items-center justify-between px-5 pb-4">
         <Pressable accessibilityRole="button" accessibilityLabel="Close meal details" onPress={onClose} hitSlop={8} className="size-icon-button items-center justify-center">
           <XIcon size={24} weight="regular" color={iconColor} />
@@ -1353,7 +1445,7 @@ function MealDetailSheet({
         </Animated.View>
       </View>
 
-      <Animated.View style={[{ bottom: 0, left: 0, right: 0, position: 'absolute', overflow: 'hidden' }, sheetPositionStyle]} className="z-10 bg-canvas">
+      <Animated.View style={[{ bottom: 0, left: 0, right: 0, position: 'absolute', overflow: 'hidden' }, sheetPositionStyle]} {...panResponder.panHandlers} className="z-10 bg-canvas">
         <Animated.ScrollView
           ref={contentRef}
           onScroll={scrollHandler}
@@ -1369,7 +1461,7 @@ function MealDetailSheet({
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 40 }}
         >
           <View style={{ height: collapseRange }} />
-          <Animated.View style={contentLiftStyle} {...panResponder.panHandlers}>
+          <Animated.View style={contentLiftStyle}>
             <Animated.View style={contentSwipeStyle}>
             <View className="gap-4">
               <View className="gap-2">
@@ -1446,29 +1538,73 @@ function MealDetailSheet({
         </Animated.ScrollView>
       </Animated.View>
       {sheets.issueOpen ? <IssueSheet mealDate={meal.date} onClose={() => closeFlow()} onSubmit={() => { closeFlow(); onToast('Issue submitted'); }} /> : null}
-      {sheets.addressOpen ? (
+      {savedAddressSheetOpen ? (
+        <SavedAddressesSheet
+          addresses={savedAddresses}
+          defaultAddressId={defaultAddressId}
+          onClose={() => setSavedAddressSheetOpen(false)}
+          onAddNew={() => {
+            setSavedAddressSheetOpen(false);
+            setEditingAddress(null);
+            setAddressFlowOpen(true);
+          }}
+          onEdit={(address) => {
+            setSavedAddressSheetOpen(false);
+            setEditingAddress(address);
+            setAddressFlowOpen(true);
+          }}
+          onSelect={(address) => {
+            onUpdate({
+              ...meal,
+              deliveryAddressOverride: mealOverrideFromSavedAddress(address),
+            });
+            setSavedAddressSheetOpen(false);
+            onToast('Delivery address updated for this meal');
+          }}
+          onDelete={(address) => {
+            removeAddress(address.id);
+            if (savedAddresses.length <= 1) setSavedAddressSheetOpen(false);
+          }}
+        />
+      ) : null}
+      {addressFlowOpen ? (
         <DeliveryAddressFlow
           mode="meal-edit"
-          initialLocation={getEffectiveMealAddress(meal)}
-          onClose={() => closeFlow()}
+          mealSlot={mealSlot}
+          editingAddressId={editingAddress?.id}
+          headerTitleOverride={editingAddress ? editAddressHeaderTitle() : undefined}
+          initialLocation={editingAddress?.deliveryLocation ?? getEffectiveMealAddress(meal)}
+          initialDetails={editingAddress ? {
+            ...detailsFromSavedAddress(editingAddress),
+            number: addressDetailLine(editingAddress),
+            society: '',
+            landmark: '',
+          } : emptyAddressDetails(getEffectiveMealAddress(meal))}
+          onClose={() => {
+            setAddressFlowOpen(false);
+            setEditingAddress(null);
+          }}
           onConfirmed={(_saved, override) => {
+            const wasEditing = !!editingAddress;
             onUpdate({
               ...meal,
               deliveryAddressOverride: override,
             });
-            send({ type: 'ADDRESS_UPDATED' });
-            onToast('Delivery address updated for this meal');
+            setAddressFlowOpen(false);
+            setEditingAddress(null);
+            onToast(wasEditing ? 'Address updated' : 'Delivery address updated for this meal');
           }}
         />
       ) : null}
-      {sheets.preferencesOpen ? (
-        <FoodPreferencePicker
-          mealDate={meal.date}
-          value={(meal.mealPreferenceOverride ?? meal.foodPreference) as MealPreferenceValue}
-          onClose={() => closeFlow()}
-          onSave={(preference) => {
-            onUpdate({ ...meal, mealPreferenceOverride: preference });
-            send({ type: 'MEAL_PREFERENCE_UPDATED' });
+      {pickerAnchor ? (
+        <SubscriptionPreferencePickerModal
+          kind="food"
+          value={(meal.mealPreferenceOverride ?? getEffectiveFoodPreference(meal)) as MealPreferenceValue}
+          anchor={pickerAnchor}
+          options={subscriptionFoodOptions}
+          onClose={() => setPickerAnchor(null)}
+          onSelect={(preference) => {
+            onUpdate({ ...meal, mealPreferenceOverride: preference as MealPreferenceValue });
             onToast('Meal preference updated for this meal');
           }}
         />
@@ -1833,7 +1969,7 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   const showToast = (text: string) => setToast(text);
   const planBoth = (subscription?.meal ?? meal) === 'Both';
   const defaultMealSlot = (target: TrialMeal): MealSlot => (
-    planBoth ? 'lunch' : target.mealType === 'Dinner' ? 'dinner' : 'lunch'
+    planBoth ? firstPendingSlotForMeal(target) : target.mealType === 'Dinner' ? 'dinner' : 'lunch'
   );
   const skipMeal = (mealId: string, slot: MealSlot, newEndDate: Date, metadata: SkipMetadata) => {
     setMeals((current) => current.map((item) => {

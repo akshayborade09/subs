@@ -5,6 +5,7 @@ declare const SelectableMap: ComponentType<{
   thumbnail?: boolean;
   searchQuery?: string;
   fill?: boolean;
+  fullWidth?: boolean;
   onAddressChange?: (address: string) => void;
   onCoordinateChange?: (coordinate: { latitude: number; longitude: number }) => void;
 }>;
