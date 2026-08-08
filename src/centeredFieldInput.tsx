@@ -1,21 +1,38 @@
 import { useRef, type ReactNode, type RefObject } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, type TextInputProps } from 'react-native';
 import { useFieldPlaceholderColor, useForegroundColor } from './themeColors';
 
 export const FIELD_LINE_HEIGHT = 24;
 export const fieldValueTextClass = 'font-body-medium text-body-md leading-6 tracking-body-md';
 
+const fieldTypography = {
+  fontFamily: 'InclusiveSans_500Medium',
+  fontSize: 16,
+  letterSpacing: -0.32,
+} as const;
+
 export const centeredFieldInputStyle = StyleSheet.create({
   field: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    minWidth: 0,
     padding: 0,
     margin: 0,
     backgroundColor: 'transparent',
-    fontFamily: 'InclusiveSans_500Medium',
-    fontSize: 16,
+    ...fieldTypography,
     lineHeight: FIELD_LINE_HEIGHT,
-    letterSpacing: -0.32,
-    ...(Platform.OS === 'android' ? { includeFontPadding: false, textAlignVertical: 'center' as const } : {}),
+    ...(Platform.OS === 'android' ? { includeFontPadding: false, textAlignVertical: 'center' as const } : { paddingVertical: 0 }),
+  },
+}).field;
+
+export const multilineFieldInputStyle = StyleSheet.create({
+  field: {
+    minHeight: 92,
+    paddingTop: 16,
+    paddingBottom: 16,
+    ...fieldTypography,
+    lineHeight: FIELD_LINE_HEIGHT,
+    textAlignVertical: 'top' as const,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
 }).field;
 
@@ -65,40 +82,31 @@ export function CenteredFieldInput({
       className={`h-field flex-row items-center gap-field-inline rounded-field px-sheet ${shellClassName}`}
     >
       {prefix}
-      <View className="relative h-6 min-w-0 flex-1">
-        <Text
-          pointerEvents="none"
-          numberOfLines={1}
-          className={`${fieldValueTextClass} ${value ? 'text-foreground' : ''}`}
-          style={value ? undefined : { color: placeholderColor }}
-        >
-          {value || placeholder}
-        </Text>
-        <TextInput
-          ref={(node) => {
-            localRef.current = node;
-            if (inputRef) inputRef.current = node;
-          }}
-          autoFocus={autoFocus}
-          accessibilityLabel={accessibilityLabel ?? placeholder}
-          value={value}
-          onChangeText={onChangeText}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          placeholder=""
-          returnKeyType={returnKeyType}
-          onSubmitEditing={onSubmitEditing}
-          keyboardType={keyboardType}
-          inputMode={inputMode}
-          maxLength={maxLength}
-          textContentType={textContentType}
-          autoComplete={autoComplete}
-          autoCapitalize={autoCapitalize}
-          selectionColor={selectionColor}
-          textAlignVertical="center"
-          style={[centeredFieldInputStyle, { color: 'transparent' }]}
-        />
-      </View>
+      <TextInput
+        ref={(node) => {
+          localRef.current = node;
+          if (inputRef) inputRef.current = node;
+        }}
+        autoFocus={autoFocus}
+        accessibilityLabel={accessibilityLabel ?? placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        placeholder={placeholder}
+        placeholderTextColor={placeholderColor}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        keyboardType={keyboardType}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        textContentType={textContentType}
+        autoComplete={autoComplete}
+        autoCapitalize={autoCapitalize}
+        selectionColor={selectionColor}
+        textAlignVertical="center"
+        style={[centeredFieldInputStyle, { color: foregroundColor }]}
+      />
     </Pressable>
   );
 }

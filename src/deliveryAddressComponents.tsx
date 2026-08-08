@@ -27,9 +27,9 @@ import { PencilSimpleIcon } from 'phosphor-react-native/src/icons/PencilSimple';
 import { TrashSimpleIcon } from 'phosphor-react-native/src/icons/TrashSimple';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 import SelectableMap from './SelectableMap';
-import { CenteredFieldInput } from './centeredFieldInput';
+import { CenteredFieldInput, centeredFieldInputStyle, multilineFieldInputStyle } from './centeredFieldInput';
 import { FormHeader, FormModalLayout } from './formLayout';
-import { PrimaryShimmerButton } from './primaryButton';
+import { PrimaryShimmerButton, GhostFieldButton } from './primaryButton';
 import { themePalette, useFieldPlaceholderColor, useForegroundColor } from './themeColors';
 import {
   ADDRESS_LABEL_OPTIONS,
@@ -172,6 +172,7 @@ export function DeliveryCoverageSheet({
   onSubmit: () => void;
 }) {
   const placeholderColor = useFieldPlaceholderColor();
+  const foregroundColor = useForegroundColor();
   const scrollRef = useRef<ScrollView>(null);
   const pincodeRef = useRef<TextInput>(null);
   const [pincode, setPincode] = useState(initialPincode.replace(/\D/g, '').slice(0, 6));
@@ -227,7 +228,9 @@ export function DeliveryCoverageSheet({
             keyboardType="number-pad"
             maxLength={6}
             returnKeyType="done"
-            className="h-field rounded-field border border-border bg-field px-sheet font-body-medium text-body-md text-foreground"
+            textAlignVertical="center"
+            className="h-field rounded-field border border-border bg-field px-sheet"
+            style={[centeredFieldInputStyle, { color: foregroundColor }]}
           />
           {requestState === 'error' ? (
             <Text className="font-body text-body-xs text-muted">Unable to save your request right now. Please try again.</Text>
@@ -248,12 +251,14 @@ export function DeliveryCoverageSheet({
 export function LocationPanel({
   addressText,
   onAddressChange,
+  onCoordinateChange,
   onOpenSearch,
   availability,
   onOpenCoverage,
 }: {
   addressText: string;
   onAddressChange: (value: string) => void;
+  onCoordinateChange?: (coordinate: { latitude: number; longitude: number }) => void;
   onOpenSearch: () => void;
   availability: DeliveryAvailabilityState;
   onOpenCoverage: () => void;
@@ -275,7 +280,7 @@ export function LocationPanel({
       </Pressable>
       <DeliveryLocationAvailabilityNotice state={availability} hasLocation={hasLocation} onOpenCoverage={onOpenCoverage} />
       <View className="overflow-hidden rounded-field border border-border">
-        <SelectableMap searchQuery={query} onAddressChange={updateFromMap} />
+        <SelectableMap searchQuery={query} onAddressChange={updateFromMap} onCoordinateChange={onCoordinateChange} />
       </View>
       <Text className="font-body text-body-xs leading-[18px] text-muted">Move the map to adjust the pin. The address updates automatically.</Text>
     </View>
@@ -284,7 +289,8 @@ export function LocationPanel({
 
 export function SearchLocationScreen({ initialValue, onBack, onSelect }: { initialValue: string; onBack: () => void; onSelect: (value: string) => void }) {
   const insets = useSafeAreaInsets();
-  const { theme } = useUniwind();
+  const foregroundColor = useForegroundColor();
+  const placeholderColor = useFieldPlaceholderColor();
   const [query, setQuery] = useState(initialValue);
   const [searching, setSearching] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -355,10 +361,9 @@ export function SearchLocationScreen({ initialValue, onBack, onSelect }: { initi
               returnKeyType="search"
               onSubmitEditing={submitSearch}
               placeholder="Search area, landmark or address"
-              placeholderTextColor={theme === 'dark' ? 'rgba(255,255,255,0.35)' : 'rgba(16,16,16,0.35)'}
+              placeholderTextColor={placeholderColor}
               textAlignVertical="center"
-              style={{ paddingVertical: 0 }}
-              className="h-field flex-1 font-body-medium text-body-md leading-6 tracking-body-md text-foreground"
+              style={[centeredFieldInputStyle, { color: foregroundColor }]}
             />
             {query.length > 0 ? (
               <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')} className="size-icon-button items-center justify-center rounded-full bg-icon-surface">
@@ -408,7 +413,7 @@ function AddressFormField({ label, value, onChangeText, placeholder, multiline =
   const scrollFocusedField = useContext(FocusScrollContext);
   const fieldClass = focused ? 'border border-foreground bg-canvas' : 'border border-transparent bg-field';
   const content = multiline ? (
-    <TextInput ref={(node) => { localRef.current = node; if (inputRef) inputRef.current = node; }} autoFocus={autoFocus} value={value} onChangeText={onChangeText} onFocus={() => { setFocused(true); scrollFocusedField?.(localRef.current); }} onBlur={() => setFocused(false)} onSubmitEditing={onSubmitEditing} returnKeyType={returnKeyType} blurOnSubmit={returnKeyType === 'done'} submitBehavior="blurAndSubmit" placeholder={placeholder} placeholderTextColor={placeholderColor} multiline textAlignVertical="top" className={`min-h-[92px] rounded-field px-sheet py-4 font-body-medium text-body-md leading-6 tracking-body-md text-foreground ${fieldClass}`} />
+    <TextInput ref={(node) => { localRef.current = node; if (inputRef) inputRef.current = node; }} autoFocus={autoFocus} value={value} onChangeText={onChangeText} onFocus={() => { setFocused(true); scrollFocusedField?.(localRef.current); }} onBlur={() => setFocused(false)} onSubmitEditing={onSubmitEditing} returnKeyType={returnKeyType} blurOnSubmit={returnKeyType === 'done'} submitBehavior="blurAndSubmit" placeholder={placeholder} placeholderTextColor={placeholderColor} multiline textAlignVertical="top" className={`rounded-field px-sheet ${fieldClass}`} style={[multilineFieldInputStyle, { color: foregroundColor }]} />
   ) : (
     <CenteredFieldInput value={value} onChangeText={onChangeText} placeholder={placeholder} selectionColor={foregroundColor} shellClassName={fieldClass} inputRef={inputRef ?? localRef} autoFocus={autoFocus} returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} onFocus={() => { setFocused(true); scrollFocusedField?.((inputRef ?? localRef).current); }} onBlur={() => setFocused(false)} />
   );
@@ -559,13 +564,45 @@ export function SavedAddressesSheet({
   );
 }
 
-export function ConfirmDeliveryAddressSheet({ address, onClose, onConfirm, onEdit }: { address: SavedAddress; onClose: () => void; onConfirm: () => void; onEdit: () => void }) {
+export function SameAsReferenceMealSheet({
+  mealSlot,
+  onClose,
+  onConfirmSame,
+  onUseDifferent,
+}: {
+  mealSlot: 'dinner';
+  onClose: () => void;
+  onConfirmSame: () => void;
+  onUseDifferent: () => void;
+}) {
+  const { theme } = useUniwind();
+  const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
+  const mealLabel = mealSlot === 'dinner' ? 'Dinner' : 'Lunch';
+  return (
+    <AddressBottomSheet onClose={onClose} closeLabel="Close same location prompt">
+      <FormModalLayout
+        title={`Is your ${mealLabel} location same as lunch?`}
+        subtitle="Your pin is close to the lunch delivery spot."
+        headerAction={
+          <Pressable accessibilityRole="button" accessibilityLabel="Close same location prompt" onPress={onClose} hitSlop={8} className="size-icon-button items-center justify-center">
+            <XIcon size={24} weight="regular" color={iconColor} />
+          </Pressable>
+        }
+        fields={null}
+        primaryAction={<PrimaryShimmerButton label="Yes - it's same" onPress={onConfirmSame} />}
+        secondaryAction={<GhostFieldButton label="No - write another" onPress={onUseDifferent} />}
+      />
+    </AddressBottomSheet>
+  );
+}
+
+export function ConfirmDeliveryAddressSheet({ address, onClose, onConfirm, onEdit, title = 'Confirm delivery address', confirmLabel = 'Confirm delivery address' }: { address: SavedAddress; onClose: () => void; onConfirm: () => void; onEdit: () => void; title?: string; confirmLabel?: string }) {
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   return (
     <AddressBottomSheet onClose={onClose} closeLabel="Close address confirmation">
       <FormModalLayout
-        title="Confirm delivery address"
+        title={title}
         subtitle="Make sure everything looks right before continuing."
         headerAction={
           <Pressable accessibilityRole="button" accessibilityLabel="Close address confirmation" onPress={onClose} hitSlop={8} className="size-icon-button items-center justify-center">
@@ -589,7 +626,7 @@ export function ConfirmDeliveryAddressSheet({ address, onClose, onConfirm, onEdi
             </View>
           </>
         )}
-        primaryAction={<PrimaryShimmerButton label="Confirm delivery address" onPress={onConfirm} />}
+        primaryAction={<PrimaryShimmerButton label={confirmLabel} onPress={onConfirm} />}
       />
     </AddressBottomSheet>
   );

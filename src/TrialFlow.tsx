@@ -20,7 +20,7 @@ import { StarIcon } from 'phosphor-react-native/src/icons/Star';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 import SelectableMap from './SelectableMap';
 import TrialHome, { AdaptiveSheetFrame, TRIAL_DAY_COUNT } from './TrialHome';
-import { CenteredFieldInput, fieldValueTextClass } from './centeredFieldInput';
+import { CenteredFieldInput, centeredFieldInputStyle, fieldValueTextClass } from './centeredFieldInput';
 import { FormChromeSheetLayout, FormFieldStack, FormHeader, FormModalLayout, FormPageSection, FormSheetLayout, FormValidationText } from './formLayout';
 import { headingDescriptionClass } from './typographyClasses';
 import { formatRupee } from './formatCurrency';
@@ -50,6 +50,9 @@ import { canContinueFromMapSelection, extractPincode } from './deliveryServiceab
 import { submitCoverageRequest } from './coverageRequestStore';
 import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST } from './toast';
 import { useSavedAddresses } from './savedAddressesStore';
+import { DeliveryAddressFlow } from './DeliveryAddressFlow';
+import { detailsFromSavedAddress, savedAddressFromDetails, type MealDeliverySlot, type SavedAddress } from './addressTypes';
+import { TrialSummaryScreen, trialPricingBreakup, type TrialMealDeliveryState } from './trialOnboardingSummary';
 const genderOptions = [
   { label: 'Male', icon: GenderMaleIcon },
   { label: 'Female', icon: GenderFemaleIcon },
@@ -125,12 +128,13 @@ function PersonalFormField({ label, value, onChangeText, placeholder, autoFocus,
 function PersonalDateField({ value, onPress }: { value: string; onPress: () => void }) {
   const { theme } = useUniwind();
   const placeholderColor = useFieldPlaceholderColor();
+  const foregroundColor = useForegroundColor();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   return (
     <View className="gap-2">
       <Text className="font-body text-body-sm tracking-body-sm text-foreground">Date of birth</Text>
       <Pressable accessibilityRole="button" onPress={onPress} className="h-field flex-row items-center gap-field-inline rounded-field border border-transparent bg-field px-sheet">
-        <Text className={`flex-1 ${fieldValueTextClass} ${value ? 'text-foreground' : ''}`} style={value ? undefined : { color: placeholderColor }}>{value || 'DD-MM-YYYY'}</Text>
+        <Text className="flex-1" style={[centeredFieldInputStyle, { color: value ? foregroundColor : placeholderColor }]}>{value || 'DD-MM-YYYY'}</Text>
         <CalendarBlankIcon size={24} weight="regular" color={iconColor} />
       </Pressable>
     </View>
@@ -170,7 +174,7 @@ function FlowGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregro
   return <Glyph size={Math.max(8, size - 4)} weight="bold" color={color} />;
 }
 
-type Step = 'personal' | 'intro' | 'food' | 'meal' | 'mixMeals' | 'bread' | 'rice' | 'locate' | 'address' | 'summary' | 'payment' | 'success' | 'tracker';
+type Step = 'personal' | 'intro' | 'food' | 'meal' | 'mixMeals' | 'bread' | 'rice' | 'addressFlow' | 'summary' | 'payment' | 'success' | 'tracker';
 type Choice = { title: string; description: string };
 type FoodChoice = Choice & { image: number };
 type Address = Omit<AddressDetails, 'deliveryLocation'>;
@@ -178,15 +182,44 @@ type MealKind = 'Vegetarian' | 'Non-vegetarian' | '';
 type DailyMealChoice = { lunch: MealKind; dinner: MealKind };
 type WeekendDelivery = 'primary' | 'different' | 'skip';
 type AddressMode = 'weekday' | 'weekend';
-type State = { name: string; dob: string; gender: string; food: string; meal: string; dailyMeals: DailyMealChoice[]; bread: string; rice: string; trialDays: string[]; deliveryLocation: string; weekendDelivery: WeekendDelivery; weekendLocation: string; weekendAddress: string; address: Address; weekendAddressDetails: Address; payment: string };
+type State = { name: string; dob: string; gender: string; food: string; meal: string; dailyMeals: DailyMealChoice[]; bread: string; rice: string; trialDays: string[]; deliveryLocation: string; weekendDelivery: WeekendDelivery; weekendLocation: string; weekendAddress: string; address: Address; weekendAddressDetails: Address; lunchDelivery: TrialMealDeliveryState | null; dinnerDelivery: TrialMealDeliveryState | null; summaryMealTab: MealDeliverySlot; payment: string };
 
 // Future-scope plug: switch to true to restore the separate weekend location and address journey.
 const ENABLE_WEEKEND_ADDRESS_FLOW = false;
 
-const order: Step[] = ['personal', 'intro', 'food', 'meal', 'mixMeals', 'bread', 'rice', 'locate', 'address', 'summary', 'payment', 'success', 'tracker'];
+const order: Step[] = ['personal', 'intro', 'food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow', 'summary', 'payment', 'success', 'tracker'];
 const emptyAddress = (): Address => { const { deliveryLocation, ...rest } = emptyAddressDetails(); return rest; };
 const addressDetailsFromState = (location: string, address: Address): AddressDetails => ({ ...address, deliveryLocation: location, pincode: address.pincode || extractPincodeFromText(location) });
-const initialState: State = { name: '', dob: '', gender: '', food: '', meal: '', dailyMeals: Array.from({ length: TRIAL_DAY_COUNT }, () => ({ lunch: '', dinner: '' })), bread: '', rice: '', trialDays: [], deliveryLocation: 'B-704, Green View Apartments, Baner Road, Pune 411045', weekendDelivery: 'primary', weekendLocation: '', weekendAddress: '', payment: '', address: emptyAddress(), weekendAddressDetails: emptyAddress() };
+const addressSlotsForMeal = (meal: string): MealDeliverySlot[] => {
+  if (meal === 'Lunch') return ['lunch'];
+  if (meal === 'Dinner') return ['dinner'];
+  return ['lunch', 'dinner'];
+};
+const nextPendingAddressSlot = (meal: string, data: State): MealDeliverySlot | null => {
+  for (const slot of addressSlotsForMeal(meal)) {
+    if (slot === 'lunch' && !data.lunchDelivery) return 'lunch';
+    if (slot === 'dinner' && !data.dinnerDelivery) return 'dinner';
+  }
+  return null;
+};
+const mealDeliveryFromSaved = (saved: SavedAddress): TrialMealDeliveryState => {
+  const details = detailsFromSavedAddress(saved);
+  const { deliveryLocation, ...address } = details;
+  return {
+    deliveryLocation,
+    address,
+    latitude: saved.latitude,
+    longitude: saved.longitude,
+  };
+};
+const savedAddressFromMealDelivery = (delivery: TrialMealDeliveryState): SavedAddress =>
+  savedAddressFromDetails(addressDetailsFromState(delivery.deliveryLocation, delivery.address));
+const syncLegacyDeliveryFields = (data: State): Pick<State, 'deliveryLocation' | 'address'> => {
+  const primary = data.lunchDelivery ?? data.dinnerDelivery;
+  if (!primary) return { deliveryLocation: data.deliveryLocation, address: data.address };
+  return { deliveryLocation: primary.deliveryLocation, address: primary.address };
+};
+const initialState: State = { name: '', dob: '', gender: '', food: '', meal: '', dailyMeals: Array.from({ length: TRIAL_DAY_COUNT }, () => ({ lunch: '', dinner: '' })), bread: '', rice: '', trialDays: [], deliveryLocation: 'B-704, Green View Apartments, Baner Road, Pune 411045', weekendDelivery: 'primary', weekendLocation: '', weekendAddress: '', payment: '', address: emptyAddress(), weekendAddressDetails: emptyAddress(), lunchDelivery: null, dinnerDelivery: null, summaryMealTab: 'lunch' };
 const food: FoodChoice[] = [
   { title: 'Vegetarian', description: 'Seasonal vegetables, paneer and home-style dals.', image: foodImages.Vegetarian },
   { title: 'Non-vegetarian', description: 'Home-style chicken, mutton and egg preparations.', image: foodImages['Non-vegetarian'] },
@@ -808,39 +841,20 @@ export default function TrialFlow() {
   const [coverageRequestState, setCoverageRequestState] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
   const [coverageToast, setCoverageToast] = useState('');
   const [confirmAddressOpen, setConfirmAddressOpen] = useState(false);
+  const [addressFlowSlot, setAddressFlowSlot] = useState<MealDeliverySlot | null>(null);
   const addressNumberRef = useRef<TextInput>(null); const societyRef = useRef<TextInput>(null); const landmarkRef = useRef<TextInput>(null); const instructionsRef = useRef<TextInput>(null);
   const set = <K extends keyof State>(key: K, value: State[K]) => setData((current) => ({ ...current, [key]: value }));
   const patchWeekdayAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, address: { ...current.address, ...patch } }));
   const patchWeekendAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, weekendAddressDetails: { ...current.weekendAddressDetails, ...patch } }));
   const patchActiveAddress = (patch: Partial<AddressDetails>) => { if (addressMode === 'weekday') patchWeekdayAddress(patch); else patchWeekendAddress(patch); };
-const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'address'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.min(order.length - 1, index + 1)]!); }; const back = () => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.max(0, index - 1)]!); };
-  const confirmSections = [{ mode: 'Weekday', value: data.address, text: formatSavedAddressLines(addressDetailsFromState(data.deliveryLocation, data.address)) }, { mode: 'Weekend', value: data.weekendAddressDetails, text: formatSavedAddressLines(addressDetailsFromState(data.weekendLocation, data.weekendAddressDetails)) }];
-  const openConfirmAddress = () => { Keyboard.dismiss(); setConfirmAddressOpen(true); };
-  const finishAddress = () => {
-    const weekdaySaved = upsertAddress(addressDetailsFromState(data.deliveryLocation, data.address));
-    setDefaultAddress(weekdaySaved.id);
-    if (usesDifferentWeekendAddress && data.weekendLocation.trim()) upsertAddress(addressDetailsFromState(data.weekendLocation, data.weekendAddressDetails));
-    setConfirmAddressOpen(false);
-    if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; }
-    setStep('summary');
-  };
+const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.min(order.length - 1, index + 1)]!); }; const back = () => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.max(0, index - 1)]!); };
   const meals = data.meal === 'Both' ? TRIAL_DAY_COUNT * 2 : TRIAL_DAY_COUNT;
   const dailyMealsComplete = data.dailyMeals.every((day) => (data.meal === 'Dinner' || !!day.lunch) && (data.meal === 'Lunch' || !!day.dinner));
-  const total = 899;
+  const total = trialPricingBreakup(data.meal).total;
   const usesDifferentWeekendAddress = ENABLE_WEEKEND_ADDRESS_FLOW && data.weekendDelivery === 'different';
   const activeAddress = addressMode === 'weekday' ? data.address : data.weekendAddressDetails;
   const activeAddressText = addressMode === 'weekday' ? data.deliveryLocation : (data.weekendLocation || 'Choose your weekend delivery location');
   const activePincode = extractPincode(activeAddressText);
-  const locateAvailability = usePincodeAvailability(step === 'locate' ? activePincode : '');
-  const weekdayPincode = data.address.pincode || extractPincode(data.deliveryLocation);
-  const addressPincode = addressMode === 'weekday' ? weekdayPincode : (data.weekendAddressDetails.pincode || extractPincode(data.weekendLocation || ''));
-  const addressAvailability = usePincodeAvailability(step === 'address' ? addressPincode : '');
-  const weekdayAvailability = usePincodeAvailability(step === 'address' ? weekdayPincode : '');
-  const canContinueLocate = canContinueFromMapSelection(activeAddressText, locateAvailability);
-  const updateActiveLocation = (value: string) => {
-    if (addressMode === 'weekday') set('deliveryLocation', value);
-    else set('weekendLocation', value);
-  };
   const submitCoverage = () => {
     setCoverageRequestState('submitting');
     void submitCoverageRequest(coverageRequestPincode)
@@ -852,11 +866,42 @@ const index = order.indexOf(step); const next = () => { if (returnToSummary && [
       .catch(() => setCoverageRequestState('error'));
   };
 
-  if (locationSearchOpen) return (
-    <View className="absolute inset-0 z-[95]">
-      <SearchLocationScreen initialValue={activeAddressText} onBack={() => setLocationSearchOpen(false)} onSelect={(value) => { updateActiveLocation(value); setLocationSearchOpen(false); }} />
-    </View>
-  );
+  const startAddressFlow = (slot?: MealDeliverySlot) => {
+    const target = slot ?? nextPendingAddressSlot(data.meal, data);
+    if (!target) {
+      setStep('summary');
+      return;
+    }
+    setAddressFlowSlot(target);
+    setStep('addressFlow');
+  };
+
+  const handleAddressConfirmed = (saved: SavedAddress) => {
+    const mealState = mealDeliveryFromSaved(saved);
+    upsertAddress(detailsFromSavedAddress(saved), saved.id);
+    setDefaultAddress(saved.id);
+    const slot = addressFlowSlot!;
+    const merged: State = {
+      ...data,
+      ...(slot === 'lunch' ? { lunchDelivery: mealState } : { dinnerDelivery: mealState }),
+    };
+    const withLegacy = { ...merged, ...syncLegacyDeliveryFields(merged) };
+    setData(withLegacy);
+    const pending = nextPendingAddressSlot(data.meal, withLegacy);
+    if (pending && !returnToSummary) {
+      setAddressFlowSlot(pending);
+      return;
+    }
+    setAddressFlowSlot(null);
+    if (returnToSummary) setReturnToSummary(false);
+    setStep('summary');
+  };
+
+  const handleUseSameAsReference = () => {
+    if (!data.lunchDelivery) return;
+    handleAddressConfirmed(savedAddressFromMealDelivery(data.lunchDelivery));
+  };
+
   const addressRefs = { number: addressNumberRef, society: societyRef, landmark: landmarkRef, instructions: instructionsRef };
 
   if (step === 'personal') return <><Shell title="Tell us about you" onBack={undefined} footer={<TrialAuthButton label="Continue" enabled={data.name.trim().length > 1 && !!data.dob && !!data.gender} onPress={next} />}><FormPageSection subheading="A few details help us personalise your trial."><View className="gap-sheet-gap"><PersonalFormField label="Full name" autoFocus value={data.name} onChangeText={(value) => set('name', value)} placeholder="Your full name" onSubmitEditing={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><PersonalDateField value={data.dob} onPress={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><View className="gap-2"><Text className="font-body text-body-sm tracking-body-sm text-foreground">Gender</Text><View className="flex-row gap-otp">{genderOptions.map((option) => <PersonalGenderCard key={option.label} label={option.label} icon={option.icon} selected={data.gender === option.label} onPress={() => set('gender', option.label)} />)}</View></View></View></FormPageSection></Shell>{dateOpen ? <DateSheet value={data.dob} onClose={() => setDateOpen(false)} onConfirm={(value) => { set('dob', value); setDateOpen(false); }} /> : null}</>;
@@ -865,62 +910,66 @@ const index = order.indexOf(step); const next = () => { if (returnToSummary && [
   if (step === 'meal') return <Shell title="Choose your meals" onBack={back}><FormPageSection subheading="Delivery windows are fixed so every day stays predictable."><PreferenceCards options={meal} value={data.meal} onChange={(v) => { set('meal', v); setTimeout(() => { if (data.food === 'Mix of both') setStep('mixMeals'); else if (returnToSummary) { setReturnToSummary(false); setStep('summary'); } else setStep('bread'); }, 160); }} /></FormPageSection></Shell>;
   if (step === 'mixMeals') return <Shell title="Plan your three days" onBack={back} footer={<TrialAuthButton label="Continue" enabled={dailyMealsComplete} onPress={next} />}><FormPageSection subheading="Choose vegetarian or non-vegetarian food for each selected meal."><DailyMealPlan meal={data.meal} dates={data.trialDays} value={data.dailyMeals} onChange={(value) => set('dailyMeals', value)} /></FormPageSection></Shell>;
   if (step === 'bread') return <Shell title="Choose your bread" onBack={() => { if (returnToSummary) back(); else setStep(data.food === 'Mix of both' ? 'mixMeals' : 'meal'); }}><FormPageSection subheading="Pick what feels most familiar at home."><PreferenceCards options={bread} value={data.bread} onChange={(v) => { set('bread', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
-  if (step === 'rice') return <Shell title="Choose your rice" onBack={back}><FormPageSection subheading="You can change this later for upcoming meals."><PreferenceCards options={rice} value={data.rice} onChange={(v) => { set('rice', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
-  if (step === 'locate') return <>
-    <Shell title="Where should we deliver?" suppressKeyboard={coverageOpen} onBack={back} footerDelay={390} footer={<TrialAuthButton label="Next" enabled={canContinueLocate} onPress={() => { if (usesDifferentWeekendAddress && addressMode === 'weekday') { setAddressMode('weekend'); } else { setAddressMode('weekday'); next(); } }} />}>
-      <View className="gap-auth-block">
-        <Text className="font-body text-body-sm leading-5 text-muted">Search for a location, then adjust the pin on the map.</Text>
-        {usesDifferentWeekendAddress ? <AddressTabs value={addressMode} onChange={setAddressMode} /> : null}
-        <LocationPanel
-          addressText={activeAddressText}
-          onAddressChange={updateActiveLocation}
-          onOpenSearch={() => setLocationSearchOpen(true)}
-          availability={locateAvailability}
-          onOpenCoverage={() => { setCoverageRequestPincode(activePincode); setCoverageOpen(true); }}
-        />
-      </View>
-    </Shell>
-    {coverageOpen ? (
-      <DeliveryCoverageSheet
-        initialPincode={coverageRequestPincode}
-        requestState={coverageRequestState}
-        onClose={() => setCoverageOpen(false)}
-        onPincodeChange={setCoverageRequestPincode}
-        onSubmit={submitCoverage}
+  if (step === 'rice') return <Shell title="Choose your rice" onBack={back}><FormPageSection subheading="You can change this later for upcoming meals."><PreferenceCards options={rice} value={data.rice} onChange={(v) => { set('rice', v); setTimeout(() => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); } else startAddressFlow(); }, 160); }} /></FormPageSection></Shell>;
+  if (step === 'addressFlow' && addressFlowSlot) {
+    const existing = addressFlowSlot === 'lunch' ? data.lunchDelivery : data.dinnerDelivery;
+    return (
+      <DeliveryAddressFlow
+        key={addressFlowSlot}
+        mode="onboarding"
+        mealSlot={addressFlowSlot}
+        initialLocation={existing?.deliveryLocation ?? data.deliveryLocation}
+        initialDetails={existing ? addressDetailsFromState(existing.deliveryLocation, existing.address) : addressDetailsFromState(data.deliveryLocation, data.address)}
+        referenceMealDelivery={addressFlowSlot === 'dinner' ? data.lunchDelivery : null}
+        onUseSameAsReference={addressFlowSlot === 'dinner' && data.lunchDelivery ? handleUseSameAsReference : undefined}
+        onClose={() => {
+          if (returnToSummary) {
+            setReturnToSummary(false);
+            setStep('summary');
+            setAddressFlowSlot(null);
+            return;
+          }
+          setAddressFlowSlot(null);
+          setStep('rice');
+        }}
+        onConfirmed={(saved) => handleAddressConfirmed(saved)}
       />
-    ) : null}
-    {coverageToast ? <Toast message={coverageToast} onDismiss={() => setCoverageToast('')} /> : null}
-  </>;
-  if (step === 'address') {
-    const activeDetails = addressDetailsFromState(activeAddressText, activeAddress);
-    const weekdayDetails = addressDetailsFromState(data.deliveryLocation, data.address);
-    const validAddress = addressDetailsValid(activeDetails, addressAvailability);
-    const weekdayValid = addressDetailsValid(weekdayDetails, weekdayAvailability);
-    return <>
-      <Shell title="Add address details" onBack={back} footerDelay={540} footer={<TrialAuthButton label={usesDifferentWeekendAddress ? `Save ${addressMode} address` : 'Save address'} enabled={validAddress && (!usesDifferentWeekendAddress || addressMode === 'weekday' || weekdayValid)} onPress={() => { if (usesDifferentWeekendAddress && addressMode === 'weekday') setAddressMode('weekend'); else { setAddressMode('weekday'); openConfirmAddress(); } }} />}>
-        <FormPageSection>
-          {usesDifferentWeekendAddress ? <AddressTabs value={addressMode} onChange={setAddressMode} /> : null}
-          <AddressLocationSummary
-            location={activeAddressText}
-            onPressMap={() => setStep('locate')}
-            availability={addressAvailability}
-            onOpenCoverage={() => { setCoverageRequestPincode(activePincode); setCoverageOpen(true); }}
-          />
-          <AddressDetailsForm
-            details={activeDetails}
-            onChange={patchActiveAddress}
-            refs={addressRefs}
-            topMargin={false}
-          />
-        </FormPageSection>
-      </Shell>
-        {confirmAddressOpen ? <ConfirmAddressSheet data={data} onClose={() => setConfirmAddressOpen(false)} onConfirm={finishAddress} onEdit={() => setConfirmAddressOpen(false)} usesDifferentWeekendAddress={usesDifferentWeekendAddress} sections={confirmSections} /> : null}
-    </>;
+    );
   }
-  if (step === 'summary') return <Summary data={data} meals={meals} total={total} onBack={back} onEdit={(target) => { setReturnToSummary(true); setStep(target); }} onNext={next} />;
+  if (step === 'summary') return (
+    <TrialSummaryScreen
+      data={data}
+      onPreferenceChange={(kind, value, slot) => {
+        if (kind === 'food') {
+          if (data.food === 'Mix of both') {
+            setData((current) => ({
+              ...current,
+              dailyMeals: current.dailyMeals.map((day, index) =>
+                index === 0 ? { ...day, [slot]: value } : day
+              ),
+            }));
+          } else {
+            set('food', value);
+          }
+        } else if (kind === 'bread') {
+          set('bread', value);
+        } else {
+          set('rice', value);
+        }
+      }}
+      onEditAddress={(slot) => { setReturnToSummary(true); setAddressFlowSlot(slot); setStep('addressFlow'); }}
+      onMealTabChange={(tab) => set('summaryMealTab', tab)}
+      onNext={next}
+      shell={(content, footer) => (
+        <Shell title="Your trial, at a glance" onBack={back} footer={footer}>
+          {content}
+        </Shell>
+      )}
+    />
+  );
   if (step === 'payment') return <Shell title="Complete payment" onBack={back} footer={<TrialPaymentButton total={total} enabled={!!data.payment} onPress={next} />}><FormPageSection subheading="Choose a secure payment method for your three-day trial."><ChoiceCards options={['UPI', 'Credit or debit card', 'Net banking', 'Digital wallet'].map((title) => ({ title, description: title === 'UPI' ? 'Pay with any UPI app.' : `Pay securely using ${title.toLowerCase()}.` }))} value={data.payment} onChange={(v) => set('payment', v)} /><Text className="mt-4 text-center font-body text-body-xs text-muted">Your payment is protected by secure, encrypted processing.</Text></FormPageSection></Shell>;
   if (step === 'success') return <TrialConfirmation data={data} total={total} onContinue={next} />;
-  return <TrialHome food={data.food} meal={data.meal} dailyMeals={data.dailyMeals} bread={data.bread} rice={data.rice} address={`${data.address.number || 'B-704'}, ${data.address.society || 'Green View Apartments'}, Baner Road, Pune 411045`} openSubscriptionOnLoad={openSubscriptionOnHome} />;
+  return <TrialHome food={data.food} meal={data.meal} dailyMeals={data.dailyMeals} bread={data.bread} rice={data.rice} address={`${data.address.number || 'B-704'}, ${data.address.society || 'Green View Apartments'}, Baner Road, Pune 411045`} lunchDelivery={data.lunchDelivery} dinnerDelivery={data.dinnerDelivery} openSubscriptionOnLoad={openSubscriptionOnHome} />;
 }
 
 function Row({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
@@ -1046,82 +1095,6 @@ function TrialConfirmation({ data, total, onContinue }: { data: State; total: nu
     </Animated.View>
   );
 }
-function LegacySummary({ data, meals, total, onBack, onEdit, onNext }: { data: State; meals: number; total: number; onBack: () => void; onEdit: (s: Step) => void; onNext: () => void }) {
-  const cards = [{ label: 'Food preference', value: data.food, step: 'food' }, { label: 'Meal preference', value: `${data.meal} · ${data.meal === 'Dinner' ? '6:30–8:30 PM' : '11:00 AM–1:00 PM'}`, step: 'meal' }, { label: 'Bread preference', value: data.bread, step: 'bread' }, { label: 'Rice preference', value: data.rice, step: 'rice' }] as const;
-  return <Shell title="Your trial, at a glance" onBack={onBack} footer={<Primary label="Proceed to payment" onPress={onNext} />}><FormPageSection subheading="Review your choices before payment."><View className="gap-3">{cards.map((card) => <View key={card.label} className="rounded-[16px] bg-surface p-5"><View className="flex-row items-center justify-between"><Text className="font-medium text-sm tracking-[0.4px] text-muted">{card.label.toUpperCase()}</Text><EditAction onPress={() => onEdit(card.step)} /></View><Text className="mt-3 font-semibold text-lg text-foreground">{card.value}</Text><View className="mt-4 h-24 items-center justify-center rounded-xl bg-surface-raised"><Text className="font-medium text-xs text-muted">IMAGE PLACEHOLDER</Text></View></View>)}<DeliverySummary data={data} onEdit={() => onEdit('address')} /><View className="rounded-[16px] bg-surface p-5"><Text className="font-semibold text-lg text-foreground">Nutrition with every meal</Text><Text className={`mt-2 ${headingDescriptionClass}`}>View estimated calories, protein, carbohydrates, fat, fibre and sodium for every dish.</Text><View className="mt-4 flex-row flex-wrap gap-2">{['720 kcal', '28 g protein', '92 g carbs', '24 g fat', '11 g fibre'].map((chip) => <View key={chip} className="rounded-full bg-surface-raised px-3 py-2"><Text className="font-medium text-xs text-foreground">{chip}</Text></View>)}</View></View><View className="rounded-[16px] bg-surface p-5"><Text className="font-semibold text-lg text-foreground">Three-day trial</Text><Text className="mt-2 font-sans text-[15px] text-muted">{trialRangeLabel(data.trialDays)} · {meals} meals</Text>{ENABLE_WEEKEND_ADDRESS_FLOW && data.food === 'Mix of both' ? <Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Weekend plan · {data.weekendDelivery === 'different' ? `Different address · ${data.weekendLocation}` : 'Primary delivery address'}</Text> : null}</View><View className="rounded-[16px] bg-surface p-5"><Row label="Trial price" value="₹999" /><View className="mt-3"><Row label="Delivery charges" value="₹0" /></View><View className="mt-3"><Row label="Taxes" value="₹0" /></View><View className="mt-3"><Row label="Discount" value="−₹100" /></View><View className="my-4 h-px bg-border" /><Row label="Total payable" value={`₹${total}`} bold /></View></View></FormPageSection></Shell>;
-}
-
-function Summary({ data, meals, total, onBack, onEdit, onNext }: { data: State; meals: number; total: number; onBack: () => void; onEdit: (step: Step) => void; onNext: () => void }) {
-  const preferenceCards = [
-    { caption: 'Food preference', title: data.food, image: foodImages[data.food as keyof typeof foodImages], step: 'food' as const },
-    { caption: 'Meal preference', title: data.meal, image: foodImages[data.meal as keyof typeof foodImages], step: 'meal' as const },
-    { caption: 'Bread preference', title: data.bread, image: foodImages[data.bread as keyof typeof foodImages], step: 'bread' as const },
-    { caption: 'Rice preference', title: data.rice, image: foodImages[data.rice as keyof typeof foodImages], step: 'rice' as const },
-  ].filter((card) => !!card.image);
-  return (
-    <Shell title="Your trial, at a glance" onBack={onBack} footer={<TrialAuthButton label="Proceed to payment" onPress={onNext} />}>
-      <FormPageSection subheading="Review your choices before payment.">
-        <View className="gap-4">
-          {preferenceCards.map((card, index) => (
-            <SummaryPreferenceCard
-              key={card.caption}
-              caption={card.caption}
-              title={card.title}
-              image={card.image}
-              onEdit={() => onEdit(card.step)}
-              animationDelay={360 + index * 120}
-            />
-          ))}
-          {data.food === 'Mix of both' ? (
-            <View className="rounded-field border border-border bg-canvas p-sheet">
-              <View className="flex-row items-center justify-between">
-                <Text className="font-heading text-body-md text-foreground">Three-day food plan</Text>
-                <EditStrokeButton onPress={() => onEdit('mixMeals')} />
-              </View>
-              <View className="mt-3">
-                {data.dailyMeals.map((day, index) => (
-                  <View key={`summary-day-${index + 1}`} className="flex-row justify-between gap-4">
-                    <Text className="font-body text-body-sm text-muted">Day {index + 1}</Text>
-                    <Text className="flex-1 text-right font-body-medium text-body-sm text-foreground">
-                      {data.meal !== 'Dinner' ? `Lunch ${day.lunch === 'Vegetarian' ? 'Veg' : 'Non-veg'}` : ''}
-                      {data.meal === 'Both' ? ' · ' : ''}
-                      {data.meal !== 'Lunch' ? `Dinner ${day.dinner === 'Vegetarian' ? 'Veg' : 'Non-veg'}` : ''}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-          <DeliverySummary data={data} onEdit={() => onEdit('address')} />
-          <View className="rounded-field border border-border bg-canvas p-sheet">
-            <Text className="font-heading text-body-md text-foreground">Nutrition with every meal</Text>
-            <Text className="mt-2 font-body text-body-sm leading-5 text-muted">View estimated calories, protein, carbohydrates, fat, fibre and sodium for every dish.</Text>
-            <View className="mt-4 flex-row flex-wrap gap-2">
-              {['720 kcal', '28 g protein', '92 g carbs', '24 g fat', '11 g fibre'].map((chip) => (
-                <View key={chip} className="rounded-full bg-surface-raised px-3 py-2">
-                  <Text className="font-body-medium text-body-xs text-foreground">{chip}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-          <View className="rounded-field border border-border bg-canvas p-sheet">
-            <Text className="font-heading text-body-md text-foreground">Three-day trial</Text>
-            <Text className="mt-2 font-body text-body-sm text-muted">{trialRangeLabel(data.trialDays)} · {meals} meals</Text>
-          </View>
-          <View className="rounded-field border border-border bg-canvas p-sheet">
-            <Row label="Trial price" value={formatRupee(999)} />
-            <View className="mt-3"><Row label="Delivery charges" value={formatRupee(0)} /></View>
-            <View className="mt-3"><Row label="Taxes" value={formatRupee(0)} /></View>
-            <View className="mt-3"><Row label="Discount" value={`−${formatRupee(100)}`} /></View>
-            <View className="my-4 h-px bg-border" />
-            <Row label="Total payable" value={formatRupee(total)} bold />
-          </View>
-        </View>
-      </FormPageSection>
-    </Shell>
-  );
-}
-
 function Tracker({ data, paused, setPauseOpen, toast, pauseOpen, confirmPause }: { data: State; paused: boolean; setPauseOpen: (v: boolean) => void; toast: boolean; pauseOpen: boolean; confirmPause: () => void }) {
   const insets = useSafeAreaInsets();
   return <View className="flex-1 bg-canvas"><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 30 }}><View className="px-5"><Text className="font-medium text-sm text-accent">ACTIVE TRIAL</Text><Text className="mt-2 font-semibold text-[24px] leading-8 text-foreground">Day 2 of {TRIAL_DAY_COUNT}</Text><View className="mt-4 h-2 overflow-hidden rounded-full bg-border"><View className="h-full w-2/3 rounded-full bg-accent" /></View><View className="mt-5 flex-row gap-3"><View className="flex-1 rounded-[14px] bg-surface p-4"><Text className="font-semibold text-2xl text-foreground">2</Text><Text className="mt-1 text-sm text-muted">Completed</Text></View><View className="flex-1 rounded-[14px] bg-surface p-4"><Text className="font-semibold text-2xl text-foreground">1</Text><Text className="mt-1 text-sm text-muted">Remaining</Text></View></View><View className="mt-3 rounded-[14px] bg-surface p-4"><Row label="Trial dates" value="27–29 July" /><View className="mt-2"><Row label="Meals" value={data.meal} /></View></View><Text className="mb-3 mt-8 font-semibold text-xl text-foreground">Upcoming meals</Text><View className="rounded-[18px] border border-border bg-surface p-5"><View className="flex-row justify-between"><View><Text className="font-medium text-sm text-muted">29 JULY · LUNCH</Text><Text className="mt-2 font-semibold text-xl text-foreground">{data.food} meal</Text></View>{paused ? <View className="h-8 justify-center rounded-full bg-surface-raised px-3"><Text className="font-semibold text-sm text-muted">Paused</Text></View> : null}</View><Text className="mt-3 font-sans text-[15px] text-muted">{addressLabelDisplay(data.address)} · {data.address.society}</Text><Text className="mt-3 font-medium text-sm text-foreground">720 kcal · 28 g protein · 92 g carbs</Text><View className="mt-4 rounded-xl bg-surface-raised p-4"><Row label="Calories" value="720 kcal" /><View className="mt-2"><Row label="Protein" value="28 g" /></View><View className="mt-2"><Row label="Carbohydrates" value="92 g" /></View><View className="mt-2"><Row label="Fat · Fibre · Sodium" value="24 g · 11 g · 680 mg" /></View></View><Text className="mt-3 font-sans text-xs leading-5 text-muted">Nutritional values are approximate and may vary based on portion size, ingredients and preparation method.</Text>{!paused ? <View className="mt-5"><Primary label="Pause meal" onPress={() => setPauseOpen(true)} /></View> : null}<View className="mt-3 flex-row flex-wrap gap-2">{['Change address', 'Change bread', 'Change rice', 'Contact support', 'Report an issue', 'Rate meal'].map((action) => <Pressable key={action} className="min-h-11 justify-center rounded-full border border-border px-3"><Text className="font-medium text-xs text-foreground">{action}</Text></Pressable>)}</View></View></View></ScrollView>{toast ? <Animated.View entering={FadeInUp.springify().damping(18).stiffness(220)} style={{ bottom: insets.bottom + 20 }} className="absolute inset-x-5 rounded-full bg-success px-5 py-4"><Text className="font-semibold text-center text-white">Meal paused successfully</Text></Animated.View> : null}{pauseOpen ? <View className="absolute inset-0 justify-end"><SheetBackdrop /><Pressable className="absolute inset-0" onPress={() => setPauseOpen(false)} /><Animated.View entering={FadeInUp.duration(240)} className="mx-4 mb-4 rounded-[20px] bg-sheet p-sheet"><FormModalLayout title="Pause this meal?" subtitle="This meal will be marked as paused for 29 July." primaryAction={<Primary label="Confirm pause" onPress={confirmPause} />} secondaryAction={<Pressable onPress={() => setPauseOpen(false)} className="h-12 items-center justify-center"><Text className="font-semibold text-foreground">Keep meal</Text></Pressable>} /></Animated.View></View> : null}</View>;

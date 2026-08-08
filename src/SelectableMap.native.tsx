@@ -14,12 +14,14 @@ export default function SelectableMap({
   searchQuery = '',
   fill = false,
   onAddressChange,
+  onCoordinateChange,
 }: {
   compact?: boolean;
   thumbnail?: boolean;
   searchQuery?: string;
   fill?: boolean;
   onAddressChange?: (address: string) => void;
+  onCoordinateChange?: (coordinate: { latitude: number; longitude: number }) => void;
 }) {
   const mapRef = useRef<MapView>(null);
   const reverseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,6 +30,11 @@ export default function SelectableMap({
   const [coordinate, setCoordinate] = useState({ latitude: pune.latitude, longitude: pune.longitude });
   const preview = compact || thumbnail;
   const regionDelta = thumbnail ? thumbnailRegionDelta : 0.012;
+
+  const publishCoordinate = (next: { latitude: number; longitude: number }) => {
+    setCoordinate(next);
+    onCoordinateChange?.(next);
+  };
 
   useEffect(() => {
     const pincode = extractPincode(searchQuery);
@@ -41,7 +48,7 @@ export default function SelectableMap({
       if (!permission.granted) return;
       const result = await Location.getLastKnownPositionAsync() ?? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const next = { latitude: result.coords.latitude, longitude: result.coords.longitude };
-      setCoordinate(next);
+      publishCoordinate(next);
       mapRef.current?.animateToRegion({ ...next, latitudeDelta: regionDelta, longitudeDelta: regionDelta }, 450);
     })();
   }, [preview, regionDelta]);
@@ -53,7 +60,7 @@ export default function SelectableMap({
       void geocodeLocationQuery(trimmed).then((resolved) => {
         if (!resolved) return;
         const next = { latitude: resolved.latitude, longitude: resolved.longitude };
-        setCoordinate(next);
+        publishCoordinate(next);
         mapRef.current?.animateToRegion({ ...next, latitudeDelta: regionDelta, longitudeDelta: regionDelta }, thumbnail ? 0 : 450);
         if (onAddressChange && !thumbnail) {
           lastResolvedAddress.current = resolved.label;
@@ -88,14 +95,14 @@ export default function SelectableMap({
     }, 350);
   };
 
-  const select = (event: MapPressEvent) => setCoordinate(event.nativeEvent.coordinate);
+  const select = (event: MapPressEvent) => publishCoordinate(event.nativeEvent.coordinate);
 
   const marker = thumbnail ? (
     <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
       <View className="size-2 rounded-full border border-white bg-[#9b4b3f]" />
     </Marker>
   ) : (
-    <Marker coordinate={coordinate} draggable={!preview} onDragEnd={preview ? undefined : (event) => { const next = event.nativeEvent.coordinate; setCoordinate(next); resolveAddress(next); }} pinColor="#9b4b3f" />
+    <Marker coordinate={coordinate} draggable={!preview} onDragEnd={preview ? undefined : (event) => { const next = event.nativeEvent.coordinate; publishCoordinate(next); resolveAddress(next); }} pinColor="#9b4b3f" />
   );
 
   if (thumbnail) {
@@ -129,7 +136,7 @@ export default function SelectableMap({
         style={{ flex: 1 }}
         initialRegion={pune}
         onPress={preview ? undefined : select}
-        onRegionChangeComplete={preview ? undefined : (region) => { const next = { latitude: region.latitude, longitude: region.longitude }; setCoordinate(next); resolveAddress(next); }}
+        onRegionChangeComplete={preview ? undefined : (region) => { const next = { latitude: region.latitude, longitude: region.longitude }; publishCoordinate(next); resolveAddress(next); }}
         showsUserLocation={!preview}
         showsMyLocationButton={!preview}
         toolbarEnabled={false}

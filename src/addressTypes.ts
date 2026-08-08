@@ -2,6 +2,20 @@ export type AddressLabelType = 'home' | 'office' | 'friends' | 'relatives' | 'cu
 
 export type AddressFlowMode = 'onboarding' | 'meal-edit' | 'add-address' | 'subscription';
 
+export type MealDeliverySlot = 'lunch' | 'dinner';
+
+export function mealDeliveryLocationTitle(slot: MealDeliverySlot) {
+  return `Delivery location - ${slot === 'lunch' ? 'Lunch' : 'Dinner'}`;
+}
+
+export function mealAddressDetailsTitle(slot: MealDeliverySlot) {
+  return `Address details - ${slot === 'lunch' ? 'Lunch' : 'Dinner'}`;
+}
+
+export function mealConfirmDeliveryTitle(slot: MealDeliverySlot) {
+  return `Confirm delivery - ${slot === 'lunch' ? 'Lunch' : 'Dinner'}`;
+}
+
 export type AddressDetails = {
   deliveryLocation: string;
   number: string;

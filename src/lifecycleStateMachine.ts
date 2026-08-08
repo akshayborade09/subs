@@ -2,7 +2,7 @@ export type LifecycleStateId =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
   | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U'
   | 'V' | 'W' | 'X' | 'Y' | 'Z' | 'AA' | 'AB' | 'AC' | 'AD' | 'AE'
-  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN' | 'AO';
+  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN' | 'AO' | 'AP';
 
 export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
 export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview' | 'commerce_profile';
@@ -36,6 +36,7 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'AO', group: 'Subscription', title: 'Future meal detail', summary: 'Upcoming subscription meal with address, preference, date, skip and report actions.', entry: 'Future Meal Detail', primaryAction: 'Open meal detail', destination: 'trial_home', tone: 'success' },
   { id: 'L', group: 'Subscription', title: 'No meal today', summary: 'Subscription is active without a delivery today.', entry: 'Subscriber Home', primaryAction: 'View Next Delivery', destination: 'trial_home', tone: 'neutral' },
   { id: 'M', group: 'Subscription', title: 'Subscription paused', summary: 'Deliveries are paused until the saved resume date.', entry: 'Paused Home', primaryAction: 'Resume Subscription', destination: 'trial_home', tone: 'warning' },
+  { id: 'AP', group: 'Subscription', title: 'Subscription restarted', summary: 'A restart date is confirmed and upcoming deliveries are scheduled.', entry: 'Restarted Home', primaryAction: 'Explore My Plan', destination: 'trial_home', tone: 'success' },
   { id: 'N', group: 'Subscription', title: 'Cancelled, active until end date', summary: 'Cancellation is recorded while paid meals continue.', entry: 'Subscriber Home', primaryAction: 'Reactivate Subscription', destination: 'trial_home', tone: 'warning' },
   { id: 'O', group: 'Subscription', title: 'Subscription expired', summary: 'The plan ended while history remains available.', entry: 'Renewal Home', primaryAction: 'Renew Subscription', secondaryAction: 'View Previous Plan', destination: 'trial_home', tone: 'neutral' },
   { id: 'P', group: 'Recovery and delivery', title: 'Renewal payment failed', summary: 'Future unpaid meals need payment recovery.', entry: 'Subscriber Home with payment banner', primaryAction: 'Update Payment Method', secondaryAction: 'Retry Payment', destination: 'trial_home', tone: 'danger' },

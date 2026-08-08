@@ -82,17 +82,19 @@ export function SubscriptionPreferencePickerModal({
   anchor,
   onClose,
   onSelect,
+  options: optionsOverride,
 }: {
   kind: SubscriptionPreferenceKind;
   value: string;
   anchor: PickerAnchor;
   onClose: () => void;
   onSelect: (value: string) => void;
+  options?: PreferenceOption[];
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const { theme } = useUniwind();
   const canvasColor = theme === 'dark' ? '#000000' : '#ffffff';
-  const options = subscriptionPreferenceOptions[kind];
+  const options = optionsOverride ?? subscriptionPreferenceOptions[kind];
   const tooltipWidth = options.length * OPTION_WIDTH + (options.length - 1) * OPTION_GAP + TOOLTIP_PADDING * 2;
   const left = Math.max(12, Math.min(anchor.x + anchor.width / 2 - tooltipWidth / 2, screenWidth - tooltipWidth - 12));
   const top = anchor.y;
