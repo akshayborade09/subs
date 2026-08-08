@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -36,6 +36,9 @@ import { addressLabelDisplay, formatSavedAddressLines } from './addressTypes';
 import { useSavedAddresses } from './savedAddressesStore';
 import { foodImages } from './foodImages';
 import { MealPreferenceImage } from './MealPreferenceImage';
+import { hapticPress } from './haptics';
+import { SubscriptionPreferencePickerModal, type PickerAnchor } from './subscriptionPreferencePickerModal';
+import type { SubscriptionPreferenceKind } from './subscriptionPreferenceOptions';
 
 const userFoodPreference = 'Mix of both';
 const foodPreferenceOptions = ['Vegetarian', 'Non-vegetarian', 'Mix of both'] as const;
@@ -57,15 +60,30 @@ function preferenceImageFor(value: string) {
   return foodImages[value as keyof typeof foodImages] ?? foodImages.Vegetarian;
 }
 
-function MyPlanPreferenceCard({ caption, title, image, onEdit }: { caption: string; title: string; image: number; onEdit?: () => void }) {
+function preferenceCardTitle(kind: SubscriptionPreferenceKind, value: string) {
+  if (kind === 'food') return foodPreferenceLabel(value);
+  if (kind === 'rice' && value === 'Jeera Rice') return 'Jeera rice';
+  if (kind === 'rice' && value === 'Plain Rice') return 'Plain rice';
+  return value;
+}
+
+function MyPlanPreferenceCard({ caption, title, image, onEdit }: { caption: string; title: string; image: number; onEdit: (anchor: PickerAnchor) => void }) {
+  const cardRef = useRef<View>(null);
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
 
+  const handlePress = () => {
+    cardRef.current?.measureInWindow((x, y, width, height) => {
+      onEdit({ x, y, width, height });
+    });
+  };
+
   return (
     <Pressable
+      ref={cardRef}
       accessibilityRole="button"
       accessibilityLabel={`Edit ${caption.toLowerCase()} preference`}
-      onPress={onEdit}
+      onPress={hapticPress(handlePress, 'light')}
       className="min-w-0 flex-1 overflow-hidden rounded-field border border-border bg-canvas"
     >
       <View className="h-[88px] w-full items-center overflow-hidden bg-field">
@@ -342,7 +360,38 @@ function CheckoutPage({ onBack, go, couponApplied, setCouponApplied }: { onBack:
   </>;
 }
 
-function MyPlanPage({ onBack, go }: { onBack: () => void; go: (route: Route) => void }) {
+function MyPlanPage({ onBack, go, toast }: { onBack: () => void; go: (route: Route) => void; toast: (message: string) => void }) {
+  const [food, setFood] = useState(userFoodPreference);
+  const [bread, setBread] = useState('Chapati');
+  const [rice, setRice] = useState('Jeera Rice');
+  const [openPicker, setOpenPicker] = useState<SubscriptionPreferenceKind | null>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor | null>(null);
+
+  const openPreferencePicker = (kind: SubscriptionPreferenceKind, anchor: PickerAnchor) => {
+    setOpenPicker(kind);
+    setPickerAnchor(anchor);
+  };
+
+  const closePreferencePicker = () => {
+    setOpenPicker(null);
+    setPickerAnchor(null);
+  };
+
+  const handlePreferenceSelect = (value: string) => {
+    if (openPicker === 'food') setFood(value);
+    if (openPicker === 'bread') setBread(value);
+    if (openPicker === 'rice') setRice(value);
+    toast('Preference updated');
+  };
+
+  const pickerValue = openPicker === 'food'
+    ? food
+    : openPicker === 'bread'
+      ? bread
+      : openPicker === 'rice'
+        ? rice
+        : '';
+
   return <>
     <Header onBack={onBack} title="My plan" description="Review your active subscription, preferences and delivery settings." />
     <Section title="Plan">
@@ -362,9 +411,9 @@ function MyPlanPage({ onBack, go }: { onBack: () => void; go: (route: Route) => 
     </Section>
     <Section title="Current preferences">
       <View className="flex-row gap-2">
-        <MyPlanPreferenceCard caption="Food" title={foodPreferenceLabel(userFoodPreference)} image={foodImageForPreference(userFoodPreference)} />
-        <MyPlanPreferenceCard caption="Bread" title="Chapati" image={preferenceImageFor('Chapati')} />
-        <MyPlanPreferenceCard caption="Rice" title="Jeera rice" image={preferenceImageFor('Jeera Rice')} />
+        <MyPlanPreferenceCard caption="Food" title={preferenceCardTitle('food', food)} image={foodImageForPreference(food)} onEdit={(anchor) => openPreferencePicker('food', anchor)} />
+        <MyPlanPreferenceCard caption="Bread" title={preferenceCardTitle('bread', bread)} image={preferenceImageFor(bread)} onEdit={(anchor) => openPreferencePicker('bread', anchor)} />
+        <MyPlanPreferenceCard caption="Rice" title={preferenceCardTitle('rice', rice)} image={preferenceImageFor(rice)} onEdit={(anchor) => openPreferencePicker('rice', anchor)} />
       </View>
     </Section>
     <Section title="Delivery address" right={<Pressable accessibilityRole="button" onPress={() => go('addresses')}><Text className="font-mono-semibold text-body-sm text-accent">Edit</Text></Pressable>}>
@@ -376,6 +425,15 @@ function MyPlanPage({ onBack, go }: { onBack: () => void; go: (route: Route) => 
       </Pressable>
     </Section>
     <View className="h-10" />
+    {openPicker && pickerAnchor ? (
+      <SubscriptionPreferencePickerModal
+        kind={openPicker}
+        value={pickerValue}
+        anchor={pickerAnchor}
+        onClose={closePreferencePicker}
+        onSelect={handlePreferenceSelect}
+      />
+    ) : null}
   </>;
 }
 
@@ -783,7 +841,7 @@ export default function CommerceProfileExperience({ stateId, onBack, onTransitio
     if (route === 'checkout') return <CheckoutPage onBack={back} go={go} couponApplied={couponApplied} setCouponApplied={setCouponApplied} />;
     if (route === 'coupon') return <CouponPage onBack={back} apply={() => { setCouponApplied(true); setStack((items) => [...items.slice(0, -1), 'checkout']); toast('HEALTHY300 applied'); }} />;
     if (route === 'profile') return <ProfilePage onBack={back} go={go} />;
-    if (route === 'my_plan') return <MyPlanPage onBack={back} go={go} />;
+    if (route === 'my_plan') return <MyPlanPage onBack={back} go={go} toast={toast} />;
     if (route === 'edit_profile') return <EditProfilePage onBack={back} toast={toast} />;
     if (route === 'addresses') return <AddressesPage onBack={back} toast={toast} />;
     if (route === 'transactions') return <TransactionsPage onBack={back} />;

@@ -87,7 +87,7 @@ export function Toast({ message, onDismiss }: { message: string; onDismiss: () =
       {...panResponder.panHandlers}
       accessibilityRole="alert"
       style={{ top: insets.top + 8, opacity, transform: [{ translateY }] }}
-      className="absolute inset-x-4 z-[100] rounded-2xl border border-border bg-toast px-4 py-3.5 shadow-md"
+      className="absolute inset-x-4 z-[100] rounded-2xl bg-toast px-4 py-3.5 shadow-md"
     >
       <Text className="text-center font-body-medium text-body-sm text-toast-foreground">{message}</Text>
     </NativeAnimated.View>

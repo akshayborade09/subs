@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated as NativeAnimated, Easing, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -62,6 +63,7 @@ import {
   phaseToSheetFlags,
   useMealDetailMachine,
 } from './mealDetailState';
+import { formatSavedAddressLines } from './addressTypes';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
 import { type SubscriptionPreferences } from './SubscriptionPreferenceFlow';
 import { MealPreferenceImage } from './MealPreferenceImage';
@@ -82,6 +84,13 @@ function shortFoodPreferenceLabel(preference: string) {
   if (preference === 'Non-vegetarian') return 'Non-veg';
   if (preference === 'Vegetarian') return 'Veg';
   return preference;
+}
+
+function subscriptionPreferenceCardTitle(kind: 'food' | 'bread' | 'rice', value: string) {
+  if (kind === 'food') return shortFoodPreferenceLabel(value);
+  if (kind === 'rice' && value === 'Jeera Rice') return 'Jeera rice';
+  if (kind === 'rice' && value === 'Plain Rice') return 'Plain rice';
+  return value;
 }
 
 type GlyphTone = 'foreground' | 'muted' | 'accent' | 'success' | 'canvas' | 'border' | 'white';
@@ -135,6 +144,68 @@ function planMealsFrom(allMeals: TrialMeal[]) {
     .sort((a, b) => parseMealDate(a.date).getTime() - parseMealDate(b.date).getTime());
 }
 
+function isMarkerComplete(status: MealStatus | string) {
+  return status === 'delivered' || status === 'skipped' || status === 'inactive';
+}
+
+function isMealFullyComplete(meal: TrialMeal) {
+  if (meal.isPlanDay === false) return true;
+  if (meal.isSkipped || meal.status === 'skipped' || meal.status === 'inactive') return true;
+  if (meal.mealMarkers?.length) {
+    return meal.mealMarkers.every((marker) => isMarkerComplete(marker.status));
+  }
+  return meal.status === 'delivered';
+}
+
+function pendingFocusMeal(meals: TrialMeal[]) {
+  const eligible = planMealsFrom(meals);
+  return eligible.find((item) => !isMealFullyComplete(item)) ?? eligible[eligible.length - 1]!;
+}
+
+function firstFuturePendingMeal(meals: TrialMeal[]) {
+  const eligible = planMealsFrom(meals);
+  const today = demoStartOfDay().getTime();
+  return eligible.find((item) => (
+    !isMealFullyComplete(item) && parseMealDate(item.date).getTime() >= today
+  )) ?? pendingFocusMeal(meals);
+}
+
+function calendarTrackerFocusId(
+  meals: TrialMeal[],
+  lifecycleVariant: HomeLifecycleVariant,
+) {
+  if (lifecycleVariant === 'subscription_scheduled') {
+    return calendarFocusMeal(meals)?.id ?? firstFuturePendingMeal(meals).id;
+  }
+  if (lifecycleVariant === 'trial_scheduled' || lifecycleVariant === 'trial_payment_pending') {
+    return pendingFocusMeal(meals).id;
+  }
+  if (lifecycleVariant === 'subscription_expired') {
+    const eligible = planMealsFrom(meals);
+    return eligible[Math.max(0, eligible.length - 2)]?.id ?? eligible[0]!.id;
+  }
+  return pendingFocusMeal(meals).id;
+}
+
+function bottomCardFocusMeal(meals: TrialMeal[], lifecycleVariant: HomeLifecycleVariant) {
+  if (lifecycleVariant === 'subscription_scheduled') {
+    return firstFuturePendingMeal(meals);
+  }
+  if (lifecycleVariant === 'trial_scheduled' || lifecycleVariant === 'trial_payment_pending') {
+    return pendingFocusMeal(meals);
+  }
+  if (lifecycleVariant === 'subscription_expired') {
+    const eligible = planMealsFrom(meals);
+    return eligible[Math.max(0, eligible.length - 2)] ?? eligible[0]!;
+  }
+  return pendingFocusMeal(meals);
+}
+
+function calendarFocusMeal(meals: TrialMeal[]) {
+  const today = demoStartOfDay().getTime();
+  return planMealsFrom(meals).find((item) => parseMealDate(item.date).getTime() === today) ?? null;
+}
+
 type TiffinMenuKind = 'delivered' | 'next' | 'pending';
 
 function tiffinMenuKind(meal: TrialMeal, allMeals: TrialMeal[]): TiffinMenuKind {
@@ -144,7 +215,23 @@ function tiffinMenuKind(meal: TrialMeal, allMeals: TrialMeal[]): TiffinMenuKind 
   return 'pending';
 }
 
+const SUBSCRIPTION_DAY_COUNT = 20;
+const TRACKER_VISIBLE_DAYS = 5;
+const TRACKER_OVERFLOW_PEEK = 16;
+const TRACKER_EDGE_PADDING = 10;
+
 export const TRIAL_DAY_COUNT = 3;
+
+function trackerScrollOffset(focusIndex: number, totalDays: number, dayWidth: number, center = false) {
+  if (totalDays <= TRACKER_VISIBLE_DAYS || focusIndex < 0) return 0;
+  const maxOffset = (totalDays - TRACKER_VISIBLE_DAYS) * dayWidth;
+  if (center) {
+    if (focusIndex < 3) return 0;
+    if (focusIndex >= totalDays - 3) return maxOffset;
+    return (focusIndex - 2) * dayWidth;
+  }
+  return Math.min(maxOffset, focusIndex * dayWidth);
+}
 
 function demoStartOfDay(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -174,10 +261,24 @@ function demoRollingWeekdays(count: number, startOffset: number) {
   return days;
 }
 
+function demoParseMonthDay(label: string, reference = new Date()) {
+  const parsed = new Date(`${label.trim()} ${reference.getFullYear()}`);
+  return Number.isNaN(parsed.getTime()) ? demoStartOfDay(reference) : demoStartOfDay(parsed);
+}
+
+function demoWeekdaysFrom(start: Date, count: number) {
+  const days: Date[] = [];
+  let cursor = demoStartOfDay(start);
+  while (days.length < count) {
+    if (cursor.getDay() !== 0 && cursor.getDay() !== 6) days.push(new Date(cursor));
+    cursor = demoAddDays(cursor, 1);
+  }
+  return days;
+}
+
 const initialMeals = (food: string, bread: string, rice: string, meal: string, address: string, dailyMeals: Array<{ lunch: string; dinner: string }> = []): TrialMeal[] => {
-  const offsets = [-2, -1, 1];
-  return offsets.map((offset, index) => {
-    const day = demoAddDays(demoStartOfDay(), offset);
+  const trialDays = demoRollingWeekdays(TRIAL_DAY_COUNT, -2);
+  return trialDays.map((day, index) => {
     const labels = demoMealDateLabels(day);
     return {
       id: `trial-${labels.shortDate}`,
@@ -196,13 +297,15 @@ const initialMeals = (food: string, bread: string, rice: string, meal: string, a
   });
 };
 
-const subscriptionWeekMeals = (food: string, bread: string, rice: string, meal: string, address: string): TrialMeal[] => {
-  const weekdays = demoRollingWeekdays(5, -4);
+const subscriptionWeekMeals = (food: string, bread: string, rice: string, meal: string, address: string, startDate?: Date): TrialMeal[] => {
+  const weekdays = startDate
+    ? demoWeekdaysFrom(startDate, SUBSCRIPTION_DAY_COUNT)
+    : demoRollingWeekdays(SUBSCRIPTION_DAY_COUNT, -4);
   return weekdays.map((day, index) => {
     const labels = demoMealDateLabels(day);
     const status = index < 2 ? 'delivered' as MealStatus : 'upcoming' as MealStatus;
     return {
-      id: `sub-${labels.shortDate}`,
+      id: `sub-${day.toISOString().slice(0, 10)}`,
       ...labels,
       mealType: meal === 'Dinner' ? 'Dinner' : 'Lunch',
       status,
@@ -380,21 +483,185 @@ function SkippedStatusGroup({ onUndo }: { onUndo?: () => void }) {
 }
 
 function UpcomingRipple({ color = 'green' }: { color?: 'green' | 'red' | 'orange' }) {
-  const { theme } = useUniwind();
-  const dark = theme === 'dark';
   const scale = useRef(new NativeAnimated.Value(0.8)).current;
   const opacity = useRef(new NativeAnimated.Value(0.55)).current;
   useEffect(() => { const animation = NativeAnimated.loop(NativeAnimated.parallel([NativeAnimated.timing(scale, { toValue: 1.65, duration: 1400, useNativeDriver: true }), NativeAnimated.timing(opacity, { toValue: 0, duration: 1400, useNativeDriver: true })])); animation.start(); return () => animation.stop(); }, [opacity, scale]);
-  return <NativeAnimated.View pointerEvents="none" style={{ opacity, transform: [{ scale }], borderColor: color === 'red' ? '#dc2626' : color === 'orange' ? '#f59e0b' : themePalette[dark ? 'dark' : 'light'].accent, backgroundColor: 'transparent' }} className="absolute h-7 w-7 rounded-full border-2" />;
+  const borderColor = color === 'red' ? '#dc2626' : color === 'orange' ? '#f59e0b' : '#078a4b';
+  return <NativeAnimated.View pointerEvents="none" style={{ opacity, transform: [{ scale }], borderColor, backgroundColor: 'transparent' }} className="absolute h-7 w-7 rounded-full border-2" />;
 }
 
-function TrialDayTracker({ meals, selectedId, showBoth, animateUpcoming = true, onSelectDate, onOpenMeal }: { meals: TrialMeal[]; selectedId: string; showBoth: boolean; animateUpcoming?: boolean; onSelectDate: (meal: TrialMeal) => void; onOpenMeal: (meal: TrialMeal, slot: MealSlot) => void }) {
+const MARKER_STATUS_SIZE = 20;
+
+function FoodMarkerIcon({ color, size = MARKER_STATUS_SIZE }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M18 19.5V22.5H6V19.5H18ZM19.5 18V6C19.5 5.17157 18.8284 4.5 18 4.5H6C5.17157 4.5 4.5 5.17157 4.5 6V18C4.5 18.8284 5.17157 19.5 6 19.5V22.5C3.59234 22.5 1.62632 20.6092 1.50586 18.2314L1.5 18V6C1.5 3.51472 3.51472 1.5 6 1.5H18L18.2314 1.50586C20.6092 1.62632 22.5 3.59234 22.5 6V18L22.4941 18.2314C22.3776 20.5325 20.5325 22.3776 18.2314 22.4941L18 22.5V19.5C18.8284 19.5 19.5 18.8284 19.5 18Z"
+        fill={color}
+      />
+      <Circle cx="12" cy="12" r="4.5" fill={color} />
+    </Svg>
+  );
+}
+
+function MealStatusMarker({
+  meal,
+  marker,
+  markerIndex,
+  excluded,
+  animateUpcoming,
+  assignUpcomingRipple,
+  onOpenMeal,
+}: {
+  meal: TrialMeal;
+  marker: MealMarker;
+  markerIndex: number;
+  excluded: boolean;
+  animateUpcoming: boolean;
+  assignUpcomingRipple: () => boolean;
+  onOpenMeal: (meal: TrialMeal, slot: MealSlot) => void;
+}) {
   const { theme } = useUniwind();
   const dark = theme === 'dark';
   const skippedSurface = themePalette[dark ? 'dark' : 'light'].skippedSurface;
   const skippedBorder = themePalette[dark ? 'dark' : 'light'].skippedBorder;
+  const mutedIcon = theme === 'dark' ? '#ababab' : '#5e5e5e';
+  const slot: MealSlot = marker.slot ?? (markerIndex === 0 ? 'lunch' : 'dinner');
+  const nonVeg = marker.foodPreference.toLowerCase().includes('non-veg') || marker.foodPreference.toLowerCase() === 'non-vegetarian';
+  const delayed = marker.status === 'delayed';
+  const failed = marker.status === 'delivery_failed' || marker.status === 'issue';
+  const skipped = marker.status === 'skipped';
+  const paused = marker.status === 'paused';
+  const delivered = marker.status === 'delivered';
+  const inactive = marker.status === 'inactive' || excluded;
+  const upcoming = marker.status === 'upcoming' || delayed;
+  const showRipple = animateUpcoming && !excluded && !skipped && !paused && upcoming && assignUpcomingRipple();
+  const borderColor = skipped
+    ? skippedBorder
+    : inactive || paused
+      ? '#d8d8d8'
+      : failed
+        ? '#dc2626'
+        : delayed
+          ? '#f59e0b'
+          : nonVeg
+            ? '#dc2626'
+            : '#078a4b';
+  const fillColor = skipped ? skippedSurface : delivered || failed ? borderColor : 'transparent';
+  const rippleColor = delayed ? 'orange' as const : nonVeg ? 'red' as const : 'green' as const;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${slot === 'lunch' ? 'Lunch' : 'Dinner'}, ${marker.foodPreference}, ${marker.status}`}
+      disabled={excluded}
+      onPress={() => onOpenMeal(meal, slot)}
+      className={`h-9 w-11 items-center justify-center rounded-field border bg-canvas ${excluded ? 'border-transparent opacity-45' : 'border-border'}`}
+    >
+      {showRipple ? <UpcomingRipple color={rippleColor} /> : null}
+      {delivered && !excluded ? (
+        <View style={{ borderColor, backgroundColor: borderColor }} className="h-5 w-5 items-center justify-center rounded-full border-[3px]">
+          <HomeGlyph icon={CheckIcon} size={16} weight="bold" tone="white" />
+        </View>
+      ) : failed && !excluded ? (
+        <View style={{ borderColor, backgroundColor: borderColor }} className="h-5 w-5 items-center justify-center rounded-full border-[3px]">
+          <HomeGlyph icon={XIcon} size={15} weight="bold" tone="white" />
+        </View>
+      ) : skipped && !excluded ? (
+        <View style={{ borderColor: skippedBorder, backgroundColor: skippedSurface }} className="h-5 w-5 rounded-full border-[3px]" />
+      ) : paused && !excluded ? (
+        <PauseIcon size={14} weight="fill" color={mutedIcon} />
+      ) : upcoming && !excluded ? (
+        <FoodMarkerIcon color={borderColor} size={MARKER_STATUS_SIZE} />
+      ) : (
+        <View style={{ borderColor, backgroundColor: fillColor }} className="h-5 w-5 rounded-full border-[3px]" />
+      )}
+    </Pressable>
+  );
+}
+
+function TrialDayTracker({ meals, selectedId, showBoth, centerFocus = false, animateUpcoming = true, onSelectDate, onOpenMeal }: { meals: TrialMeal[]; selectedId: string; showBoth: boolean; centerFocus?: boolean; animateUpcoming?: boolean; onSelectDate: (meal: TrialMeal) => void; onOpenMeal: (meal: TrialMeal, slot: MealSlot) => void }) {
+  const { width: screenWidth } = useWindowDimensions();
+  const scrollable = meals.length > TRACKER_VISIBLE_DAYS;
+  const dayWidth = (screenWidth - TRACKER_OVERFLOW_PEEK) / TRACKER_VISIBLE_DAYS;
+  const scrollRef = useRef<ScrollView>(null);
+  const focusIndex = selectedId ? meals.findIndex((meal) => meal.id === selectedId) : -1;
+  const scrollOffset = trackerScrollOffset(focusIndex, meals.length, dayWidth, centerFocus);
   let upcomingRippleAssigned = false;
-  return <View className="w-full flex-row">{meals.map((meal) => { const excluded = meal.isPlanDay === false; const selected = meal.id === selectedId; const markers = meal.mealMarkers?.slice(0, showBoth ? 2 : 1) ?? Array.from({ length: showBoth ? 2 : 1 }, (_, markerIndex) => ({ foodPreference: meal.foodPreference, status: meal.status, slot: (markerIndex === 0 ? 'lunch' : 'dinner') as MealSlot })); return <View key={meal.id} className="flex-1 items-center"><Pressable disabled={excluded} accessibilityRole="button" accessibilityLabel={excluded ? `${meal.date}, no meal selected` : `Select ${meal.date}`} accessibilityState={{ selected, disabled: excluded }} onPress={hapticPress(() => onSelectDate(meal), 'selection')} className={`h-14 w-full max-w-[46px] items-center justify-center rounded-field border ${selected ? 'border-foreground bg-canvas' : excluded ? 'border-transparent bg-field opacity-45' : 'border-border bg-field'}`}><Text className="font-mono-semibold text-body-md text-foreground">{meal.shortDate}</Text><Text className="mt-0.5 font-body text-body-xs text-muted">{meal.dayLabel}</Text></Pressable><View className="mt-2 items-center gap-1">{markers.map((marker, markerIndex) => { const slot: MealSlot = marker.slot ?? (markerIndex === 0 ? 'lunch' : 'dinner'); const nonVeg = marker.foodPreference.toLowerCase().includes('non'); const delayed = marker.status === 'delayed'; const failed = marker.status === 'delivery_failed' || marker.status === 'issue'; const skipped = marker.status === 'skipped'; const active = animateUpcoming && !excluded && !skipped && !upcomingRippleAssigned && (marker.status === 'upcoming' || delayed); if (active) upcomingRippleAssigned = true; const delivered = marker.status === 'delivered'; const borderColor = skipped ? skippedBorder : excluded || marker.status === 'inactive' || marker.status === 'paused' ? '#d8d8d8' : failed ? '#dc2626' : delayed ? '#f59e0b' : nonVeg ? '#dc2626' : '#078a4b'; return <Pressable key={`${meal.id}-${markerIndex}`} disabled={excluded} accessibilityRole="button" accessibilityLabel={`${slot === 'lunch' ? 'Lunch' : 'Dinner'}, ${marker.foodPreference}, ${marker.status}`} onPress={() => onOpenMeal(meal, slot)} className={`h-7 w-9 items-center justify-center ${excluded ? 'opacity-45' : ''}`}>{active ? <UpcomingRipple color={delayed ? 'orange' : nonVeg ? 'red' : 'green'} /> : null}<View style={{ borderColor, backgroundColor: skipped ? skippedSurface : delivered || failed ? borderColor : 'transparent' }} className="h-5 w-5 items-center justify-center rounded-full border-[3px]">{delivered && !excluded ? <HomeGlyph icon={CheckIcon} size={16} weight="bold" tone="white" /> : failed && !excluded ? <HomeGlyph icon={XIcon} size={15} weight="bold" tone="white" /> : null}</View></Pressable>; })}</View></View>; })}</View>;
+  const assignUpcomingRipple = () => {
+    if (upcomingRippleAssigned) return false;
+    upcomingRippleAssigned = true;
+    return true;
+  };
+
+  useEffect(() => {
+    if (!scrollable) return;
+    scrollRef.current?.scrollTo({ x: scrollOffset, animated: true });
+  }, [scrollOffset, scrollable, selectedId]);
+
+  const dayColumns = meals.map((meal) => {
+    const excluded = meal.isPlanDay === false;
+    const selected = meal.id === selectedId;
+    const markers = meal.mealMarkers?.slice(0, showBoth ? 2 : 1)
+      ?? Array.from({ length: showBoth ? 2 : 1 }, (_, markerIndex) => ({
+        foodPreference: meal.foodPreference,
+        status: meal.status,
+        slot: (markerIndex === 0 ? 'lunch' : 'dinner') as MealSlot,
+      }));
+
+    return (
+      <View key={meal.id} style={scrollable ? { width: dayWidth } : undefined} className={`items-center ${scrollable ? '' : 'flex-1'}`}>
+        <Pressable
+          disabled={excluded}
+          accessibilityRole="button"
+          accessibilityLabel={excluded ? `${meal.date}, no meal selected` : `Select ${meal.date}`}
+          accessibilityState={{ selected, disabled: excluded }}
+          onPress={hapticPress(() => onSelectDate(meal), 'selection')}
+          className={`h-14 w-full max-w-[46px] items-center justify-center rounded-field border ${selected ? 'border-foreground bg-canvas' : excluded ? 'border-transparent bg-field opacity-45' : 'border-border bg-field'}`}
+        >
+          <Text className="font-mono-semibold text-body-md text-foreground">{meal.shortDate}</Text>
+          <Text className="mt-0.5 font-body text-body-xs text-muted">{meal.dayLabel}</Text>
+        </Pressable>
+        <View className="mt-2 items-center gap-1">
+          {markers.map((marker, markerIndex) => (
+            <MealStatusMarker
+              key={`${meal.id}-${markerIndex}`}
+              meal={meal}
+              marker={marker}
+              markerIndex={markerIndex}
+              excluded={excluded}
+              animateUpcoming={animateUpcoming}
+              assignUpcomingRipple={assignUpcomingRipple}
+              onOpenMeal={onOpenMeal}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  });
+
+  if (!scrollable) {
+    return (
+      <View style={{ marginHorizontal: -20, paddingHorizontal: TRACKER_EDGE_PADDING }} className="flex-row">
+        {dayColumns}
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginHorizontal: -20, overflow: 'visible' }}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled
+        style={{ overflow: 'visible' }}
+        contentContainerStyle={{ paddingLeft: TRACKER_EDGE_PADDING, paddingRight: TRACKER_EDGE_PADDING }}
+      >
+        {dayColumns}
+      </ScrollView>
+    </View>
+  );
 }
 
 function selectionClass(selected: boolean) {
@@ -900,7 +1167,7 @@ const planBenefitCarouselItems = [
   { title: 'Daily home style meals', image: require('../assets/choose-subs/daily-home.png') },
   { title: 'Nutrition values for every item', image: require('../assets/choose-subs/nutrition-values.png') },
   { title: 'Pause upcoming meals', image: require('../assets/choose-subs/pause-meal.png') },
-  { title: 'Change meal preferences anytime/', image: require('../assets/choose-subs/meal-preferences.png') },
+  { title: 'Change meal preferences anytime', image: require('../assets/choose-subs/meal-preferences.png') },
   { title: 'Manage delivery addresses', image: require('../assets/choose-subs/manage-delivery.png') },
   { title: 'Rate every food and delivery', image: require('../assets/choose-subs/rate-food.png') },
 ] as const;
@@ -924,23 +1191,6 @@ function SubscriptionCard({ active, daysLeft, caption, title, description, butto
   return <View className="rounded-field border border-border bg-canvas p-sheet"><Text style={{ color: captionColor }} className="mb-2 font-body-medium text-body-sm">{captionText}</Text><FormHeader title={title ?? (active ? 'Your nutrition tools are ready' : 'Continue your healthy meal routine')} subtitle={description ?? (active ? 'Explore your subscribed meals and personalised nutrition tools.' : 'Subscribe for fresh everyday meals and unlock personalised nutrition tools designed around your goals.')} size="sheet" /><View className="mt-1">{features.map((feature) => <View key={feature} className="min-h-9 flex-row items-center"><View className="h-8 w-8 shrink-0 items-center justify-center">{active ? <HomeGlyph icon={CheckIcon} size={18} weight="bold" tone="success" /> : <HomeGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />}</View><Text className={`ml-3 flex-1 font-body text-body-sm ${active ? 'text-foreground' : 'text-muted'}`}>{feature}</Text></View>)}</View><View className="mt-4"><TrialAuthButton label={buttonLabel ?? (active ? 'Explore My Plan' : 'Avail Subscription')} onPress={onPress} /></View></View>;
 }
 
-function LockedPreview({ title, description, goals }: { title: string; description?: string; goals?: string[] }) {
-  return (
-    <View className="rounded-field bg-field p-sheet">
-      <FormHeader title={title} subtitle={description} size="sheet" />
-      {goals ? (
-        <View className="mt-4 flex-row flex-wrap gap-2">
-          {goals.map((goal) => (
-            <View key={goal} className="rounded-full bg-canvas px-3 py-2">
-              <Text className="font-body-medium text-body-xs text-muted">{goal}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 const mealChoices = ['Lunch', 'Dinner', 'Both'] as const;
 type MealChoice = typeof mealChoices[number];
 
@@ -955,7 +1205,7 @@ function SubscriptionMealSelector({ value, onChange }: { value: MealChoice; onCh
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
             onPress={hapticPress(() => onChange(choice), 'selection')}
-            className={`py-2.5 flex-1 items-center justify-center rounded-full border bg-canvas ${selected ? 'border-2 border-accent' : 'border-border'}`}
+            className={`py-2.5 flex-1 items-center justify-center rounded-full border ${selected ? 'border-2 border-accent-dark bg-accent-soft' : 'border-border bg-canvas'}`}
           >
             <Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice}</Text>
           </Pressable>
@@ -965,7 +1215,71 @@ function SubscriptionMealSelector({ value, onChange }: { value: MealChoice; onCh
   );
 }
 
-function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, index, onEdit }: { caption: string; title: string; image: number; animate: boolean; index: number; onEdit: (anchor: PickerAnchor) => void }) {
+const subscriptionDeliveryDays = [
+  { label: 'M', weekday: 1 },
+  { label: 'T', weekday: 2 },
+  { label: 'W', weekday: 3 },
+  { label: 'T', weekday: 4 },
+  { label: 'F', weekday: 5 },
+  { label: 'S', weekday: 6 },
+  { label: 'S', weekday: 0 },
+] as const;
+
+function SubscriptionDeliveryDaySelector({ value, onChange }: { value: number[]; onChange: (days: number[]) => void }) {
+  const { theme } = useUniwind();
+  const light = theme !== 'dark';
+  const toggleDay = (weekday: number) => {
+    onChange(
+      value.includes(weekday)
+        ? value.filter((day) => day !== weekday)
+        : [...value, weekday].sort((a, b) => a - b),
+    );
+  };
+
+  return (
+    <View className="flex-row justify-between gap-1.5">
+      {subscriptionDeliveryDays.map(({ label, weekday }, index) => {
+        const selected = value.includes(weekday);
+        const textClass = selected
+          ? (light ? 'text-white' : 'text-success-foreground')
+          : (light ? 'text-black' : 'text-foreground');
+        return (
+          <Pressable
+            key={`${label}-${weekday}-${index}`}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selected }}
+            accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${label} delivery day`}
+            onPress={hapticPress(() => toggleDay(weekday), 'selection')}
+            className={`size-10 items-center justify-center rounded-full border ${selected ? 'border-success bg-success' : 'border-border bg-transparent'}`}
+          >
+            <Text className={`font-mono-semibold text-body-sm ${textClass}`}>{label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function SubscriptionLocationRow({ address, onEdit }: { address: string; onEdit: () => void }) {
+  return (
+    <View className="gap-2">
+      <SectionHeading>Location</SectionHeading>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Edit delivery location"
+        onPress={hapticPress(onEdit, 'light')}
+        className="flex-row items-center gap-3"
+      >
+        <Text numberOfLines={2} className="min-w-0 flex-1 font-body text-body-sm leading-5 text-foreground">{address}</Text>
+        <View className="size-8 shrink-0 items-center justify-center">
+          <HomeGlyph icon={PencilSimpleIcon} size={20} weight="bold" />
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
+function SubscriptionPreferenceRowCard({ caption, title, image, animate, index, onEdit }: { caption: string; title: string; image: number; animate: boolean; index: number; onEdit: (anchor: PickerAnchor) => void }) {
   const cardRef = useRef<View>(null);
 
   const handleEditPress = () => {
@@ -980,17 +1294,19 @@ function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, in
       accessibilityRole="button"
       accessibilityLabel={`Edit ${caption.toLowerCase()} preference`}
       onPress={hapticPress(handleEditPress, 'light')}
-      className="w-[161px] shrink-0 overflow-hidden rounded-field border border-border bg-canvas"
+      className="min-w-0 flex-1 overflow-hidden rounded-field border border-border bg-canvas"
     >
-      {animate ? (
-        <MealPreferenceImage source={image} label={title} delayMs={80 + index * 50} />
-      ) : (
-        <View className="h-[116px] w-full bg-field" />
-      )}
-      <View className="flex-row items-center gap-2 px-3 py-2.5">
+      <View className="h-[88px] w-full items-center overflow-hidden bg-field">
+        {animate ? (
+          <MealPreferenceImage source={image} label={title} delayMs={80 + index * 50} width={106} height={88} imageSize={106} />
+        ) : (
+          <View className="h-full w-full bg-field" />
+        )}
+      </View>
+      <View className="flex-row items-center gap-1 px-2 py-2">
         <View className="min-w-0 flex-1 gap-0.5">
           <Text className="font-body text-body-xs text-muted">{caption}</Text>
-          <Text className="font-mono-semibold text-body-sm text-foreground">{title}</Text>
+          <Text numberOfLines={1} className="font-mono-semibold text-body-sm text-foreground">{title}</Text>
         </View>
         <View className="size-4 shrink-0 items-center justify-center">
           <HomeGlyph icon={PencilSimpleIcon} size={20} weight="bold" />
@@ -1002,14 +1318,12 @@ function SubscriptionPreferenceCarouselCard({ caption, title, image, animate, in
 
 function SubscriptionPreferencesCard({
   food,
-  mealChoice,
   bread,
   rice,
   scrollSignal,
   onOpenPicker,
 }: {
   food: string;
-  mealChoice: string;
   bread: string;
   rice: string;
   scrollSignal: number;
@@ -1019,11 +1333,10 @@ function SubscriptionPreferencesCard({
   const sectionRef = useRef<View>(null);
   const hasAnimated = useRef(false);
   const { height: windowHeight } = useWindowDimensions();
-  const cards: Array<{ kind: SubscriptionPreferenceKind; caption: string; title: string; image: number; value: string }> = [
-    { kind: 'food', caption: 'Food', title: shortFoodPreferenceLabel(food), image: foodImageForPreference(food), value: food },
-    { kind: 'meal', caption: 'Meal', title: mealChoice, image: preferenceImageFor(mealChoice), value: mealChoice },
-    { kind: 'bread', caption: 'Bread', title: bread, image: preferenceImageFor(bread), value: bread },
-    { kind: 'rice', caption: 'Rice', title: rice, image: preferenceImageFor(rice), value: rice },
+  const cards: Array<{ kind: 'food' | 'bread' | 'rice'; caption: string; title: string; image: number }> = [
+    { kind: 'food', caption: 'Food', title: subscriptionPreferenceCardTitle('food', food), image: foodImageForPreference(food) },
+    { kind: 'bread', caption: 'Bread', title: subscriptionPreferenceCardTitle('bread', bread), image: preferenceImageFor(bread) },
+    { kind: 'rice', caption: 'Rice', title: subscriptionPreferenceCardTitle('rice', rice), image: preferenceImageFor(rice) },
   ];
 
   const revealImages = useCallback(() => {
@@ -1043,24 +1356,19 @@ function SubscriptionPreferencesCard({
   return (
     <View ref={sectionRef} onLayout={revealImages} className="gap-3">
       <SectionHeading>Current preferences</SectionHeading>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -20, overflow: 'visible' }}
-        contentContainerStyle={{ gap: 12, paddingHorizontal: 20, paddingVertical: 8 }}
-      >
-          {cards.map((card, index) => (
-            <SubscriptionPreferenceCarouselCard
-              key={card.kind}
-              caption={card.caption}
-              title={card.title}
-              image={card.image}
-              animate={animateImages}
-              index={index}
-              onEdit={(anchor) => onOpenPicker(card.kind, anchor)}
-            />
-          ))}
-      </ScrollView>
+      <View className="flex-row gap-2">
+        {cards.map((card, index) => (
+          <SubscriptionPreferenceRowCard
+            key={card.kind}
+            caption={card.caption}
+            title={card.title}
+            image={card.image}
+            animate={animateImages}
+            index={index}
+            onEdit={(anchor) => onOpenPicker(card.kind, anchor)}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -1247,7 +1555,6 @@ function SubscriptionBenefitsSection({ scrollSignal }: { scrollSignal: number })
         </View>
       </View>
       <SubscriptionPlanBenefitsCarousel scrollSignal={scrollSignal} />
-      <LockedPreview title="A meal plan built around your goals" goals={['Balanced meals', 'Increase protein', 'Manage calories', 'Improve meal consistency']} />
     </View>
   );
 }
@@ -1269,6 +1576,9 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
     rice: initialRice,
     dailyMeals: initialDailyMeals,
   });
+  const [deliveryAddress, setDeliveryAddress] = useState(address);
+  const [selectedDeliveryDays, setSelectedDeliveryDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [addressFlowOpen, setAddressFlowOpen] = useState(false);
   const selectedPlan = plans.find((plan) => plan.id === planId)!;
   const multiplier = mealChoice === 'Both' ? 2 : 1;
   const planPrice = selectedPlan.price * multiplier;
@@ -1280,23 +1590,17 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
 
   const handlePreferencePickerSelect = (value: string) => {
     if (openPreferencePicker === 'food') setPreferences((current) => ({ ...current, food: value }));
-    if (openPreferencePicker === 'meal') {
-      setPreferences((current) => ({ ...current, meal: value }));
-      if (value === 'Lunch' || value === 'Dinner' || value === 'Both') setMealChoice(value);
-    }
     if (openPreferencePicker === 'bread') setPreferences((current) => ({ ...current, bread: value }));
     if (openPreferencePicker === 'rice') setPreferences((current) => ({ ...current, rice: value }));
   };
 
   const preferencePickerValue = openPreferencePicker === 'food'
     ? preferences.food
-    : openPreferencePicker === 'meal'
-      ? mealChoice
-      : openPreferencePicker === 'bread'
-        ? preferences.bread
-        : openPreferencePicker === 'rice'
-          ? preferences.rice
-          : '';
+    : openPreferencePicker === 'bread'
+      ? preferences.bread
+      : openPreferencePicker === 'rice'
+        ? preferences.rice
+        : '';
 
   if (success) {
     return (
@@ -1311,11 +1615,11 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
                 <Meta compact label="Duration" value={selectedPlan.duration} />
                 <Meta compact label="Start date" value="26 July" />
                 <Meta compact label="Meal preference" value={mealChoice} />
-                <Meta compact label="Delivery address" value={address} />
+                <Meta compact label="Delivery address" value={deliveryAddress} />
                 <Meta compact label="Next meal" value="26 July · Lunch" />
               </View>
             )}
-            primaryAction={<Primary label="Explore My Plan" onPress={() => { onActivated(selectedPlan.name, mealChoice, total, '26 July'); onClose(); onExploreMyPlanPress?.(); }} />}
+            primaryAction={<Primary label="Explore My Plan" onPress={() => { onClose(); onExploreMyPlanPress?.(); }} />}
           />
         </Animated.View>
       </Overlay>
@@ -1342,12 +1646,18 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
         <Animated.View entering={FadeInUp.delay(170).duration(280)} className="mx-5 mt-4 gap-sheet-gap">
           <FormPageSection>
             <View className="gap-sheet-gap">
+              <SubscriptionLocationRow address={deliveryAddress} onEdit={() => setAddressFlowOpen(true)} />
+
               <View className="gap-3">
                 <SectionHeading>Meal selection</SectionHeading>
                 <SubscriptionMealSelector value={mealChoice} onChange={setMealChoice} />
                 <Text className="font-body text-body-sm leading-5 text-muted">
                   {mealChoice === 'Both' ? 'Lunch · 11:00 AM to 1:00 PM\nDinner · 6:30 PM to 8:30 PM' : mealChoice === 'Dinner' ? 'Dinner · 6:30 PM to 8:30 PM' : 'Lunch · 11:00 AM to 1:00 PM'}
                 </Text>
+                <View className="gap-2">
+                  <SectionHeading>Select days</SectionHeading>
+                  <SubscriptionDeliveryDaySelector value={selectedDeliveryDays} onChange={setSelectedDeliveryDays} />
+                </View>
               </View>
 
               <View className="gap-3">
@@ -1368,7 +1678,6 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
 
               <SubscriptionPreferencesCard
                 food={preferences.food}
-                mealChoice={mealChoice}
                 bread={preferences.bread}
                 rice={preferences.rice}
                 scrollSignal={preferencesScrollSignal}
@@ -1404,7 +1713,7 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
       </ScrollView>
 
       <Animated.View entering={FadeInUp.delay(280).duration(280)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
-        <Primary label={`Continue to payment · ${formatRupee(total)}`} onPress={() => setSuccess(true)} />
+        <Primary label={`Continue to payment · ${formatRupee(total)}`} onPress={() => { onActivated(selectedPlan.name, mealChoice, total, '26 July'); setSuccess(true); }} />
       </Animated.View>
       {openPreferencePicker && pickerAnchor ? (
         <SubscriptionPreferencePickerModal
@@ -1418,6 +1727,17 @@ function SubscriptionSheet({ food: initialFood, bread: initialBread, rice: initi
           onSelect={handlePreferencePickerSelect}
         />
       ) : null}
+      {addressFlowOpen ? (
+        <DeliveryAddressFlow
+          mode="subscription"
+          initialLocation={deliveryAddress}
+          onClose={() => setAddressFlowOpen(false)}
+          onConfirmed={(saved) => {
+            setDeliveryAddress(formatSavedAddressLines(saved));
+            setAddressFlowOpen(false);
+          }}
+        />
+      ) : null}
     </Animated.View>
   );
 }
@@ -1428,7 +1748,14 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   const dark = theme === 'dark';
   const seed = useMemo(() => {
     if (lifecycleVariant.startsWith('subscription_')) {
-      const week = subscriptionWeekMeals(food || 'Vegetarian', bread || 'Bhakri', rice || 'Jeera rice', meal || 'Lunch', address);
+      const week = subscriptionWeekMeals(
+        food || 'Vegetarian',
+        bread || 'Bhakri',
+        rice || 'Jeera rice',
+        meal || 'Lunch',
+        address,
+        lifecycleVariant === 'subscription_scheduled' ? demoParseMonthDay('26 July') : undefined,
+      );
       if (lifecycleVariant === 'subscription_no_meal') return week.map((item, index) => index === 2 ? { ...item, isPlanDay: false } : item);
       if (lifecycleVariant === 'subscription_paused') return week.map((item) => item.isPlanDay === false ? item : { ...item, status: 'paused' as MealStatus, mealMarkers: item.mealMarkers?.map((marker) => ({ ...marker, status: 'paused' as MealStatus })) });
       if (lifecycleVariant === 'subscription_expired') return week.map((item) => ({ ...item, status: 'inactive' as MealStatus, mealMarkers: item.mealMarkers?.map((marker) => ({ ...marker, status: 'inactive' as MealStatus })) }));
@@ -1436,6 +1763,35 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
       if (lifecycleVariant === 'subscription_delivery_delayed') return week.map((item, index) => index === 2 ? { ...item, mealType: 'Lunch' as const, status: 'delayed' as MealStatus, mealMarkers: item.mealMarkers?.map((marker, markerIndex) => ({ ...marker, status: markerIndex === 0 ? 'delayed' as MealStatus : 'upcoming' as MealStatus })) } : item);
       if (lifecycleVariant === 'subscription_delivery_failed') return week.map((item, index) => index === 2 ? { ...item, status: 'delivery_failed' as MealStatus, mealMarkers: item.mealMarkers?.map((marker) => ({ ...marker, status: 'delivery_failed' as MealStatus })) } : item);
       if (lifecycleVariant === 'subscription_scheduled') return week.map((item) => item.isPlanDay === false ? item : { ...item, status: 'upcoming' as MealStatus, mealMarkers: item.mealMarkers?.map((marker) => ({ ...marker, status: 'upcoming' as MealStatus })) });
+      if (lifecycleVariant === 'subscription_active') {
+        return week.map((item, index) => {
+          if (index <= 1) {
+            return {
+              ...item,
+              status: 'delivered' as MealStatus,
+              items: menu,
+              mealMarkers: item.mealMarkers?.map((marker) => ({ ...marker, status: 'delivered' as MealStatus })),
+            };
+          }
+          if (index === 2) {
+            return {
+              ...item,
+              status: 'upcoming' as MealStatus,
+              items: undefined,
+              mealMarkers: item.mealMarkers?.map((marker, markerIndex) => ({
+                ...marker,
+                status: (markerIndex === 0 ? 'delivered' : 'upcoming') as MealStatus,
+              })),
+            };
+          }
+          return {
+            ...item,
+            status: 'upcoming' as MealStatus,
+            items: undefined,
+            mealMarkers: item.mealMarkers?.map((marker) => ({ ...marker, status: 'upcoming' as MealStatus })),
+          };
+        });
+      }
       return week;
     }
     const trial = initialMeals(food || 'Vegetarian', bread || 'Bhakri', rice || 'Jeera rice', meal || 'Lunch', address, dailyMeals);
@@ -1482,15 +1838,8 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
           ? { title: 'Plan active until 20 August', body: 'Meals already included in your plan continue as scheduled.', tone: 'purple' as const, action: 'Re-subscribe to this plan' }
           : undefined;
   const [meals, setMeals] = useState(seed);
-  const upcomingMeal = useMemo(() => {
-    const eligible = planMealsFrom(meals);
-    const today = demoStartOfDay();
-    return eligible.find((item) => {
-      if (item.status === 'delivered' || item.status === 'inactive' || item.status === 'skipped' || item.isSkipped) return false;
-      return parseMealDate(item.date).getTime() >= today.getTime();
-    }) ?? eligible[eligible.length - 1]!;
-  }, [meals]);
-  const [detailId, setDetailId] = useState(upcomingMeal.id);
+  const pendingMeal = useMemo(() => pendingFocusMeal(meals), [meals]);
+  const [detailId, setDetailId] = useState(pendingMeal.id);
   const [detailSlot, setDetailSlot] = useState<MealSlot>('lunch');
   const [sheetOpen, setSheetOpen] = useState(openMealDetailOnLoad);
   const [toast, setToast] = useState('');
@@ -1499,10 +1848,15 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
     initiallySubscribed ? { plan: 'Monthly', meal, total: 5299, startDate: '26 July', endDate: demoAddDays(demoStartOfDay(), 14) } : null,
   );
   const eligibleMeals = meals.filter((item) => item.isPlanDay !== false);
-  const selectedId = lifecycleVariant === 'subscription_expired'
-    ? (eligibleMeals[Math.max(0, eligibleMeals.length - 2)]?.id ?? eligibleMeals[0]!.id)
-    : upcomingMeal.id;
-  const calendarSelectedId = lifecycleVariant === 'subscription_no_meal' ? (upcomingMeal.id) : selectedId;
+  const trackerMeals = useMemo(() => planMealsFrom(meals), [meals]);
+  const bottomFocusMeal = useMemo(() => bottomCardFocusMeal(meals, lifecycleVariant), [lifecycleVariant, meals]);
+  const selectedId = bottomFocusMeal.id;
+  const calendarSelectedId = calendarTrackerFocusId(meals, lifecycleVariant);
+  const isPreStartState = lifecycleVariant === 'subscription_scheduled' || lifecycleVariant === 'trial_scheduled';
+  const centerTrackerFocus = (isSubscriptionHome && !isPreStartState)
+    || lifecycleVariant === 'trial_active'
+    || lifecycleVariant === 'trial_subscription_purchased'
+    || lifecycleVariant === 'trial_completed';
   const selected = meals.find((item) => item.id === selectedId)!;
   const daysLeft = eligibleMeals.filter((item) => item.status !== 'delivered').length;
   const detailMeal = meals.find((item) => item.id === detailId) ?? selected;
@@ -1578,8 +1932,17 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
     });
   };
   const subscriptionSheetTitle = lifecycleVariant === 'subscription_expired' ? 'Renew subscription' : 'Choose your subscription';
+  const planButtonLabel = planCard?.buttonLabel ?? ((subscription || initiallySubscribed) ? 'Explore My Plan' : 'Avail Subscription');
   const openPlan = () => {
-    if (subscription && lifecycleVariant !== 'subscription_expired') {
+    if (planButtonLabel === 'Renew Subscription') {
+      setSubscriptionOpen(true);
+      return;
+    }
+    if (planButtonLabel === 'Update Payment') {
+      showToast('Update payment selected');
+      return;
+    }
+    if (planButtonLabel === 'Explore My Plan' || planButtonLabel === 'Manage My Plan') {
       onExploreMyPlanPress?.();
       return;
     }
@@ -1593,8 +1956,8 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   return <View className="flex-1 bg-canvas"><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }}><View className="px-5">
     <Animated.Text entering={FadeInUp.delay(20).duration(240)} className="font-body text-body-sm tracking-body-sm text-accent">{config.eyebrow}</Animated.Text>
     <View className="gap-sheet-gap"><Animated.View entering={FadeInUp.delay(70).duration(260)}><View className="flex-row items-center justify-between gap-3"><Text className="flex-1 font-heading text-heading-md text-foreground">{config.title}</Text><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => { setSheetOpen(false); onProfilePress?.(); }} className="size-icon-button items-center justify-center rounded-full bg-icon-surface"><HomeGlyph icon={UserCircleIcon} size={24} weight="bold" /></Pressable></View></Animated.View><Animated.View entering={FadeInUp.delay(130).duration(260)}><FormPageSection subheading={config.description}><View className="gap-sheet-gap">{stateNotice ? <Animated.View entering={FadeInUp.delay(190).duration(260)} className={stateNoticeSurfaceClass}><Text className={`text-body-md text-foreground ${lifecycleVariant === 'subscription_offline' || lifecycleVariant === 'subscription_delivery_failed' || lifecycleVariant === 'subscription_delivery_delayed' || lifecycleVariant === 'subscription_ending' ? 'font-mono-semibold' : 'font-heading'}`}>{stateNotice.title}</Text><Text className="mt-1 font-body text-body-sm leading-5 text-muted">{stateNotice.body}</Text>{stateNotice.action ? <View className="mt-4">{lifecycleVariant === 'trial_payment_pending' ? <AccentSecondaryButton elevated label={stateNotice.action} onPress={onPaymentStatusPress ?? (() => showToast(stateNotice.action!))} /> : lifecycleVariant === 'subscription_ending' ? <AccentSecondaryButton elevated label={stateNotice.action} onPress={() => showToast('Re-subscription selected')} /> : <TrialAuthButton label={stateNotice.action} onPress={() => showToast('Re-subscription selected')} />}</View> : null}</Animated.View> : null}
-    <Animated.View entering={FadeInUp.delay(210).duration(280)}><TrialDayTracker meals={meals} selectedId={calendarSelectedId} showBoth={planBoth} animateUpcoming={lifecycleVariant !== 'subscription_offline' && lifecycleVariant !== 'subscription_expired'} onSelectDate={() => {}} onOpenMeal={(item, slot) => { setDetailId(item.id); setDetailSlot(slot); setSheetOpen(true); }} /></Animated.View>
-    <Animated.View entering={FadeInUp.delay(290).duration(280)}><SubscriptionCard active={!!subscription} daysLeft={daysLeft} caption={config.caption} title={planCard?.title} description={planCard?.description} buttonLabel={planCard?.buttonLabel} onPress={openPlan} /></Animated.View>
+    <Animated.View entering={FadeInUp.delay(210).duration(280)}><TrialDayTracker meals={trackerMeals} selectedId={calendarSelectedId} showBoth={planBoth} centerFocus={centerTrackerFocus} animateUpcoming={lifecycleVariant !== 'subscription_offline' && lifecycleVariant !== 'subscription_expired'} onSelectDate={() => {}} onOpenMeal={(item, slot) => { setDetailId(item.id); setDetailSlot(slot); setSheetOpen(true); }} /></Animated.View>
+    <Animated.View entering={FadeInUp.delay(290).duration(280)}><SubscriptionCard active={!!subscription || initiallySubscribed} daysLeft={daysLeft} caption={config.caption} title={planCard?.title} description={planCard?.description} buttonLabel={planButtonLabel} onPress={openPlan} /></Animated.View>
     <Animated.View entering={FadeInUp.delay(370).duration(280)} className="rounded-field border border-border bg-canvas p-sheet"><View className="flex-row items-start justify-between gap-3"><View className="flex-1"><Text className="font-body text-body-sm tracking-body-sm text-muted">{config.selectedLabel}</Text><Text className="mt-2 font-heading text-heading-sm text-foreground">{selected.date}</Text><Text className="mt-1 font-body text-body-sm leading-5 text-muted">{planBoth ? 'Lunch & dinner' : selected.mealType} · {selected.addressLabel}</Text></View><StatusBadge status={selected.status} /></View><View className="mt-5"><HomeSecondaryButton label="View meal details" onPress={() => { setDetailId(selected.id); setDetailSlot(defaultMealSlot(selected)); setSheetOpen(true); }} /></View></Animated.View></View></FormPageSection></Animated.View></View>
   </View></ScrollView>
     {sheetOpen ? (

@@ -1,6 +1,6 @@
 export type AddressLabelType = 'home' | 'office' | 'friends' | 'relatives' | 'custom';
 
-export type AddressFlowMode = 'onboarding' | 'meal-edit' | 'add-address';
+export type AddressFlowMode = 'onboarding' | 'meal-edit' | 'add-address' | 'subscription';
 
 export type AddressDetails = {
   deliveryLocation: string;

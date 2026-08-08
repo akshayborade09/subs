@@ -149,7 +149,7 @@ function RecoveryState({ id }: { id: LifecycleStateId }) {
   return <><StateCard><View className="h-11 w-11 items-center justify-center rounded-full bg-icon-surface"><Glyph icon={config.icon} color={config.color} /></View><SectionHeading className="mt-5">{config.title}</SectionHeading><Text className={`mt-2 ${headingDescriptionClass}`}>{config.body}</Text>{id !== 'S' ? <View className="mt-5 gap-3"><MetaRow label="Affected meal" value="Lunch · 23 July" /><MetaRow label="Current address" value="Home · Baner" /><MetaRow label="Credit status" value={id === 'R' ? 'Pending review' : 'Not applicable'} /></View> : null}</StateCard>{id !== 'S' ? <StateCard><SectionHeading>Upcoming deliveries</SectionHeading><WeekTracker /></StateCard> : null}</>;
 }
 
-export default function LifecycleExperience({ definition, onBack, onTransition, onPaymentCheck }: { definition: LifecycleDefinition; onBack: () => void; onTransition: (id: LifecycleStateId) => void; onPaymentCheck?: () => void }) {
+export default function LifecycleExperience({ definition, onBack, onTransition, onPaymentCheck, onExploreMyPlanPress }: { definition: LifecycleDefinition; onBack: () => void; onTransition: (id: LifecycleStateId) => void; onPaymentCheck?: () => void; onExploreMyPlanPress?: () => void }) {
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(definition.id === 'U');
@@ -159,6 +159,10 @@ export default function LifecycleExperience({ definition, onBack, onTransition, 
     if (id === 'U') { const routeTimer = setTimeout(() => onTransition('F'), 1800); return () => clearTimeout(routeTimer); }
   }, [id, onTransition]);
   const primary = () => {
+    if (definition.primaryAction === 'Explore My Plan' && onExploreMyPlanPress) {
+      onExploreMyPlanPress();
+      return;
+    }
     if (id === 'D' && onPaymentCheck) { onPaymentCheck(); return; }
     const target = nextState[id];
     if (target) onTransition(target);
