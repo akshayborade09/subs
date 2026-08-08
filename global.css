@@ -9,12 +9,58 @@
   display: none;
 }
 
+input,
+textarea {
+  caret-color: var(--color-foreground);
+}
+
+input:focus,
+textarea:focus {
+  box-shadow: none;
+}
+
 @theme {
   --font-sans: 'Geist_400Regular';
   --font-medium: 'Geist_500Medium';
   --font-semibold: 'Geist_600SemiBold';
   --font-bold: 'Geist_700Bold';
+  --font-heading: 'AbrilFatface_400Regular';
+  --font-body: 'InclusiveSans_400Regular';
+  --font-body-medium: 'InclusiveSans_500Medium';
   --font-display: 'AbrilFatface_400Regular';
+  --font-mono: 'InclusiveSans_400Regular';
+  --font-mono-medium: 'InclusiveSans_500Medium';
+  --font-mono-semibold: 'InclusiveSans_600SemiBold';
+  --font-mono-bold: 'InclusiveSans_700Bold';
+  --text-heading-xl: 48px;
+  --text-heading-xl--line-height: 52px;
+  --text-heading-sm: 20px;
+  --text-heading-sm--line-height: 28px;
+  --text-heading-md: 24px;
+  --text-heading-md--line-height: 33px;
+  --text-body-xs: 12px;
+  --text-body-xs--line-height: 18px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --radius-sheet: 20px;
+  --radius-field: 14px;
+  --radius-button-outer: 18px;
+  --radius-button-inner: 12px;
+  --spacing-sheet: 16px;
+  --spacing-sheet-gap: 24px;
+  --spacing-page-section: 40px;
+  --spacing-auth-block: 9px;
+  --spacing-field-inline: 10px;
+  --spacing-otp: 8px;
+  --spacing-otp-section: 12px;
+  --spacing-button-wrap: 6px;
+  --spacing-field: 52px;
+  --spacing-otp-cell: 50px;
+  --spacing-icon-button: 36px;
+  --tracking-body-sm: -0.28px;
+  --tracking-body-md: -0.32px;
   --radius-card: 16px;
 }
 
@@ -25,17 +71,34 @@
       --color-sheet: #ffffff;
       --color-icon-surface: #eeeeee;
       --color-surface: #f6f6f6;
-      --color-field: #f6f6f6;
+      --color-field: #f6f6f6; /* tune independently — one step darker than sheet/canvas when ready */
+      --color-ghost-on-field: #eaeaea; /* ghost CTA fill on gray field/surface cards */
       --color-surface-2: #eeeeee;
       --color-surface-raised: #eeeeee;
       --color-foreground: #101010;
       --color-muted: #5e5e5e;
+      --color-subtle: #949494; /* 2 steps toward canvas — softer than muted in light */
       --color-border: #dedede;
       --color-control-border: #dedede;
-      --color-accent: #078a4b;
+      --color-accent-lighter: #eff6ff;
+      --color-accent-light: #dbeafe;
+      --color-accent-moderate: #2563eb;
+      --color-accent-dark: #1d4ed8;
+      --color-accent-darker: #1e3a8a;
+      --color-accent: var(--color-accent-moderate);
       --color-accent-foreground: #ffffff;
+      --color-accent-soft: var(--color-accent-lighter);
+      --color-accent-muted: var(--color-accent-light);
       --color-success: #078a4b;
       --color-success-soft: #e7f7ee;
+      --color-warning-soft: #fffbeb;
+      --color-warning-muted: #fef3c7;
+      --color-warning-emphasis: #a16207;
+      --color-destructive: #ef4444;
+      --color-placeholder: rgba(16, 16, 16, 0.2);
+      --color-overlay: rgb(0 0 0 / 0.25);
+      --color-toast: #101010;
+      --color-toast-foreground: #ffffff;
     }
 
     @variant dark {
@@ -43,17 +106,34 @@
       --color-sheet: #101010;
       --color-icon-surface: #1c1c1c;
       --color-surface: #0d0d0d;
-      --color-field: #080808;
+      --color-field: #141414; /* one step lighter than surface for input contrast */
+      --color-ghost-on-field: #262626; /* ghost CTA fill on gray field/surface cards */
       --color-surface-2: #202020;
       --color-surface-raised: #202020;
       --color-foreground: #ffffff;
       --color-muted: #ababab;
+      --color-subtle: #808080; /* 2 steps toward canvas — softer than muted in dark */
       --color-border: #292929;
       --color-control-border: #303030;
-      --color-accent: #55c986;
-      --color-accent-foreground: #07140c;
+      --color-accent-lighter: #172554;
+      --color-accent-light: #22386d;
+      --color-accent-moderate: #60a5fa;
+      --color-accent-dark: #3b82f6;
+      --color-accent-darker: #2563eb;
+      --color-accent: var(--color-accent-moderate);
+      --color-accent-foreground: #ffffff;
+      --color-accent-soft: var(--color-accent-lighter);
+      --color-accent-muted: var(--color-accent-light);
       --color-success: #55c986;
       --color-success-soft: #173624;
+      --color-warning-soft: #2a1f0a;
+      --color-warning-muted: #422006;
+      --color-warning-emphasis: #fbbf24;
+      --color-destructive: #f87171;
+      --color-placeholder: rgba(255, 255, 255, 0.2);
+      --color-overlay: rgb(115 115 115 / 0.3);
+      --color-toast: #ffffff;
+      --color-toast-foreground: #101010;
     }
   }
 }

@@ -2,7 +2,7 @@ export type LifecycleStateId =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
   | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U'
   | 'V' | 'W' | 'X' | 'Y' | 'Z' | 'AA' | 'AB' | 'AC' | 'AD' | 'AE'
-  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM';
+  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN' | 'AO' | 'AP';
 
 export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
 export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview' | 'commerce_profile';
@@ -28,13 +28,15 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'U', group: 'Trial', title: 'Trial payment success', summary: 'Payment is confirmed and the trial can be scheduled.', entry: 'Payment success confirmation', primaryAction: 'Continue to Home', destination: 'state_preview', tone: 'success' },
   { id: 'E', group: 'Trial', title: 'Trial payment failed', summary: 'Payment failed and the trial has not started.', entry: 'Payment recovery', primaryAction: 'Retry Payment', secondaryAction: 'Change Payment Method', destination: 'state_preview', tone: 'danger' },
   { id: 'F', group: 'Trial', title: 'Trial scheduled', summary: 'Payment succeeded and the first meal is in the future.', entry: 'Pre-trial Home', primaryAction: 'Review Trial', destination: 'trial_home', tone: 'success' },
-  { id: 'G', group: 'Trial', title: 'Trial active, no subscription', summary: 'Five-day trial is running with conversion available.', entry: 'Trial Home', primaryAction: 'Avail Subscription', destination: 'trial_home', tone: 'success' },
+  { id: 'G', group: 'Trial', title: 'Trial active, no subscription', summary: 'Three-day trial is running with conversion available.', entry: 'Trial Home', primaryAction: 'Avail Subscription', destination: 'trial_home', tone: 'success' },
   { id: 'H', group: 'Trial', title: 'Trial active, subscription purchased', summary: 'Trial remains active and the paid plan starts later.', entry: 'Trial Home', primaryAction: 'Explore My Plan', destination: 'trial_home', tone: 'success' },
   { id: 'I', group: 'Trial', title: 'Trial completed, no subscription', summary: 'Trial is finished and conversion is the priority.', entry: 'Conversion Home', primaryAction: 'Choose Subscription', secondaryAction: 'Review Trial Meals', destination: 'trial_home', tone: 'warning' },
   { id: 'J', group: 'Subscription', title: 'Subscription scheduled', summary: 'Subscription is paid and begins on a future date.', entry: 'Pre-subscription Home', primaryAction: 'Explore My Plan', destination: 'trial_home', tone: 'success' },
   { id: 'K', group: 'Subscription', title: 'Subscription active', summary: 'Normal subscriber experience with this week’s selected meals.', entry: 'Subscriber Home', primaryAction: 'View Meal Details', destination: 'trial_home', tone: 'success' },
+  { id: 'AO', group: 'Subscription', title: 'Future meal detail', summary: 'Upcoming subscription meal with address, preference, date, skip and report actions.', entry: 'Future Meal Detail', primaryAction: 'Open meal detail', destination: 'trial_home', tone: 'success' },
   { id: 'L', group: 'Subscription', title: 'No meal today', summary: 'Subscription is active without a delivery today.', entry: 'Subscriber Home', primaryAction: 'View Next Delivery', destination: 'trial_home', tone: 'neutral' },
   { id: 'M', group: 'Subscription', title: 'Subscription paused', summary: 'Deliveries are paused until the saved resume date.', entry: 'Paused Home', primaryAction: 'Resume Subscription', destination: 'trial_home', tone: 'warning' },
+  { id: 'AP', group: 'Subscription', title: 'Subscription restarted', summary: 'A restart date is confirmed and upcoming deliveries are scheduled.', entry: 'Restarted Home', primaryAction: 'Explore My Plan', destination: 'trial_home', tone: 'success' },
   { id: 'N', group: 'Subscription', title: 'Cancelled, active until end date', summary: 'Cancellation is recorded while paid meals continue.', entry: 'Subscriber Home', primaryAction: 'Reactivate Subscription', destination: 'trial_home', tone: 'warning' },
   { id: 'O', group: 'Subscription', title: 'Subscription expired', summary: 'The plan ended while history remains available.', entry: 'Renewal Home', primaryAction: 'Renew Subscription', secondaryAction: 'View Previous Plan', destination: 'trial_home', tone: 'neutral' },
   { id: 'P', group: 'Recovery and delivery', title: 'Renewal payment failed', summary: 'Future unpaid meals need payment recovery.', entry: 'Subscriber Home with payment banner', primaryAction: 'Update Payment Method', secondaryAction: 'Retry Payment', destination: 'trial_home', tone: 'danger' },
@@ -56,6 +58,7 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'AH', group: 'Profile and settings', title: 'App permissions', summary: 'Review location and notification access without surprise prompts.', entry: 'Permission settings', primaryAction: 'Manage permissions', destination: 'commerce_profile', tone: 'neutral' },
   { id: 'AI', group: 'Loyalty and referrals', title: 'Refer and earn', summary: 'Share a referral code and follow qualified reward progress.', entry: 'Referral centre', primaryAction: 'Share invite', destination: 'commerce_profile', tone: 'success' },
   { id: 'AJ', group: 'Loyalty and referrals', title: 'Healthy Streak progress', summary: 'Track progress toward one guaranteed free meal day.', entry: 'Loyalty programme', primaryAction: 'View reward details', destination: 'commerce_profile', tone: 'success' },
+  { id: 'AN', group: 'Loyalty and referrals', title: 'Healthy Streak progress — completed', summary: 'Qualifying month completed. One free meal day is ready to claim.', entry: 'Loyalty programme', primaryAction: 'Claim free meal', destination: 'commerce_profile', tone: 'success' },
   { id: 'AK', group: 'Loyalty and referrals', title: 'Monthly leaderboard', summary: 'View friendly monthly points without affecting guaranteed rewards.', entry: 'Leaderboard', primaryAction: 'View my rank', destination: 'commerce_profile', tone: 'success' },
   { id: 'AL', group: 'Loyalty and referrals', title: 'Free meal earned', summary: 'A qualifying paid month has unlocked one free meal day.', entry: 'Reward earned', primaryAction: 'Choose free meal day', destination: 'commerce_profile', tone: 'success' },
   { id: 'AM', group: 'Loyalty and referrals', title: 'Redeem free meal', summary: 'Select an eligible date and confirm address and meal configuration.', entry: 'Reward redemption', primaryAction: 'Confirm free meal', destination: 'commerce_profile', tone: 'success' },

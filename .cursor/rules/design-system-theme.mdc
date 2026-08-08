@@ -1,0 +1,36 @@
+---
+description: Token implementation — editing global.css and theme variables
+globs: global.css
+alwaysApply: false
+---
+
+# Theme implementation
+
+Read **`docs/01-primitives.md`** and **`docs/02-tokens.md`** before editing.
+
+## Structure in `global.css`
+
+- `@theme { }` — fonts, `--text-*`, `--radius-*`, `--spacing-*`, `--tracking-*`
+- `@layer theme { :root { @variant light { … } @variant dark { … } } }` — `--color-*`
+
+Uniwind generates utilities from namespaces: `--color-accent` → `bg-accent`, `text-accent`, etc.
+
+## Rules when adding/changing tokens
+
+1. Document in `docs/02-tokens.md` first (name, light, dark, utility class).
+2. Add variable in **both** `@variant light` and `@variant dark`.
+3. Prefer existing namespaces: `--color-`, `--font-`, `--text-`, `--radius-`, `--spacing-`.
+4. If JS needs the hex (Switch, icons), update `src/themeColors.ts` to match.
+
+## Current semantic colors (keep aligned)
+
+| Token | Light | Dark |
+|---|---|---|
+| accent | `#2563eb` | `#60a5fa` |
+| success | `#078a4b` | `#55c986` |
+| canvas / surface / field | white / `#f6f6f6` / `#f6f6f6` *(light field: tune independently)* | black / `#0d0d0d` / `#0c0c0c` |
+| foreground / muted / subtle | `#101010` / `#5e5e5e` / `#949494` | white / `#ababab` / `#808080` |
+
+## Auth spacing/radius tokens (in `@theme`)
+
+`rounded-sheet`, `rounded-field`, `rounded-button-outer/inner`, `h-field`, `h-otp-cell`, `gap-sheet-gap`, `gap-otp`, `p-sheet`, `tracking-body-sm/md`

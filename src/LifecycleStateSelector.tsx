@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lifecycleDefinitions, type LifecycleDefinition, type LifecycleGroup, type LifecycleStateId } from './lifecycleStateMachine';
+import { headingDescriptionClass } from './typographyClasses';
 
 const groups: LifecycleGroup[] = ['Entry and onboarding', 'Trial', 'Subscription', 'Recovery and delivery', 'Checkout and coupons', 'Profile and settings', 'Loyalty and referrals'];
 
@@ -17,7 +18,7 @@ export function LifecycleStateSelector({ onSelect }: { onSelect: (id: LifecycleS
     <View className="px-5">
       <Text className="font-medium text-sm text-accent">STATE MACHINE</Text>
       <Text className="mt-2 font-semibold text-[24px] leading-8 tracking-[-0.5px] text-foreground">Choose an application state</Text>
-      <Text className="mt-2 font-sans text-[15px] leading-6 text-muted">Launch the app in any lifecycle state to review its routing, content and available actions.</Text>
+      <Text className={`mt-2 ${headingDescriptionClass}`}>Launch the app in any lifecycle state to review its routing, content and available actions.</Text>
       {groups.map((group) => <View key={group} className="mt-8">
         <Text className="mb-3 font-semibold text-lg text-foreground">{group}</Text>
         <View className="gap-3">
@@ -32,7 +33,7 @@ export function LifecycleStateSelector({ onSelect }: { onSelect: (id: LifecycleS
               <View className={`h-9 w-9 items-center justify-center rounded-full ${toneClass[item.tone].split(' ')[0]}`}><Text className={`font-bold text-sm ${toneClass[item.tone].split(' ').slice(1).join(' ')}`}>{item.id}</Text></View>
               <View className="flex-1">
                 <Text className="font-semibold text-lg leading-6 text-foreground">{item.title}</Text>
-                <Text className="mt-1 font-sans text-[15px] leading-6 text-muted">{item.summary}</Text>
+                <Text className={`mt-1 ${headingDescriptionClass}`}>{item.summary}</Text>
                 <View className="mt-3 flex-row items-center justify-between gap-3"><Text className="flex-1 font-medium text-xs text-muted">{item.entry}</Text><Text className="font-semibold text-sm text-accent">Open state</Text></View>
               </View>
             </View>
@@ -50,7 +51,7 @@ export function LifecycleStatePreview({ definition, onBack }: { definition: Life
       <Pressable accessibilityRole="button" onPress={onBack} className="mb-8 h-10 self-start justify-center rounded-full border border-border px-4"><Text className="font-semibold text-sm text-foreground">All states</Text></Pressable>
       <View className={`self-start rounded-full px-3 py-2 ${toneClass[definition.tone].split(' ')[0]}`}><Text className={`font-semibold text-xs ${toneClass[definition.tone].split(' ').slice(1).join(' ')}`}>STATE {definition.id}</Text></View>
       <Text className="mt-4 font-semibold text-[24px] leading-8 text-foreground">{definition.title}</Text>
-      <Text className="mt-2 font-sans text-[15px] leading-6 text-muted">{definition.summary}</Text>
+      <Text className={`mt-2 ${headingDescriptionClass}`}>{definition.summary}</Text>
       <View className="mt-7 rounded-[16px] border border-border bg-sheet p-4">
         <Text className="font-medium text-xs text-muted">ENTRY DESTINATION</Text>
         <Text className="mt-2 font-semibold text-lg text-foreground">{definition.entry}</Text>

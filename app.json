@@ -7,14 +7,21 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.example.astryxnative"
+      "bundleIdentifier": "com.example.astryxnative",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.example.astryxnative",
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#F5F4F0"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -27,6 +34,18 @@
           "locationWhenInUsePermission": "Allow Astryx Native to use your location to choose a tiffin delivery address."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "012c987e-c45b-4857-84ae-9ac7d129b9ad"
+      }
+    },
+    "owner": "akshayborade09",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/012c987e-c45b-4857-84ae-9ac7d129b9ad"
+    }
   }
 }

@@ -1,0 +1,45 @@
+---
+description: Component styling — Uniwind className patterns for React Native UI
+globs: "**/*.{tsx,jsx}"
+alwaysApply: false
+---
+
+# UI styling
+
+Read **`docs/03-usage.md`** when writing or reviewing JSX.
+
+## className checklist
+
+```tsx
+// ❌ BAD
+<View className="bg-[#f6f6f6] rounded-[14px]">
+<Text className="font-sans text-sm text-[#2563eb]">
+
+// ✅ GOOD
+<View className="bg-surface rounded-field">
+<Text className="font-body text-body-sm text-accent">
+```
+
+## Common surfaces
+
+| Use | Classes |
+|---|---|
+| Screen / sheet | `bg-canvas` |
+| Input / OTP idle | `bg-surface rounded-field` |
+| Input / OTP focused | `border border-foreground bg-canvas` |
+| Error field | `border-destructive` |
+| Links / actions | `text-accent` |
+| Timers / hints | `text-muted` |
+| Heading descriptions | `text-subtle` via `headingDescriptionClass` |
+| Form sheets / pages | `FormSheetLayout` / `FormPageSection` / `FormPageBody` from `src/formLayout.tsx` — page titles in `Shell` header only; content subheadings via `FormPageSection` at `gap-sheet-gap` (24px) to content; `gap-auth-block` (9px) only inside header/field stacks |
+| Primary button (auth) | `bg-foreground text-white` via `AuthPrimaryButton` |
+
+## Inputs (web)
+
+- Whole field is tappable; focus styles on container, not inner ring
+- Hidden OTP input: `caretHidden`, cells show digits
+- Placeholder: use `usePlaceholderColor()` from `App.tsx` pattern
+
+## Extending
+
+New screen-specific spacing? Add token to `global.css` + `02-tokens.md`, then use `gap-*` / `p-*` utility — don't hardcode `gap-[9px]` unless migrating to a token.
