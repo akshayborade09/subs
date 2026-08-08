@@ -43,7 +43,7 @@ type DeliveryAddressState = {
 function reducer(state: DeliveryAddressState, event: DeliveryAddressEvent): DeliveryAddressState {
   switch (event.type) {
     case 'LOCATION_SELECTED': {
-      const pincode = extractPincode(event.location);
+      const pincode = extractPincode(event.location) || state.details.pincode;
       return {
         ...state,
         deliveryLocation: event.location,

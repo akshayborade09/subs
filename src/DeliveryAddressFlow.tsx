@@ -49,6 +49,7 @@ export function DeliveryAddressFlow({
   mealSlot,
   initialLocation = '',
   initialDetails,
+  preferredPincode = '',
   editingAddressId,
   headerTitleOverride,
   referenceMealDelivery,
@@ -60,6 +61,8 @@ export function DeliveryAddressFlow({
   mealSlot?: MealDeliverySlot;
   initialLocation?: string;
   initialDetails?: AddressDetails;
+  /** Pincode from delivery availability — used when location text has none yet. */
+  preferredPincode?: string;
   editingAddressId?: string;
   headerTitleOverride?: string;
   referenceMealDelivery?: TrialMealDeliveryState | null;
@@ -71,6 +74,12 @@ export function DeliveryAddressFlow({
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   const { savedAddresses, upsertAddress, setDefaultAddress, removeAddress, defaultAddressId } = useSavedAddresses();
+  const normalizedPreferredPincode = preferredPincode.replace(/\D/g, '').slice(0, 6);
+  const seededDetails = (() => {
+    const base = initialDetails ?? emptyAddressDetails(initialLocation);
+    if (base.pincode || !normalizedPreferredPincode) return base;
+    return { ...base, pincode: normalizedPreferredPincode };
+  })();
   const {
     phase,
     deliveryLocation,
@@ -80,7 +89,7 @@ export function DeliveryAddressFlow({
     coverageRequestState,
     selectedSavedAddressId,
     send,
-  } = useDeliveryAddressMachine(mode, initialLocation, initialDetails ?? emptyAddressDetails(initialLocation));
+  } = useDeliveryAddressMachine(mode, initialLocation, seededDetails);
   const [locationSearchOpen, setLocationSearchOpen] = useState(false);
   const [sameLocationSheetOpen, setSameLocationSheetOpen] = useState(false);
   const [mapCoordinate, setMapCoordinate] = useState<MapCoordinate | null>(null);
@@ -91,7 +100,7 @@ export function DeliveryAddressFlow({
   const societyRef = useRef<TextInput>(null);
   const landmarkRef = useRef<TextInput>(null);
   const instructionsRef = useRef<TextInput>(null);
-  const pincode = details.pincode || extractPincode(deliveryLocation) || extractPincodeFromText(deliveryLocation);
+  const pincode = details.pincode || extractPincode(deliveryLocation) || extractPincodeFromText(deliveryLocation) || normalizedPreferredPincode;
   const availability = usePincodeAvailability(pincode);
   const footerHeight = 88 + insets.bottom;
   const fixedHeaderHeight = insets.top + 12 + 33 + 8 + 68 + 8;
@@ -276,6 +285,7 @@ export function DeliveryAddressFlow({
           >
             <DeliveryAddressMap
               searchQuery={deliveryLocation}
+              preferredPincode={normalizedPreferredPincode || pincode}
               onAddressChange={(value) => send({ type: 'LOCATION_SELECTED', location: value })}
               onCoordinateChange={setMapCoordinate}
             />

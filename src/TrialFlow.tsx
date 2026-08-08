@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -33,7 +33,10 @@ import { MealPreferenceImage } from './MealPreferenceImage';
 import {
   AddressDetailsForm,
   DeliveryCoverageSheet,
+  FocusScrollContext,
+  LabeledFieldInput,
   SearchLocationScreen,
+  useFocusScrollField,
   usePincodeAvailability,
 } from './deliveryAddressComponents';
 import {
@@ -48,6 +51,7 @@ import { submitCoverageRequest } from './coverageRequestStore';
 import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST } from './toast';
 import { useSavedAddresses } from './savedAddressesStore';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
+import { DeliveryEligibilityScreen, mealSelectionToMealLabel } from './deliveryEligibilityScreen';
 import { detailsFromSavedAddress, savedAddressFromDetails, type MealDeliverySlot, type SavedAddress } from './addressTypes';
 import { TrialSummaryScreen, trialPricingBreakup, type TrialMealDeliveryState } from './trialOnboardingSummary';
 const genderOptions = [
@@ -95,30 +99,18 @@ function TrialBottomSheet({ onClose, closeLabel, children }: { onClose: () => vo
 }
 
 function PersonalFormField({ label, value, onChangeText, placeholder, autoFocus, onSubmitEditing, inputRef }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; autoFocus?: boolean; onSubmitEditing?: () => void; inputRef?: React.RefObject<TextInput | null> }) {
-  const [focused, setFocused] = useState(false);
-  const { theme } = useUniwind();
-  const foregroundColor = theme === 'dark' ? '#ffffff' : '#101010';
-  const scrollFocusedField = useContext(FocusScrollContext);
-  const localRef = useRef<TextInput>(null);
-  const fieldClass = focused ? 'border border-foreground bg-canvas' : 'border border-transparent bg-field';
   return (
-    <View className="gap-2">
-      <Text className="font-body text-body-sm tracking-body-sm text-foreground">{label}</Text>
-      <CenteredFieldInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        selectionColor={foregroundColor}
-        shellClassName={fieldClass}
-        inputRef={inputRef ?? localRef}
-        autoFocus={autoFocus}
-        returnKeyType="next"
-        onSubmitEditing={onSubmitEditing}
-        autoCapitalize="words"
-        onFocus={() => { setFocused(true); scrollFocusedField?.((inputRef ?? localRef).current); }}
-        onBlur={() => setFocused(false)}
-      />
-    </View>
+    <LabeledFieldInput
+      label={label}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      inputRef={inputRef}
+      autoFocus={autoFocus}
+      returnKeyType="next"
+      onSubmitEditing={onSubmitEditing}
+      autoCapitalize="words"
+    />
   );
 }
 
@@ -171,7 +163,7 @@ function FlowGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregro
   return <Glyph size={Math.max(8, size - 4)} weight="bold" color={color} />;
 }
 
-type Step = 'personal' | 'intro' | 'food' | 'meal' | 'mixMeals' | 'bread' | 'rice' | 'addressFlow' | 'summary' | 'payment' | 'success' | 'tracker';
+type Step = 'deliveryEligibility' | 'personal' | 'intro' | 'food' | 'meal' | 'mixMeals' | 'bread' | 'rice' | 'addressFlow' | 'summary' | 'payment' | 'success' | 'tracker';
 type Choice = { title: string; description: string };
 type FoodChoice = Choice & { image: number };
 type Address = Omit<AddressDetails, 'deliveryLocation'>;
@@ -179,14 +171,14 @@ type MealKind = 'Vegetarian' | 'Non-vegetarian' | '';
 type DailyMealChoice = { lunch: MealKind; dinner: MealKind };
 type WeekendDelivery = 'primary' | 'different' | 'skip';
 type AddressMode = 'weekday' | 'weekend';
-type State = { name: string; dob: string; gender: string; food: string; meal: string; dailyMeals: DailyMealChoice[]; bread: string; rice: string; trialDays: string[]; deliveryLocation: string; weekendDelivery: WeekendDelivery; weekendLocation: string; weekendAddress: string; address: Address; weekendAddressDetails: Address; lunchDelivery: TrialMealDeliveryState | null; dinnerDelivery: TrialMealDeliveryState | null; summaryMealTab: MealDeliverySlot; payment: string };
+type State = { deliveryPincode: string; name: string; dob: string; gender: string; food: string; meal: string; dailyMeals: DailyMealChoice[]; bread: string; rice: string; trialDays: string[]; deliveryLocation: string; weekendDelivery: WeekendDelivery; weekendLocation: string; weekendAddress: string; address: Address; weekendAddressDetails: Address; lunchDelivery: TrialMealDeliveryState | null; dinnerDelivery: TrialMealDeliveryState | null; summaryMealTab: MealDeliverySlot; payment: string };
 
 // Future-scope plug: switch to true to restore the separate weekend location and address journey.
 const ENABLE_WEEKEND_ADDRESS_FLOW = false;
 
-const order: Step[] = ['personal', 'intro', 'food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow', 'summary', 'payment', 'success', 'tracker'];
+const order: Step[] = ['deliveryEligibility', 'personal', 'intro', 'food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow', 'summary', 'payment', 'success', 'tracker'];
 const emptyAddress = (): Address => { const { deliveryLocation, ...rest } = emptyAddressDetails(); return rest; };
-const addressDetailsFromState = (location: string, address: Address): AddressDetails => ({ ...address, deliveryLocation: location, pincode: address.pincode || extractPincodeFromText(location) });
+const addressDetailsFromState = (location: string, address: Address, preferredPincode = ''): AddressDetails => ({ ...address, deliveryLocation: location, pincode: address.pincode || extractPincodeFromText(location) || preferredPincode.replace(/\D/g, '').slice(0, 6) });
 const addressSlotsForMeal = (meal: string): MealDeliverySlot[] => {
   if (meal === 'Lunch') return ['lunch'];
   if (meal === 'Dinner') return ['dinner'];
@@ -216,7 +208,7 @@ const syncLegacyDeliveryFields = (data: State): Pick<State, 'deliveryLocation' |
   if (!primary) return { deliveryLocation: data.deliveryLocation, address: data.address };
   return { deliveryLocation: primary.deliveryLocation, address: primary.address };
 };
-const initialState: State = { name: '', dob: '', gender: '', food: '', meal: '', dailyMeals: Array.from({ length: TRIAL_DAY_COUNT }, () => ({ lunch: '', dinner: '' })), bread: '', rice: '', trialDays: [], deliveryLocation: 'B-704, Green View Apartments, Baner Road, Pune 411045', weekendDelivery: 'primary', weekendLocation: '', weekendAddress: '', payment: '', address: emptyAddress(), weekendAddressDetails: emptyAddress(), lunchDelivery: null, dinnerDelivery: null, summaryMealTab: 'lunch' };
+const initialState: State = { deliveryPincode: '', name: '', dob: '', gender: '', food: '', meal: '', dailyMeals: Array.from({ length: TRIAL_DAY_COUNT }, () => ({ lunch: '', dinner: '' })), bread: '', rice: '', trialDays: [], deliveryLocation: 'B-704, Green View Apartments, Baner Road, Pune 411045', weekendDelivery: 'primary', weekendLocation: '', weekendAddress: '', payment: '', address: emptyAddress(), weekendAddressDetails: emptyAddress(), lunchDelivery: null, dinnerDelivery: null, summaryMealTab: 'lunch' };
 const food: FoodChoice[] = [
   { title: 'Vegetarian', description: 'Seasonal vegetables, paneer and home-style dals.', image: foodImages.Vegetarian },
   { title: 'Non-vegetarian', description: 'Home-style chicken, mutton and egg preparations.', image: foodImages['Non-vegetarian'] },
@@ -265,7 +257,6 @@ function Primary({ label, onPress, enabled = true }: { label: string; onPress: (
   return <TrialAuthButton label={label} onPress={onPress} enabled={enabled} />;
 }
 
-const FocusScrollContext = createContext<((input: TextInput | null) => void) | null>(null);
 let trialSummaryScrollOffset = 0;
 
 function Shell({ title, onBack, children, footer, footerDelay = 280, fixedHeader = true, initialScrollOffset = title === 'Your trial, at a glance' ? trialSummaryScrollOffset : 0, onScrollOffsetChange = title === 'Your trial, at a glance' ? (offset) => { trialSummaryScrollOffset = offset; } : undefined, animateContent = title !== 'Your trial, at a glance', suppressKeyboard = false }: { title: string; onBack?: () => void; children: React.ReactNode; footer?: React.ReactNode; footerDelay?: number; fixedHeader?: boolean; initialScrollOffset?: number; onScrollOffsetChange?: (offset: number) => void; animateContent?: boolean; suppressKeyboard?: boolean }) {
@@ -273,26 +264,11 @@ function Shell({ title, onBack, children, footer, footerDelay = 280, fixedHeader
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   const scrollRef = useRef<ScrollView>(null);
-  const scrollOffset = useRef(0);
-  const lastFocusedInput = useRef<TextInput | null>(null);
+  const fixedHeaderHeight = insets.top + 12 + 33 + 4;
+  const { scrollOffset, positionFocusedField } = useFocusScrollField(scrollRef, {
+    visibleTopOffset: fixedHeader ? fixedHeaderHeight : insets.top + 12,
+  });
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const positionFocusedField = useCallback((input: TextInput | null, keyboardTop?: number) => {
-    const scroll = scrollRef.current;
-    if (!scroll || !input) return;
-    const resolvedKeyboardTop = keyboardTop ?? Keyboard.metrics()?.screenY;
-    if (!resolvedKeyboardTop) return;
-    input.measureInWindow((_inputX, inputY, _inputWidth, inputHeight) => {
-      const fieldBottom = inputY + Math.max(inputHeight, 52);
-      const overlap = fieldBottom + 20 - resolvedKeyboardTop;
-      if (overlap > 0) scroll.scrollTo({ y: Math.max(0, scrollOffset.current + overlap), animated: true });
-    });
-  }, []);
-  const scrollFocusedField = useCallback((input: TextInput | null) => {
-    lastFocusedInput.current = input;
-    positionFocusedField(input);
-    setTimeout(() => positionFocusedField(input), 80);
-    setTimeout(() => positionFocusedField(input), Platform.OS === 'android' ? 380 : 280);
-  }, [positionFocusedField]);
   useEffect(() => {
     if (suppressKeyboard) {
       setKeyboardHeight(0);
@@ -300,14 +276,11 @@ function Shell({ title, onBack, children, footer, footerDelay = 280, fixedHeader
     }
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
-      positionFocusedField(lastFocusedInput.current, event.endCoordinates.screenY);
-      setTimeout(() => positionFocusedField(lastFocusedInput.current, event.endCoordinates.screenY), 100);
-    });
+    const show = Keyboard.addListener(showEvent, (event) => setKeyboardHeight(event.endCoordinates.height));
     const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => { show.remove(); hide.remove(); };
-  }, [positionFocusedField, suppressKeyboard]);
+  }, [suppressKeyboard]);
+  const footerBottomInset = keyboardHeight > 0 ? 8 : (Platform.OS === 'ios' ? insets.bottom : Math.max(12, insets.bottom + 8));
   const header = <View style={fixedHeader ? { paddingTop: insets.top + 12 } : undefined} className="bg-canvas px-5 pb-1">
     {onBack ? <View className="flex-row items-center gap-3">
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} hitSlop={8} className="size-6 items-center justify-center">
@@ -317,16 +290,16 @@ function Shell({ title, onBack, children, footer, footerDelay = 280, fixedHeader
     </View> : <Animated.Text key={`${title}-title`} entering={animateContent ? FadeInUp.delay(30).duration(260) : undefined} className="font-heading text-heading-md text-foreground">{title}</Animated.Text>}
   </View>;
   return (
-    <FocusScrollContext.Provider value={scrollFocusedField}>
-    <View className="flex-1 bg-canvas">
+    <FocusScrollContext.Provider value={positionFocusedField}>
+    <View className="absolute inset-0 bg-canvas">
     {fixedHeader ? header : null}
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} enabled={!suppressKeyboard} className="flex-1 bg-canvas">
-      <ScrollView ref={scrollRef} contentOffset={{ x: 0, y: initialScrollOffset }} automaticallyAdjustKeyboardInsets={!suppressKeyboard} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; scrollOffset.current = offset; onScrollOffsetChange?.(offset); }} scrollEventThrottle={16} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingTop: fixedHeader ? 0 : insets.top + 12, paddingBottom: insets.bottom + (footer ? 92 : 24) + keyboardHeight }}>
+    <View className="flex-1 bg-canvas">
+      <ScrollView ref={scrollRef} contentOffset={{ x: 0, y: initialScrollOffset }} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; scrollOffset.current = offset; onScrollOffsetChange?.(offset); }} scrollEventThrottle={16} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingTop: fixedHeader ? 0 : insets.top + 12, paddingBottom: (footer ? 124 : 24) + (keyboardHeight > 0 ? keyboardHeight : insets.bottom) }}>
         {!fixedHeader ? header : null}
         <Animated.View key={`${title}-content`} entering={animateContent ? FadeInUp.delay(170).duration(280) : undefined} className="mx-5 mt-4">{children}</Animated.View>
       </ScrollView>
-    </KeyboardAvoidingView>
-      {footer ? <Animated.View key={`${title}-footer`} entering={animateContent ? FadeInUp.delay(footerDelay).duration(280) : undefined} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + 14 }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">{footer}</Animated.View> : null}
+    </View>
+      {footer ? <Animated.View key={`${title}-footer`} entering={animateContent ? FadeInUp.delay(footerDelay).duration(280) : undefined} style={{ bottom: keyboardHeight, paddingBottom: footerBottomInset }} className="absolute inset-x-0 bg-canvas px-5">{footer}</Animated.View> : null}
     </View>
     </FocusScrollContext.Provider>
   );
@@ -830,7 +803,7 @@ function TrialCalendarSheet({ initialDays, initialWeekendDelivery, initialWeeken
 
 export default function TrialFlow() {
   const { upsertAddress, setDefaultAddress } = useSavedAddresses();
-  const [step, setStep] = useState<Step>('personal'); const [data, setData] = useState<State>(initialState); const [dateOpen, setDateOpen] = useState(false); const [calendarOpen, setCalendarOpen] = useState(false); const [paused, setPaused] = useState(false); const [pauseOpen, setPauseOpen] = useState(false); const [toast, setToast] = useState(false); const [returnToSummary, setReturnToSummary] = useState(false); const [openSubscriptionOnHome, setOpenSubscriptionOnHome] = useState(false);
+  const [step, setStep] = useState<Step>('deliveryEligibility'); const [data, setData] = useState<State>(initialState); const [dateOpen, setDateOpen] = useState(false); const [calendarOpen, setCalendarOpen] = useState(false); const [paused, setPaused] = useState(false); const [pauseOpen, setPauseOpen] = useState(false); const [toast, setToast] = useState(false); const [returnToSummary, setReturnToSummary] = useState(false); const [openSubscriptionOnHome, setOpenSubscriptionOnHome] = useState(false);
   const [addressMode, setAddressMode] = useState<AddressMode>('weekday');
   const [locationSearchOpen, setLocationSearchOpen] = useState(false);
   const [coverageOpen, setCoverageOpen] = useState(false);
@@ -844,7 +817,7 @@ export default function TrialFlow() {
   const patchWeekdayAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, address: { ...current.address, ...patch } }));
   const patchWeekendAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, weekendAddressDetails: { ...current.weekendAddressDetails, ...patch } }));
   const patchActiveAddress = (patch: Partial<AddressDetails>) => { if (addressMode === 'weekday') patchWeekdayAddress(patch); else patchWeekendAddress(patch); };
-const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.min(order.length - 1, index + 1)]!); }; const back = () => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.max(0, index - 1)]!); };
+const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } let nextIndex = Math.min(order.length - 1, index + 1); if (step === 'food' && data.meal && order[nextIndex] === 'meal') nextIndex = Math.min(order.length - 1, nextIndex + 1); setStep(order[nextIndex]!); }; const back = () => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.max(0, index - 1)]!); };
   const meals = data.meal === 'Both' ? TRIAL_DAY_COUNT * 2 : TRIAL_DAY_COUNT;
   const dailyMealsComplete = data.dailyMeals.every((day) => (data.meal === 'Dinner' || !!day.lunch) && (data.meal === 'Lunch' || !!day.dinner));
   const total = trialPricingBreakup(data.meal).total;
@@ -901,22 +874,35 @@ const index = order.indexOf(step); const next = () => { if (returnToSummary && [
 
   const addressRefs = { number: addressNumberRef, society: societyRef, landmark: landmarkRef, instructions: instructionsRef };
 
-  if (step === 'personal') return <><Shell title="Tell us about you" onBack={undefined} footer={<TrialAuthButton label="Continue" enabled={data.name.trim().length > 1 && !!data.dob && !!data.gender} onPress={next} />}><FormPageSection subheading="A few details help us personalise your trial."><View className="gap-sheet-gap"><PersonalFormField label="Full name" autoFocus value={data.name} onChangeText={(value) => set('name', value)} placeholder="Your full name" onSubmitEditing={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><PersonalDateField value={data.dob} onPress={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><View className="gap-2"><Text className="font-body text-body-sm tracking-body-sm text-foreground">Gender</Text><View className="flex-row gap-otp">{genderOptions.map((option) => <PersonalGenderCard key={option.label} label={option.label} icon={option.icon} selected={data.gender === option.label} onPress={() => set('gender', option.label)} />)}</View></View></View></FormPageSection></Shell>{dateOpen ? <DateSheet value={data.dob} onClose={() => setDateOpen(false)} onConfirm={(value) => { set('dob', value); setDateOpen(false); }} /> : null}</>;
-  if (step === 'intro') return <TrialIntro onBack={back} onProceed={next} onSkipToSubscribe={() => { setData((current) => ({ ...current, food: current.food || 'Vegetarian', meal: current.meal || 'Lunch', bread: current.bread || 'Chapati', rice: current.rice || 'Plain Rice' })); setOpenSubscriptionOnHome(true); setStep('tracker'); }} />;
+  useEffect(() => {
+    if (step === 'meal' && data.meal && !returnToSummary) {
+      if (data.food === 'Mix of both') setStep('mixMeals');
+      else setStep('bread');
+    }
+  }, [step, data.meal, data.food, returnToSummary]);
+
+  if (step === 'deliveryEligibility') return <View className="absolute inset-0 bg-canvas"><DeliveryEligibilityScreen shell={(content, footer) => <Shell title="Delivery availability" onBack={undefined} footer={footer}>{content}</Shell>} initialPincode={data.deliveryPincode} initialMealLabel={data.meal} initialTrusted={!!data.deliveryPincode && !!data.meal} onContinue={({ pincode, meal }) => { setData((current) => ({ ...current, deliveryPincode: pincode, meal: mealSelectionToMealLabel(meal) })); next(); }} /></View>;
+  if (step === 'personal') return <><Shell title="Tell us about you" onBack={back} footer={<TrialAuthButton label="Continue" enabled={data.name.trim().length > 1 && !!data.dob && !!data.gender} onPress={next} />}><FormPageSection subheading="A few details help us personalise your trial."><View className="gap-sheet-gap"><PersonalFormField label="Full name" autoFocus value={data.name} onChangeText={(value) => set('name', value)} placeholder="Your full name" onSubmitEditing={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><PersonalDateField value={data.dob} onPress={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><View className="gap-2"><Text className="font-body text-body-sm tracking-body-sm text-foreground">Gender</Text><View className="flex-row gap-otp">{genderOptions.map((option) => <PersonalGenderCard key={option.label} label={option.label} icon={option.icon} selected={data.gender === option.label} onPress={() => set('gender', option.label)} />)}</View></View></View></FormPageSection></Shell>{dateOpen ? <DateSheet value={data.dob} onClose={() => setDateOpen(false)} onConfirm={(value) => { set('dob', value); setDateOpen(false); }} /> : null}</>;
+  if (step === 'intro') return <TrialIntro onBack={back} onProceed={next} onSkipToSubscribe={() => { if (!data.deliveryPincode || !data.meal) { setStep('deliveryEligibility'); return; } setData((current) => ({ ...current, food: current.food || 'Vegetarian', bread: current.bread || 'Chapati', rice: current.rice || 'Plain Rice' })); setOpenSubscriptionOnHome(true); setStep('tracker'); }} />;
   if (step === 'food') return <><Shell title="What do you enjoy eating?" onBack={back}><FormPageSection subheading="Choose one preference for your trial."><PreferenceCards options={food} value={data.food} onChange={(value) => { set('food', value); setCalendarOpen(true); }} /></FormPageSection></Shell>{calendarOpen ? <TrialCalendarSheet initialDays={data.trialDays} initialWeekendDelivery={data.weekendDelivery} initialWeekendLocation={data.weekendLocation} initialWeekendAddress={data.weekendAddress} onClose={() => setCalendarOpen(false)} onConfirm={(trialDays, weekendDelivery, weekendLocation, weekendAddress) => { setData((current) => ({ ...current, trialDays, weekendDelivery, weekendLocation, weekendAddress, dailyMeals: Array.from({ length: TRIAL_DAY_COUNT }, (_, index) => current.dailyMeals[index] ?? { lunch: '', dinner: '' }) })); setCalendarOpen(false); setTimeout(next, 160); }} /> : null}</>
   if (step === 'meal') return <Shell title="Choose your meals" onBack={back}><FormPageSection subheading="Delivery windows are fixed so every day stays predictable."><PreferenceCards options={meal} value={data.meal} onChange={(v) => { set('meal', v); setTimeout(() => { if (data.food === 'Mix of both') setStep('mixMeals'); else if (returnToSummary) { setReturnToSummary(false); setStep('summary'); } else setStep('bread'); }, 160); }} /></FormPageSection></Shell>;
   if (step === 'mixMeals') return <Shell title="Plan your three days" onBack={back} footer={<TrialAuthButton label="Continue" enabled={dailyMealsComplete} onPress={next} />}><FormPageSection subheading="Choose vegetarian or non-vegetarian food for each selected meal."><DailyMealPlan meal={data.meal} dates={data.trialDays} value={data.dailyMeals} onChange={(value) => set('dailyMeals', value)} /></FormPageSection></Shell>;
-  if (step === 'bread') return <Shell title="Choose your bread" onBack={() => { if (returnToSummary) back(); else setStep(data.food === 'Mix of both' ? 'mixMeals' : 'meal'); }}><FormPageSection subheading="Pick what feels most familiar at home."><PreferenceCards options={bread} value={data.bread} onChange={(v) => { set('bread', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
+  if (step === 'bread') return <Shell title="Choose your bread" onBack={() => { if (returnToSummary) back(); else if (data.meal) setStep('food'); else setStep('meal'); }}><FormPageSection subheading="Pick what feels most familiar at home."><PreferenceCards options={bread} value={data.bread} onChange={(v) => { set('bread', v); setTimeout(next, 160); }} /></FormPageSection></Shell>;
   if (step === 'rice') return <Shell title="Choose your rice" onBack={back}><FormPageSection subheading="You can change this later for upcoming meals."><PreferenceCards options={rice} value={data.rice} onChange={(v) => { set('rice', v); setTimeout(() => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); } else startAddressFlow(); }, 160); }} /></FormPageSection></Shell>;
   if (step === 'addressFlow' && addressFlowSlot) {
     const existing = addressFlowSlot === 'lunch' ? data.lunchDelivery : data.dinnerDelivery;
+    const initialLocation = existing?.deliveryLocation ?? '';
+    const initialDetails = existing
+      ? addressDetailsFromState(existing.deliveryLocation, existing.address, data.deliveryPincode)
+      : { ...emptyAddressDetails(''), pincode: data.deliveryPincode };
     return (
       <DeliveryAddressFlow
         key={addressFlowSlot}
         mode="onboarding"
         mealSlot={addressFlowSlot}
-        initialLocation={existing?.deliveryLocation ?? data.deliveryLocation}
-        initialDetails={existing ? addressDetailsFromState(existing.deliveryLocation, existing.address) : addressDetailsFromState(data.deliveryLocation, data.address)}
+        initialLocation={initialLocation}
+        initialDetails={initialDetails}
+        preferredPincode={data.deliveryPincode}
         referenceMealDelivery={addressFlowSlot === 'dinner' ? data.lunchDelivery : null}
         onUseSameAsReference={addressFlowSlot === 'dinner' && data.lunchDelivery ? handleUseSameAsReference : undefined}
         onClose={() => {

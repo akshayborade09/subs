@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
+import { DeliveryEligibilityScreen, mealSelectionToMealLabel } from './deliveryEligibilityScreen';
+import { FocusScrollContext, useFocusScrollField } from './deliveryAddressComponents';
 import { FormPageSection } from './formLayout';
 import { PrimaryShimmerButton } from './primaryButton';
 import { hapticPress } from './haptics';
@@ -21,6 +23,7 @@ const PREF_DAY_COUNT = 3;
 type DailyMealChoice = { lunch: string; dinner: string };
 
 export type SubscriptionPreferences = {
+  deliveryPincode: string;
   food: string;
   meal: string;
   bread: string;
@@ -35,7 +38,7 @@ export type PreferenceCompletionMeta = {
   completed: true;
 };
 
-type PrefStep = 'food' | 'meal' | 'mixMeals' | 'bread' | 'rice';
+type PrefStep = 'deliveryEligibility' | 'food' | 'meal' | 'mixMeals' | 'bread' | 'rice';
 
 function selectionCardClass(selected: boolean) {
   return `overflow-hidden rounded-field border bg-canvas ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`;
@@ -113,9 +116,10 @@ function DailyMealPlan({ meal, value, onChange }: { meal: string; value: DailyMe
   );
 }
 
-const stepOrder: PrefStep[] = ['food', 'meal', 'mixMeals', 'bread', 'rice'];
+const stepOrder: PrefStep[] = ['deliveryEligibility', 'food', 'meal', 'mixMeals', 'bread', 'rice'];
 
 const stepCopy: Record<PrefStep, { title: string; subheading: string }> = {
+  deliveryEligibility: { title: 'Delivery availability', subheading: '' },
   food: { title: 'What do you enjoy eating?', subheading: 'Choose one preference for your meals.' },
   meal: { title: 'Choose your meals', subheading: 'Delivery windows are fixed so every day stays predictable.' },
   mixMeals: { title: 'Plan your meal mix', subheading: 'Choose vegetarian or non-vegetarian food for each selected meal.' },
@@ -145,7 +149,19 @@ export function SubscriptionPreferenceFlow({
   const insets = useSafeAreaInsets();
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
-  const [step, setStep] = useState<PrefStep>('food');
+  const deliveryScrollRef = useRef<ScrollView>(null);
+  const deliveryHeaderOffset = insets.top + 12;
+  const { scrollOffset: deliveryScrollOffset, positionFocusedField: positionDeliveryField } = useFocusScrollField(deliveryScrollRef, { visibleTopOffset: deliveryHeaderOffset });
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (event) => setKeyboardHeight(event.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const [step, setStep] = useState<PrefStep>('deliveryEligibility');
+  const [deliveryPincode, setDeliveryPincode] = useState(initial.deliveryPincode);
   const [food, setFood] = useState(initial.food);
   const [meal, setMeal] = useState(initial.meal);
   const [bread, setBread] = useState(initial.bread);
@@ -154,7 +170,11 @@ export function SubscriptionPreferenceFlow({
     initial.dailyMeals.length ? initial.dailyMeals : emptyDailyMeals(),
   );
 
-  const visibleSteps = stepOrder.filter((item) => item !== 'mixMeals' || food === 'Mix of both');
+  const visibleSteps = stepOrder.filter((item) => {
+    if (item === 'mixMeals') return food === 'Mix of both';
+    if (item === 'meal') return !meal;
+    return true;
+  });
   const stepIndex = visibleSteps.indexOf(step);
   const back = () => {
     if (stepIndex <= 0) {
@@ -165,7 +185,7 @@ export function SubscriptionPreferenceFlow({
   };
 
   const finish = () => {
-    onComplete({ food, meal, bread, rice, dailyMeals }, { source: completionSource, completed: true });
+    onComplete({ deliveryPincode, food, meal, bread, rice, dailyMeals }, { source: completionSource, completed: true });
   };
 
   const goNext = (nextStep?: PrefStep) => {
@@ -183,6 +203,54 @@ export function SubscriptionPreferenceFlow({
   const copy = stepCopy[step];
   const mixComplete = dailyMealsComplete(meal, dailyMeals);
 
+  if (step === 'deliveryEligibility') {
+    return (
+      <DeliveryEligibilityScreen
+        shell={(content, footer) => (
+          <Animated.View entering={FadeInUp.duration(220)} className="absolute inset-0 z-[60] bg-canvas">
+            <FocusScrollContext.Provider value={positionDeliveryField}>
+              <View className="flex-1">
+                <ScrollView
+                  ref={deliveryScrollRef}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  scrollEventThrottle={16}
+                  onScroll={(event) => { deliveryScrollOffset.current = event.nativeEvent.contentOffset.y; }}
+                  contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 124 + (keyboardHeight > 0 ? keyboardHeight : insets.bottom) }}
+                >
+                  <View className="px-5">
+                    <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={hapticPress(onClose, 'light')} hitSlop={8} className="mb-6 size-6 items-center justify-center">
+                      <CaretLeftIcon size={24} weight="regular" color={iconColor} />
+                    </Pressable>
+                    <Text className="font-heading text-heading-md text-foreground">Delivery availability</Text>
+                    <View className="mt-6">{content}</View>
+                  </View>
+                </ScrollView>
+                <Animated.View
+                  style={{
+                    bottom: keyboardHeight,
+                    paddingBottom: keyboardHeight > 0 ? 8 : (Platform.OS === 'ios' ? insets.bottom : Math.max(12, insets.bottom + 8)),
+                  }}
+                  className="absolute inset-x-0 bg-canvas px-5"
+                >
+                  {footer}
+                </Animated.View>
+              </View>
+            </FocusScrollContext.Provider>
+          </Animated.View>
+        )}
+        initialPincode={deliveryPincode}
+        initialMealLabel={meal}
+        initialTrusted={!!deliveryPincode && !!meal}
+        onContinue={({ pincode, meal: selectedMeal }) => {
+          setDeliveryPincode(pincode);
+          setMeal(mealSelectionToMealLabel(selectedMeal));
+          goNext('food');
+        }}
+      />
+    );
+  }
+
   return (
     <Animated.View entering={FadeInUp.duration(220)} className="absolute inset-0 z-[60] bg-canvas">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
@@ -195,7 +263,7 @@ export function SubscriptionPreferenceFlow({
               <Text className="font-heading text-heading-md text-foreground">{copy.title}</Text>
               <View className="mt-6">
                 {step === 'food' ? (
-                  <PreferenceCards options={subscriptionFoodOptions} value={food} onChange={(value) => { setFood(value); setTimeout(() => goNext('meal'), 160); }} />
+                  <PreferenceCards options={subscriptionFoodOptions} value={food} onChange={(value) => { setFood(value); setTimeout(() => { if (meal) { if (value === 'Mix of both') goNext('mixMeals'); else goNext('bread'); } else goNext('meal'); }, 160); }} />
                 ) : null}
                 {step === 'meal' ? (
                   <PreferenceCards

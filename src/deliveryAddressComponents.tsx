@@ -50,7 +50,7 @@ import {
   checkDeliveryAvailability,
   deliveryLocationAvailabilityMessage,
   extractPincode,
-  supportedDeliveryPincodes,
+  isValidIndianPincodeFormat,
   type DeliveryAvailabilityState,
 } from './deliveryServiceability';
 
@@ -62,7 +62,7 @@ function FlowGlyph({ icon: Glyph, size = 20 }: { icon: typeof MapPinIcon; size?:
   return <Glyph size={size} weight="bold" color={color} />;
 }
 
-function AddressBottomSheet({ onClose, closeLabel, children, maxHeightRatio = 0.6 }: { onClose: () => void; closeLabel: string; children: ReactNode; maxHeightRatio?: number }) {
+export function AddressBottomSheet({ onClose, closeLabel, children, maxHeightRatio = 0.6 }: { onClose: () => void; closeLabel: string; children: ReactNode; maxHeightRatio?: number }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -176,14 +176,23 @@ export function DeliveryCoverageSheet({
   onPincodeChange: (pincode: string) => void;
   onSubmit: () => void;
 }) {
+  const { theme } = useUniwind();
+  const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
   const foregroundColor = useForegroundColor();
-  const scrollRef = useRef<ScrollView>(null);
   const pincodeRef = useRef<TextInput>(null);
   const [pincode, setPincode] = useState(initialPincode.replace(/\D/g, '').slice(0, 6));
+  const [focused, setFocused] = useState(false);
+  const validPincode = isValidIndianPincodeFormat(pincode);
+  const fieldClass = focused ? 'border border-foreground bg-canvas' : 'border border-transparent bg-field';
 
   useEffect(() => {
     setPincode(initialPincode.replace(/\D/g, '').slice(0, 6));
   }, [initialPincode]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => pincodeRef.current?.focus(), 280);
+    return () => clearTimeout(timer);
+  }, []);
 
   const updatePincode = (value: string) => {
     const next = value.replace(/\D/g, '').slice(0, 6);
@@ -191,61 +200,49 @@ export function DeliveryCoverageSheet({
     onPincodeChange(next);
   };
 
-  const focusPincodeField = () => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), Platform.OS === 'android' ? 320 : 220);
-  };
-
   return (
-    <AddressBottomSheet onClose={onClose} closeLabel="Close delivery coverage" maxHeightRatio={0.85}>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-      >
-        <FormHeader title="Delivery coverage" size="sheet" />
-        <Text className="mt-4 font-body-medium text-body-md leading-6 text-foreground">We're not in your area just yet.</Text>
-        <Text className="mt-3 font-body text-body-sm leading-5 text-muted">
-          We currently deliver to selected areas covered by these pincodes:
-        </Text>
-        <View className="mt-2 gap-1">
-          {supportedDeliveryPincodes.map((code) => (
-            <Text key={code} className="font-mono-semibold text-body-sm text-foreground">{code}</Text>
-          ))}
-        </View>
-        <Text className="mt-4 font-body text-body-sm leading-5 text-muted">
-          We're actively expanding our delivery network, and we'd love to reach your area soon.
-        </Text>
-        <Text className="mt-4 font-body text-body-sm leading-5 text-muted">
-          Share your pincode below and we'll use it to help prioritise where we expand next.
-        </Text>
-        <View className="mt-5 gap-2">
-          <Text className="font-body text-body-sm tracking-body-sm text-foreground">Request delivery in your area</Text>
-          <CenteredFieldInput
-            value={pincode}
-            onChangeText={updatePincode}
-            onFocus={focusPincodeField}
-            placeholder="Enter your pincode"
-            selectionColor={foregroundColor}
-            shellClassName="border border-border bg-field"
-            inputRef={pincodeRef}
-            keyboardType="number-pad"
-            maxLength={6}
-            returnKeyType="done"
-          />
-          {requestState === 'error' ? (
-            <Text className="font-body text-body-xs text-muted">Unable to save your request right now. Please try again.</Text>
-          ) : null}
-        </View>
-        <View className="mt-6 pb-2">
+    <AddressBottomSheet onClose={onClose} closeLabel="Close delivery coverage request" maxHeightRatio={0.6}>
+      <FormModalLayout
+        title="Request delivery in your area"
+        subtitle="We're expanding to more locations. Share your pincode and we'll use it to help prioritise where we deliver next."
+        headerAction={
+          <Pressable accessibilityRole="button" accessibilityLabel="Close delivery coverage request" onPress={onClose} hitSlop={8} className="size-icon-button items-center justify-center">
+            <XIcon size={24} weight="regular" color={iconColor} />
+          </Pressable>
+        }
+        fields={(
+          <View className="gap-2">
+            <Text className="font-body text-body-sm tracking-body-sm text-foreground">Pincode</Text>
+            <CenteredFieldInput
+              value={pincode}
+              onChangeText={updatePincode}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder="Enter pincode"
+              selectionColor={foregroundColor}
+              shellClassName={fieldClass}
+              inputRef={pincodeRef}
+              keyboardType="number-pad"
+              maxLength={6}
+              returnKeyType="default"
+              onSubmitEditing={() => {
+                if (validPincode && requestState !== 'submitting') onSubmit();
+              }}
+            />
+            {requestState === 'error' ? (
+              <Text className="font-body text-body-xs text-muted">Unable to save your request right now. Please try again.</Text>
+            ) : null}
+          </View>
+        )}
+        primaryAction={(
           <PrimaryShimmerButton
             label={requestState === 'submitting' ? 'Saving…' : 'Done'}
-            enabled={pincode.length === 6 && requestState !== 'submitting'}
+            enabled={validPincode && requestState !== 'submitting'}
+            loading={requestState === 'submitting'}
             onPress={onSubmit}
           />
-        </View>
-      </ScrollView>
+        )}
+      />
     </AddressBottomSheet>
   );
 }
@@ -329,16 +326,24 @@ export function LocationSearchBar({
 
 export function DeliveryAddressMap({
   searchQuery,
+  preferredPincode,
   onAddressChange,
   onCoordinateChange,
 }: {
   searchQuery: string;
+  preferredPincode?: string;
   onAddressChange: (value: string) => void;
   onCoordinateChange?: (coordinate: { latitude: number; longitude: number }) => void;
 }) {
   return (
     <View className="-mx-5 overflow-hidden">
-      <SelectableMap fullWidth searchQuery={searchQuery} onAddressChange={onAddressChange} onCoordinateChange={onCoordinateChange} />
+      <SelectableMap
+        fullWidth
+        searchQuery={searchQuery}
+        preferredPincode={preferredPincode}
+        onAddressChange={onAddressChange}
+        onCoordinateChange={onCoordinateChange}
+      />
     </View>
   );
 }
@@ -501,7 +506,7 @@ export function SearchLocationScreen({ initialValue, onBack, onSelect }: { initi
   );
 }
 
-function AddressFormField({ label, value, onChangeText, placeholder, multiline = false, inputRef, returnKeyType = 'next', onSubmitEditing, autoFocus = false }: { label?: string; value: string; onChangeText: (v: string) => void; placeholder: string; multiline?: boolean; inputRef?: React.RefObject<TextInput | null>; returnKeyType?: 'next' | 'done'; onSubmitEditing?: () => void; autoFocus?: boolean }) {
+function AddressFormField({ label, value, onChangeText, placeholder, multiline = false, inputRef, returnKeyType = 'next', onSubmitEditing, autoFocus = false, keyboardType, maxLength, autoCapitalize }: { label?: string; value: string; onChangeText: (v: string) => void; placeholder: string; multiline?: boolean; inputRef?: React.RefObject<TextInput | null>; returnKeyType?: TextInput['props']['returnKeyType']; onSubmitEditing?: () => void; autoFocus?: boolean; keyboardType?: TextInput['props']['keyboardType']; maxLength?: number; autoCapitalize?: TextInput['props']['autoCapitalize']; }) {
   const [focused, setFocused] = useState(false);
   const placeholderColor = useFieldPlaceholderColor();
   const foregroundColor = useForegroundColor();
@@ -511,9 +516,52 @@ function AddressFormField({ label, value, onChangeText, placeholder, multiline =
   const content = multiline ? (
     <TextInput ref={(node) => { localRef.current = node; if (inputRef) inputRef.current = node; }} autoFocus={autoFocus} value={value} onChangeText={onChangeText} onFocus={() => { setFocused(true); scrollFocusedField?.(localRef.current); }} onBlur={() => setFocused(false)} onSubmitEditing={onSubmitEditing} returnKeyType={returnKeyType} blurOnSubmit={returnKeyType === 'done'} submitBehavior="blurAndSubmit" placeholder={placeholder} placeholderTextColor={placeholderColor} multiline textAlignVertical="top" className={`rounded-field px-sheet ${fieldClass}`} style={[multilineFieldInputStyle, { color: foregroundColor }]} />
   ) : (
-    <CenteredFieldInput value={value} onChangeText={onChangeText} placeholder={placeholder} selectionColor={foregroundColor} shellClassName={fieldClass} inputRef={inputRef ?? localRef} autoFocus={autoFocus} returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} onFocus={() => { setFocused(true); scrollFocusedField?.((inputRef ?? localRef).current); }} onBlur={() => setFocused(false)} />
+    <CenteredFieldInput value={value} onChangeText={onChangeText} placeholder={placeholder} selectionColor={foregroundColor} shellClassName={fieldClass} inputRef={inputRef ?? localRef} autoFocus={autoFocus} returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} keyboardType={keyboardType} maxLength={maxLength} autoCapitalize={autoCapitalize} onFocus={() => { setFocused(true); scrollFocusedField?.((inputRef ?? localRef).current); }} onBlur={() => setFocused(false)} />
   );
   return <View className={label ? 'gap-2' : undefined}>{label ? <Text className="font-body text-body-sm tracking-body-sm text-foreground">{label}</Text> : null}{content}</View>;
+}
+
+/** Label + focused field shell — same pattern as onboarding personal details. */
+export function LabeledFieldInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  inputRef,
+  returnKeyType = 'next',
+  onSubmitEditing,
+  autoFocus = false,
+  keyboardType,
+  maxLength,
+  autoCapitalize,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  inputRef?: React.RefObject<TextInput | null>;
+  returnKeyType?: TextInput['props']['returnKeyType'];
+  onSubmitEditing?: () => void;
+  autoFocus?: boolean;
+  keyboardType?: TextInput['props']['keyboardType'];
+  maxLength?: number;
+  autoCapitalize?: TextInput['props']['autoCapitalize'];
+}) {
+  return (
+    <AddressFormField
+      label={label}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      inputRef={inputRef}
+      returnKeyType={returnKeyType}
+      onSubmitEditing={onSubmitEditing}
+      autoFocus={autoFocus}
+      keyboardType={keyboardType}
+      maxLength={maxLength}
+      autoCapitalize={autoCapitalize}
+    />
+  );
 }
 
 const ADDRESS_LABEL_ICONS: Record<AddressLabelType, typeof HouseIcon> = {
@@ -991,6 +1039,9 @@ export function useFocusScrollField(
       const fieldBottom = inputY + Math.max(inputHeight, 52);
       const visibleTop = visibleTopOffset + 8;
       const visibleBottom = resolvedKeyboardTop - 16;
+
+      if (fieldTop >= visibleTop && fieldBottom <= visibleBottom) return;
+
       let scrollDelta = 0;
 
       if (fieldBottom > visibleBottom) {

@@ -4,6 +4,7 @@ declare const SelectableMap: ComponentType<{
   compact?: boolean;
   thumbnail?: boolean;
   searchQuery?: string;
+  preferredPincode?: string;
   fill?: boolean;
   fullWidth?: boolean;
   onAddressChange?: (address: string) => void;
