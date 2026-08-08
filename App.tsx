@@ -513,7 +513,7 @@ function PhoneForm({ phone, setPhone, onContinue }: { phone: string; setPhone: (
             inputMode="numeric"
             textContentType="telephoneNumber"
             autoComplete="tel"
-            returnKeyType="done"
+            returnKeyType="default"
             onSubmitEditing={() => { setTouched(true); if (valid) onContinue(); }}
             onFocus={() => setFocused(true)}
             onBlur={() => { setFocused(false); setTouched(true); }}

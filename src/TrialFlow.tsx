@@ -741,18 +741,10 @@ function TrialCalendarSheet({ initialDays, initialWeekendDelivery, initialWeeken
     return () => clearTimeout(timer);
   }, [pageWidth]);
   const selectedDates = Array.from(selectedKeys).map((key) => new Date(`${key}T00:00:00`)).sort((a, b) => a.getTime() - b.getTime());
-  const dayDifference = (left: Date, right: Date) => Math.round((right.getTime() - left.getTime()) / 86400000);
-  const minDate = anchor ? addCalendarDays(anchor, -6) : today;
+  // First pick anchors a 7-day window (inclusive). Any 3 days inside that window are allowed.
+  const minDate = anchor ?? today;
   const maxDate = anchor ? addCalendarDays(anchor, 6) : addCalendarDays(today, 180);
-  const isContinuous = selectedDates.length === TRIAL_DAY_COUNT && selectedDates.every((date, index) => {
-    if (index === 0) return true;
-    let cursor = addCalendarDays(selectedDates[index - 1]!, 1);
-    while (cursor < date) {
-      if (!isWeekend(cursor)) return false;
-      cursor = addCalendarDays(cursor, 1);
-    }
-    return true;
-  });
+  const canConfirm = selectedDates.length === TRIAL_DAY_COUNT;
   const toggleDate = (date: Date) => {
     if (date < today) return;
     if (!anchor) {
@@ -792,10 +784,10 @@ function TrialCalendarSheet({ initialDays, initialWeekendDelivery, initialWeeken
     <TrialBottomSheet onClose={onClose} closeLabel="Close calendar">
       <FormModalLayout
         title="Choose your three days"
-        subtitle="Choose three continuous delivery days. Saturday and Sunday may be skipped."
+        subtitle="Pick a start date, then choose any three days within the following seven days."
         headerAction={<TrialIconButton icon={XIcon} variant="surface" onPress={onClose} accessibilityLabel="Close calendar" />}
-        fields={<><Animated.ScrollView ref={calendarPagerRef} horizontal pagingEnabled snapToInterval={pageWidth} decelerationRate="fast" showsHorizontalScrollIndicator={false} style={{ width: pageWidth, alignSelf: 'center', overflow: 'hidden' }} layout={LinearTransition.duration(180).easing(Easing.inOut(Easing.quad))} contentOffset={{ x: initialMonthIndex * pageWidth, y: 0 }} onMomentumScrollEnd={(event) => { visibleMonthIndex.current = Math.round(event.nativeEvent.contentOffset.x / pageWidth); }}>{months.map(renderMonth)}</Animated.ScrollView>{selectedDates.length === TRIAL_DAY_COUNT && !isContinuous ? <FormValidationText>Keep weekdays continuous; only Saturday and Sunday can be skipped.</FormValidationText> : null}</>}
-        primaryAction={<TrialAuthButton label="Confirm three days" enabled={isContinuous} onPress={() => onConfirm(selectedDates.map(dateKey), initialWeekendDelivery, initialWeekendLocation, initialWeekendAddress)} />}
+        fields={<Animated.ScrollView ref={calendarPagerRef} horizontal pagingEnabled snapToInterval={pageWidth} decelerationRate="fast" showsHorizontalScrollIndicator={false} style={{ width: pageWidth, alignSelf: 'center', overflow: 'hidden' }} layout={LinearTransition.duration(180).easing(Easing.inOut(Easing.quad))} contentOffset={{ x: initialMonthIndex * pageWidth, y: 0 }} onMomentumScrollEnd={(event) => { visibleMonthIndex.current = Math.round(event.nativeEvent.contentOffset.x / pageWidth); }}>{months.map(renderMonth)}</Animated.ScrollView>}
+        primaryAction={<TrialAuthButton label="Confirm three days" enabled={canConfirm} onPress={() => onConfirm(selectedDates.map(dateKey), initialWeekendDelivery, initialWeekendLocation, initialWeekendAddress)} />}
       />
     </TrialBottomSheet>
   );
