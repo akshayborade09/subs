@@ -1,12 +1,18 @@
+import { backendEnabled, isSignedIn, requestCoverage } from './api/client';
+
 export type CoverageRequestState = 'idle' | 'submitting' | 'submitted' | 'error';
 
 const requestedPincodes: string[] = [];
 
-/** Local stand-in until a backend endpoint is wired up. */
+/** POST /v1/serviceability/coverage-requests in backend mode; local mock otherwise. */
 export async function submitCoverageRequest(pincode: string): Promise<void> {
   const normalized = pincode.trim();
   if (!/^\d{6}$/.test(normalized)) {
     throw new Error('Invalid pincode');
+  }
+  if (backendEnabled && isSignedIn()) {
+    await requestCoverage(normalized);
+    return;
   }
   await new Promise((resolve) => setTimeout(resolve, 250));
   if (!requestedPincodes.includes(normalized)) {
