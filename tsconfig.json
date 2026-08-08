@@ -3,6 +3,5 @@
   "compilerOptions": {
     "strict": true,
     "noUncheckedIndexedAccess": true
-  },
-  "exclude": ["server"]
+  }
 }
