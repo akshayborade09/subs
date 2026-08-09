@@ -1,3 +1,9 @@
+import {
+  backendEnabled,
+  checkServiceability as apiCheckServiceability,
+  fetchServiceableAreas,
+} from './api/client';
+
 export type DeliveryAvailabilityState = 'idle' | 'checking' | 'available' | 'unavailable' | 'error';
 
 export type PincodeServiceabilityState = 'idle' | 'checking' | 'serviceable' | 'notServiceable' | 'error';
@@ -64,10 +70,19 @@ export async function checkPincodeServiceability({ pincode }: { pincode: string 
   if (!isValidIndianPincodeFormat(normalized)) {
     throw new Error('Invalid pincode format');
   }
+  if (backendEnabled) {
+    const result = await apiCheckServiceability(normalized);
+    return {
+      serviceable: result.serviceable,
+      pincode: result.pincode,
+      areaName: result.areaName ?? undefined,
+    };
+  }
   return mockCheckPincodeServiceability(normalized);
 }
 
 export async function getServiceableAreas(): Promise<ServiceableArea[]> {
+  if (backendEnabled) return fetchServiceableAreas();
   return mockGetServiceableAreas();
 }
 

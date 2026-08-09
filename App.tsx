@@ -69,6 +69,7 @@ import { BlurInText } from './src/BlurInText';
 import { getLifecycleDefinition, initialLifecycleMachineState, lifecycleMachineReducer, type LifecycleStateId } from './src/lifecycleStateMachine';
 import { themePalette } from './src/themeColors';
 import { PrimaryShimmerButton } from './src/primaryButton';
+import { backendEnabled, startOtp, verifyOtp } from './src/api/client';
 
 const onboardingImages = {
   everydayMeals: require('./assets/onboarding/everyday-meals.webp'),
@@ -551,7 +552,7 @@ function OtpCursor() {
   return <Animated.View style={cursorStyle} className="h-5 w-0.5 rounded-full bg-foreground" />;
 }
 
-function OtpForm({ phone, onBack, onClose, onVerified }: { phone: string; onBack: () => void; onClose: () => void; onVerified: () => void }) {
+function OtpForm({ phone, devCode, onResend, onBack, onClose, onVerified }: { phone: string; devCode: string | null; onResend: () => void; onBack: () => void; onClose: () => void; onVerified: () => void }) {
   const [otp, setOtp] = useState('');
   const [seconds, setSeconds] = useState(30);
   const [focused, setFocused] = useState(false);
@@ -570,13 +571,22 @@ function OtpForm({ phone, onBack, onClose, onVerified }: { phone: string; onBack
   }, [seconds]);
   const masked = `+91 ••••••${phone.slice(-4)}`;
   const hasError = status === 'invalid' || status === 'expired';
+  const rejectCode = () => {
+    setStatus('invalid');
+    shake.value = withSequence(withTiming(-8, { duration: 60 }), withTiming(8, { duration: 60 }), withTiming(-6, { duration: 60 }), withTiming(0, { duration: 60 }));
+  };
   const verify = () => {
     if (otp.length !== 6) return;
     setStatus('loading');
+    if (backendEnabled) {
+      verifyOtp(phone, otp)
+        .then(() => { setStatus('idle'); onVerified(); })
+        .catch(rejectCode);
+      return;
+    }
     setTimeout(() => {
       if (otp !== MOCK_OTP) {
-        setStatus('invalid');
-        shake.value = withSequence(withTiming(-8, { duration: 60 }), withTiming(8, { duration: 60 }), withTiming(-6, { duration: 60 }), withTiming(0, { duration: 60 }));
+        rejectCode();
         return;
       }
       setStatus('idle');
@@ -595,6 +605,9 @@ function OtpForm({ phone, onBack, onClose, onVerified }: { phone: string; onBack
       fields={
         <View className="gap-otp-section">
           <Text className={headingDescriptionClass}>{`Enter the six-digit code sent to ${masked}.`}</Text>
+          {devCode ? (
+            <Text className="font-body text-body-sm tracking-body-sm text-muted">{`Dev code: ${devCode}`}</Text>
+          ) : null}
           <Pressable accessibilityRole="button" accessibilityLabel="Enter verification code" onPress={() => inputRef.current?.focus()}>
             <Animated.View style={shakeStyle} className="flex-row gap-otp">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -625,7 +638,7 @@ function OtpForm({ phone, onBack, onClose, onVerified }: { phone: string; onBack
             />
           </Pressable>
           {status === 'invalid' ? (
-            <FormValidationText>That code is not correct. Try 123456 for this preview.</FormValidationText>
+            <FormValidationText>{backendEnabled ? 'That code is not correct. Check the latest code and try again.' : 'That code is not correct. Try 123456 for this preview.'}</FormValidationText>
           ) : null}
           {status === 'expired' ? (
             <FormValidationText>That code has expired. Request a new one below.</FormValidationText>
@@ -640,7 +653,7 @@ function OtpForm({ phone, onBack, onClose, onVerified }: { phone: string; onBack
           {seconds > 0 ? (
             <Text className="font-body text-body-sm tracking-body-sm text-muted">Resend in 0:{String(seconds).padStart(2, '0')}</Text>
           ) : (
-            <Pressable accessibilityRole="button" onPress={() => { setSeconds(30); setStatus('idle'); }} hitSlop={8}>
+            <Pressable accessibilityRole="button" onPress={() => { setSeconds(30); setStatus('idle'); onResend(); }} hitSlop={8}>
               <Text className="font-body text-body-sm tracking-body-sm text-accent">Resend code</Text>
             </Pressable>
           )}
@@ -664,6 +677,15 @@ function LoginSheet({ onClose, onVerified }: { onClose: () => void; onVerified: 
   }), [height, insets.top]);
   const [step, setStep] = useState<SheetStep>('phone');
   const [phone, setPhone] = useState('');
+  const [devCode, setDevCode] = useState<string | null>(null);
+  // In backend mode the OTP is minted server-side; the dev provider echoes the
+  // code back so a phone-less demo can complete verification.
+  const requestOtp = (value: string) => {
+    if (!backendEnabled) return;
+    startOtp(value)
+      .then(({ devCode: code }) => setDevCode(code))
+      .catch(() => setDevCode(null));
+  };
   return (
     <View className="absolute inset-0 z-30">
       <BlurView intensity={Platform.OS === 'android' ? 24 : 32} tint="dark" experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'} style={StyleSheet.absoluteFill} />
@@ -673,8 +695,8 @@ function LoginSheet({ onClose, onVerified }: { onClose: () => void; onVerified: 
         <Animated.View style={keyboardSheetStyle} className="mx-4 mb-4 overflow-hidden rounded-sheet bg-canvas">
           <Animated.View key={step} entering={step === 'otp' ? FadeIn.duration(120) : FadeInUp.duration(220)} className="p-sheet">
             {step === 'phone'
-              ? <PhoneForm phone={phone} setPhone={setPhone} onContinue={() => { Keyboard.dismiss(); setStep('otp'); }} />
-              : <OtpForm phone={phone} onBack={() => setStep('phone')} onClose={() => { Keyboard.dismiss(); onClose(); }} onVerified={onVerified} />}
+              ? <PhoneForm phone={phone} setPhone={setPhone} onContinue={() => { Keyboard.dismiss(); requestOtp(phone); setStep('otp'); }} />
+              : <OtpForm phone={phone} devCode={devCode} onResend={() => requestOtp(phone)} onBack={() => setStep('phone')} onClose={() => { Keyboard.dismiss(); onClose(); }} onVerified={onVerified} />}
           </Animated.View>
         </Animated.View>
       </View>
