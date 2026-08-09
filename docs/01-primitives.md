@@ -63,24 +63,24 @@ radius-full 9999px
 Two families, one job each — matches Astryx's `typography.heading` / `typography.body` split.
 
 ```
-font-heading — Abril Fatface   (display serif, headings only, one weight: 400)
+font-heading — DM Serif Text   (display serif, headings only, one weight: 400)
 font-body    — Inclusive Sans  (UI text: body, labels, inputs, buttons, captions)
 ```
 
-Abril Fatface ships one weight (400) and is decorative — never use it below `text-lg`, never for paragraphs, never for anything the user has to read quickly (form labels, error messages, button text). Inclusive Sans carries the rest of the UI, including body copy, labels, buttons, and monetary values.
+DM Serif Text ships one weight (400) and is decorative — never use it below `text-lg`, never for paragraphs, never for anything the user has to read quickly (form labels, error messages, button text). Inclusive Sans carries the rest of the UI, including body copy, labels, buttons, and monetary values.
 
 Neither font ships on-device. Both must be bundled and loaded through `expo-font` before first paint (see `03-usage.md` §0 for the loading pattern) — referencing `font-heading`/`font-body` before the fonts finish loading will silently fall back to the OS default, so gate your root render on `useFonts` readiness.
 
 ## 5. Typography scale
 
-Sizes paired with default line-height. Two scale tracks — heading (Abril Fatface) and body (Inclusive Sans) — because a display serif and a sans face carry weight differently at the same pixel size; don't share one scale across both.
+Sizes paired with default line-height and tracking. Two scale tracks — heading (DM Serif Text) and body (Inclusive Sans) — because a display serif and a sans face carry weight differently at the same pixel size; don't share one scale across both. Every heading size carries −1% tracking baked into the size token, so `text-heading-*` alone is enough — no separate `tracking-*` class on headings.
 
 ```
-Heading track (font-heading, weight fixed at 400)
-text-heading-sm   20px / 26px
-text-heading-md   28px / 34px
+Heading track (font-heading, weight fixed at 400, tracking −1%)
+text-heading-sm   18px / 25px / -0.18px
+text-heading-md   22px / 30px / -0.22px
 text-heading-lg   36px / 42px
-text-heading-xl   48px / 54px
+text-heading-xl   44px / 48px / -0.44px
 
 Body track (font-body, weight varies)
 text-body-xs      12px / 18px

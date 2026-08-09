@@ -506,13 +506,17 @@ export function SearchLocationScreen({ initialValue, onBack, onSelect }: { initi
   );
 }
 
-function AddressFormField({ label, value, onChangeText, placeholder, multiline = false, inputRef, returnKeyType = 'next', onSubmitEditing, autoFocus = false, keyboardType, maxLength, autoCapitalize }: { label?: string; value: string; onChangeText: (v: string) => void; placeholder: string; multiline?: boolean; inputRef?: React.RefObject<TextInput | null>; returnKeyType?: TextInput['props']['returnKeyType']; onSubmitEditing?: () => void; autoFocus?: boolean; keyboardType?: TextInput['props']['keyboardType']; maxLength?: number; autoCapitalize?: TextInput['props']['autoCapitalize']; }) {
+function AddressFormField({ label, value, onChangeText, placeholder, multiline = false, inputRef, returnKeyType = 'next', onSubmitEditing, autoFocus = false, keyboardType, maxLength, autoCapitalize, invalid = false }: { label?: string; value: string; onChangeText: (v: string) => void; placeholder: string; multiline?: boolean; inputRef?: React.RefObject<TextInput | null>; returnKeyType?: TextInput['props']['returnKeyType']; onSubmitEditing?: () => void; autoFocus?: boolean; keyboardType?: TextInput['props']['keyboardType']; maxLength?: number; autoCapitalize?: TextInput['props']['autoCapitalize']; invalid?: boolean; }) {
   const [focused, setFocused] = useState(false);
   const placeholderColor = useFieldPlaceholderColor();
   const foregroundColor = useForegroundColor();
   const localRef = useRef<TextInput>(null);
   const scrollFocusedField = useContext(FocusScrollContext);
-  const fieldClass = focused ? 'border border-foreground bg-canvas' : 'border border-transparent bg-field';
+  const fieldClass = invalid
+    ? 'border border-destructive bg-canvas'
+    : focused
+      ? 'border border-foreground bg-canvas'
+      : 'border border-transparent bg-field';
   const content = multiline ? (
     <TextInput ref={(node) => { localRef.current = node; if (inputRef) inputRef.current = node; }} autoFocus={autoFocus} value={value} onChangeText={onChangeText} onFocus={() => { setFocused(true); scrollFocusedField?.(localRef.current); }} onBlur={() => setFocused(false)} onSubmitEditing={onSubmitEditing} returnKeyType={returnKeyType} blurOnSubmit={returnKeyType === 'done'} submitBehavior="blurAndSubmit" placeholder={placeholder} placeholderTextColor={placeholderColor} multiline textAlignVertical="top" className={`rounded-field px-sheet ${fieldClass}`} style={[multilineFieldInputStyle, { color: foregroundColor }]} />
   ) : (
@@ -534,6 +538,7 @@ export function LabeledFieldInput({
   keyboardType,
   maxLength,
   autoCapitalize,
+  invalid = false,
 }: {
   label: string;
   value: string;
@@ -546,6 +551,7 @@ export function LabeledFieldInput({
   keyboardType?: TextInput['props']['keyboardType'];
   maxLength?: number;
   autoCapitalize?: TextInput['props']['autoCapitalize'];
+  invalid?: boolean;
 }) {
   return (
     <AddressFormField
@@ -560,6 +566,7 @@ export function LabeledFieldInput({
       keyboardType={keyboardType}
       maxLength={maxLength}
       autoCapitalize={autoCapitalize}
+      invalid={invalid}
     />
   );
 }

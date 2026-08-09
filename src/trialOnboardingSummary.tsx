@@ -12,6 +12,7 @@ import { MealPreferenceImage } from './MealPreferenceImage';
 import { PrimaryShimmerButton } from './primaryButton';
 import { SheetBackdrop } from './sheetOverlay';
 import { addressLabelDisplay, formatSavedAddressLines, type AddressDetails, type MealDeliverySlot } from './addressTypes';
+import { AddressLabelIcon } from './deliveryAddressComponents';
 import { subscriptionFoodOptions, subscriptionPreferenceOptions, type SubscriptionPreferenceKind } from './subscriptionPreferenceOptions';
 import { SubscriptionPreferencePickerModal, type PickerAnchor } from './subscriptionPreferencePickerModal';
 import { hapticPress } from './haptics';
@@ -182,10 +183,11 @@ function TrialSummaryDeliverySection({ delivery, onEdit }: { delivery: TrialMeal
           <SummaryGlyph />
         </Pressable>
       </View>
-      <View className="self-start rounded-full border border-border bg-field px-2.5 py-1">
+      <Text className="font-body text-body-sm leading-5 tracking-body-sm text-foreground">{formatSavedAddressLines(details)}</Text>
+      <View className="flex-row items-center gap-1.5 self-start rounded-full border border-border bg-field px-2.5 py-1">
+        <AddressLabelIcon labelType={delivery.address.labelType} size={14} />
         <Text className="font-body-medium text-body-xs text-foreground">{addressLabelDisplay(delivery.address)}</Text>
       </View>
-      <Text className="font-body text-body-sm leading-5 tracking-body-sm text-foreground">{formatSavedAddressLines(details)}</Text>
     </View>
   );
 }

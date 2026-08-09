@@ -10,11 +10,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 import { CenteredFieldInput } from './centeredFieldInput';
 import { DeliveryCoverageSheet, LabeledFieldInput } from './deliveryAddressComponents';
 import { FormPageSection } from './formLayout';
+import { MealPreferenceImage } from './MealPreferenceImage';
+import { subscriptionMealOptions, type PreferenceOption } from './subscriptionPreferenceOptions';
 import { PrimaryShimmerButton, GhostCanvasButton } from './primaryButton';
 import { hapticPress } from './haptics';
 import { submitCoverageRequest } from './coverageRequestStore';
@@ -35,32 +38,38 @@ import {
   type DeliveryEligibilityState,
   type MealSelection,
 } from './deliveryEligibilityState';
-import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST } from './toast';
+import { Toast, COVERAGE_REQUEST_SUCCESS_TOAST, MEAL_REQUIRES_PINCODE_TOAST } from './toast';
 import { useForegroundColor } from './themeColors';
 
 const SERVICEABLE_STICKY_ACTION_HEIGHT = 52;
 
-function MealSelectionChip({
-  label,
+function MealSelectionCard({
+  title,
+  image,
+  index,
   selected,
-  disabled,
   onPress,
 }: {
-  label: string;
+  title: string;
+  image: number;
+  index: number;
   selected: boolean;
-  disabled: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ checked: selected, disabled }}
-      accessibilityLabel={label}
-      disabled={disabled}
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={title}
       onPress={hapticPress(onPress, 'selection')}
-      className={`h-10 flex-row items-center rounded-full border-1 px-4 ${disabled ? 'opacity-40' : ''} ${selected ? 'border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
+      className={`min-w-0 flex-1 overflow-hidden rounded-field border bg-canvas ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border'}`}
     >
-      <Text className={`font-mono-semibold text-body-md ${selected ? 'text-accent' : 'text-foreground'}`}>{label}</Text>
+      <View className="h-[88px] w-full items-center overflow-hidden bg-field">
+        <MealPreferenceImage source={image} label={`${title} meal`} delayMs={80 + index * 50} width={106} height={88} imageSize={106} />
+      </View>
+      <View className="items-center px-2 py-2">
+        <Text numberOfLines={1} className={`text-center font-mono-semibold text-body-sm ${selected ? 'text-accent' : 'text-foreground'}`}>{title}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -108,9 +117,11 @@ function ServiceableAreaSearch({
 function ServiceableAreasPage({
   onClose,
   onSelectPincode,
+  onCoverageRequested,
 }: {
   onClose: () => void;
   onSelectPincode: (pincode: string) => void;
+  onCoverageRequested: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const foregroundColor = useForegroundColor();
@@ -122,7 +133,6 @@ function ServiceableAreasPage({
   const [coverageOpen, setCoverageOpen] = useState(false);
   const [coverageRequestPincode, setCoverageRequestPincode] = useState('');
   const [coverageRequestState, setCoverageRequestState] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
-  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -173,7 +183,8 @@ function ServiceableAreasPage({
       .then(() => {
         setCoverageRequestState('submitted');
         setCoverageOpen(false);
-        setToastMessage(COVERAGE_REQUEST_SUCCESS_TOAST);
+        dismissSearchKeyboard();
+        onCoverageRequested();
       })
       .catch(() => {
         setCoverageRequestState('error');
@@ -274,8 +285,6 @@ function ServiceableAreasPage({
           onSubmit={submitCoverage}
         />
       ) : null}
-
-      {toastMessage ? <Toast message={toastMessage} onDismiss={() => setToastMessage('')} /> : null}
     </View>
   );
 }
@@ -289,17 +298,22 @@ export function DeliveryEligibilityFields({
   state,
   dispatch,
   pincodeRef,
+  onMealBlocked,
 }: {
   state: DeliveryEligibilityState;
   dispatch: (event: DeliveryEligibilityEvent) => void;
   pincodeRef: RefObject<TextInput | null>;
+  onMealBlocked?: () => void;
 }) {
   const statusMessage = eligibilityPincodeMessage(state.serviceability);
   const mealsEnabled = state.serviceability === 'serviceable';
-  const mealOptions: Array<{ id: MealSelection; label: string }> = [
-    { id: 'lunch', label: 'Lunch' },
-    { id: 'dinner', label: 'Dinner' },
-    { id: 'both', label: 'Both' },
+  const [pincodeInvalid, setPincodeInvalid] = useState(false);
+  const shakeOffset = useSharedValue(0);
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeOffset.value }] }));
+  const mealOptions: Array<{ id: MealSelection; option: PreferenceOption }> = [
+    { id: 'lunch', option: subscriptionMealOptions[0]! },
+    { id: 'dinner', option: subscriptionMealOptions[1]! },
+    { id: 'both', option: subscriptionMealOptions[2]! },
   ];
 
   useEffect(() => {
@@ -307,19 +321,48 @@ export function DeliveryEligibilityFields({
     return () => clearTimeout(timer);
   }, [pincodeRef]);
 
+  useEffect(() => {
+    if (mealsEnabled) setPincodeInvalid(false);
+  }, [mealsEnabled]);
+
+  const rejectMealSelection = () => {
+    setPincodeInvalid(true);
+    shakeOffset.value = withSequence(
+      withTiming(-9, { duration: 55 }),
+      withTiming(9, { duration: 55 }),
+      withTiming(-6, { duration: 50 }),
+      withTiming(6, { duration: 50 }),
+      withTiming(0, { duration: 45 }),
+    );
+    pincodeRef.current?.focus();
+    onMealBlocked?.();
+  };
+
+  const selectMeal = (meal: MealSelection) => {
+    if (!mealsEnabled) {
+      rejectMealSelection();
+      return;
+    }
+    dispatch({ type: 'SELECT_MEAL', meal });
+  };
+
   return (
     <View className="gap-sheet-gap">
-      <View className="gap-2">
+      <Animated.View style={shakeStyle} className="gap-2">
         <LabeledFieldInput
           label="Enter your pincode"
           value={state.pincode}
-          onChangeText={(value) => dispatch({ type: 'SET_PINCODE', pincode: value })}
+          onChangeText={(value) => {
+            setPincodeInvalid(false);
+            dispatch({ type: 'SET_PINCODE', pincode: value });
+          }}
           placeholder="6-digit pincode"
           inputRef={pincodeRef}
           autoFocus
           keyboardType="number-pad"
           maxLength={6}
           returnKeyType="default"
+          invalid={pincodeInvalid}
         />
         {state.serviceability === 'checking' ? (
           <View className="flex-row items-center gap-2">
@@ -331,18 +374,19 @@ export function DeliveryEligibilityFields({
             {statusMessage}
           </Text>
         ) : null}
-      </View>
+      </Animated.View>
 
       <View className="gap-3">
         <Text className="font-body text-body-md tracking-body-sm text-foreground">Order at this location</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {mealOptions.map((option) => (
-            <MealSelectionChip
+        <View className="flex-row items-stretch gap-3">
+          {mealOptions.map((option, index) => (
+            <MealSelectionCard
               key={option.id}
-              label={option.label}
+              title={option.option.title}
+              image={option.option.image}
+              index={index}
               selected={state.mealSelection === option.id}
-              disabled={!mealsEnabled}
-              onPress={() => dispatch({ type: 'SELECT_MEAL', meal: option.id })}
+              onPress={() => selectMeal(option.id)}
             />
           ))}
         </View>
@@ -406,6 +450,7 @@ export function DeliveryEligibilityScreen({
   onContinue: (result: DeliveryEligibilityResult) => void;
 }) {
   const pincodeRef = useRef<TextInput>(null);
+  const [toastMessage, setToastMessage] = useState('');
   const {
     state,
     dispatch,
@@ -424,7 +469,12 @@ export function DeliveryEligibilityScreen({
     <>
       {shell(
         <FormPageSection>
-          <DeliveryEligibilityFields state={state} dispatch={dispatch} pincodeRef={pincodeRef} />
+          <DeliveryEligibilityFields
+            state={state}
+            dispatch={dispatch}
+            pincodeRef={pincodeRef}
+            onMealBlocked={() => setToastMessage(MEAL_REQUIRES_PINCODE_TOAST)}
+          />
         </FormPageSection>,
         <View className="gap-2">
           <PrimaryShimmerButton label="Next" enabled={canContinue} onPress={() => result && onContinue(result)} />
@@ -438,8 +488,14 @@ export function DeliveryEligibilityScreen({
         <ServiceableAreasPage
           onClose={() => dispatch({ type: 'CLOSE_SERVICEABLE_AREAS' })}
           onSelectPincode={handleSelectServiceableArea}
+          onCoverageRequested={() => {
+            dispatch({ type: 'CLOSE_SERVICEABLE_AREAS' });
+            setToastMessage(COVERAGE_REQUEST_SUCCESS_TOAST);
+            setTimeout(() => pincodeRef.current?.focus(), 250);
+          }}
         />
       ) : null}
+      {toastMessage ? <Toast message={toastMessage} onDismiss={() => setToastMessage('')} /> : null}
     </>
   );
 }

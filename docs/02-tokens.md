@@ -55,6 +55,8 @@ Borrowed from Astryx: their whole accent system generates from a single `color.a
 | `warning` / `warning-foreground` | `warning-500` / `#1A1200` | `warning-500` / `warning-900` | `bg-warning text-warning-foreground` |
 | `destructive` / `destructive-foreground` | `danger-500` / `#FFFFFF` | `danger-500` / `#FFFFFF` | `bg-destructive text-destructive-foreground` |
 | `destructive` (inline) | `#ef4444` | `#f87171` | `text-destructive`, `border-destructive` — auth field errors |
+| `success-soft` | `#e7f7ee` | `#173624` | `bg-success-soft` — veg selection fill, success tints |
+| `destructive-soft` | `#fef2f2` | `#3f1515` | `bg-destructive-soft` — non-veg selection fill, soft error tints |
 | `placeholder` | `foreground/20` | `foreground/20` | TextInput placeholder tint (via JS hook) |
 | `info` / `info-foreground` | `info-500` / `#FFFFFF` | `info-500` / `info-900` | `bg-info text-info-foreground` |
 | `success-subtle` / `success-subtle-foreground` | `success-50` / `success-700` | `success-900` / `success-50` | for banners, not solid fills |
@@ -70,14 +72,15 @@ Progressive gray in light, progressive lift in dark. In light mode tune `--color
 | `--color-surface` | `#f6f6f6` | `#0d0d0d` | `bg-surface` | chips, secondary panels |
 | `--color-field` | `#f6f6f6` *(tune in light)* | `#0c0c0c` *(slightly below surface)* | `bg-field` | **text field fill** — phone input, OTP cells |
 | `--color-icon-surface` | `#eeeeee` | `#1c1c1c` | `bg-icon-surface` | circular icon buttons |
-| `--color-ghost-on-field` | `#e0e0e0` | `#262626` | `bg-ghost-on-field` | ghost CTA fill on gray `field`/`surface` cards |
+| `--color-ghost-on-field` | `#eaeaea` | `#262626` | `bg-ghost-on-field` | nested fills on gray `field`/`surface` cards (tags, ghost CTAs) |
+| `--color-control-border` | `#cfcfcf` | `#303030` | `border-control-border` | stronger border for controls nested on gray surfaces |
 
 **Light vs dark rule:** edit `--color-field` under `@variant light` when adjusting field contrast on white sheets. Dark mode keeps `--color-field` one step below `--color-surface` automatically — do not copy the light hex into dark.
 
 ## 2. Font-family tokens
 
 ```css
---font-heading: 'AbrilFatface-Regular';
+--font-heading: 'DMSerifText_400Regular';
 --font-body:    'InclusiveSans_400Regular';          /* default body weight */
 --font-body-medium: 'InclusiveSans_500Medium';       /* field input value text */
 ```
@@ -96,10 +99,11 @@ Classes: `font-heading`, `font-body`, `font-body-medium`. There is no `font-sans
 ## 3. Font-size tokens (paired with line-height, Tailwind v4 style)
 
 ```css
---text-heading-sm: 20px;  --text-heading-sm--line-height: 26px;
---text-heading-md: 28px;  --text-heading-md--line-height: 34px;
+/* heading sizes carry -1% tracking in the token — no tracking class needed */
+--text-heading-sm: 18px;  --text-heading-sm--line-height: 25px;  --text-heading-sm--letter-spacing: -0.18px;
+--text-heading-md: 22px;  --text-heading-md--line-height: 30px;  --text-heading-md--letter-spacing: -0.22px;
 --text-heading-lg: 36px;  --text-heading-lg--line-height: 42px;
---text-heading-xl: 48px;  --text-heading-xl--line-height: 54px;
+--text-heading-xl: 44px;  --text-heading-xl--line-height: 48px;  --text-heading-xl--letter-spacing: -0.44px;
 
 --text-body-xs: 12px;  --text-body-xs--line-height: 18px;
 --text-body-sm: 14px;  --text-body-sm--line-height: 20px;
@@ -109,7 +113,7 @@ Classes: `font-heading`, `font-body`, `font-body-medium`. There is no `font-sans
 
 Classes: `text-heading-sm` … `text-heading-xl`, `text-body-xs` … `text-body-lg` — each one class sets both size and leading in a single utility, same mechanic as Tailwind's built-in `text-lg`.
 
-**Pairing rule:** a `font-heading` element always takes a `text-heading-*` size class; a `font-body` element always takes a `text-body-*` size class. Never cross them (`font-heading text-body-sm` is invalid — Abril Fatface at a body-scale size reads as a mistake, not a choice).
+**Pairing rule:** a `font-heading` element always takes a `text-heading-*` size class; a `font-body` element always takes a `text-body-*` size class. Never cross them (`font-heading text-body-sm` is invalid — DM Serif Text at a body-scale size reads as a mistake, not a choice).
 
 ## 4. Radius tokens
 

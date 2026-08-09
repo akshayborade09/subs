@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { hapticPressOptional } from './haptics';
 
 export function Label({ children }: PropsWithChildren) {
-  return <Text className="font-medium text-sm uppercase tracking-[0.4px] text-muted">{children}</Text>;
+  return <Text className="font-body-medium text-sm uppercase tracking-[0.4px] text-muted">{children}</Text>;
 }
 
 export function Button({ children, onPress, icon }: PropsWithChildren<{ onPress?: () => void; icon?: ReactNode }>) {
@@ -20,7 +20,7 @@ export function Button({ children, onPress, icon }: PropsWithChildren<{ onPress?
         className="min-h-[50px] flex-row items-center justify-center gap-2 rounded-full bg-accent px-6"
       >
         {icon}
-        <Text className="font-semibold text-[15px] text-accent-foreground">{children}</Text>
+        <Text className="font-mono-semibold text-[15px] text-accent-foreground">{children}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -29,7 +29,7 @@ export function Button({ children, onPress, icon }: PropsWithChildren<{ onPress?
 export function Avatar({ initials }: { initials: string }) {
   return (
     <View className="h-11 w-11 items-center justify-center rounded-full border border-border bg-surface-raised">
-      <Text className="font-semibold text-sm text-foreground">{initials}</Text>
+      <Text className="font-mono-semibold text-sm text-foreground">{initials}</Text>
     </View>
   );
 }

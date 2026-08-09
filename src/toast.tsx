@@ -3,6 +3,7 @@ import { Animated as NativeAnimated, PanResponder, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const COVERAGE_REQUEST_SUCCESS_TOAST = "Thanks! We've received your request.";
+export const MEAL_REQUIRES_PINCODE_TOAST = 'Enter pincode to select the meal preference';
 
 const AUTO_DISMISS_MS = 3000;
 const HIDDEN_OFFSET = -120;

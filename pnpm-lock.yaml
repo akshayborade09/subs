@@ -8,12 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@expo-google-fonts/abril-fatface':
+      '@expo-google-fonts/dm-serif-text':
         specifier: ^0.4.1
         version: 0.4.1
-      '@expo-google-fonts/geist':
-        specifier: ^0.4.2
-        version: 0.4.2
       '@expo-google-fonts/inclusive-sans':
         specifier: ^0.4.2
         version: 0.4.2
@@ -612,11 +609,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@expo-google-fonts/abril-fatface@0.4.1':
-    resolution: {integrity: sha512-OFschWuI/9M9JP2/ppdnlAHTF24UiZXMYBSbZhWq8lY5t8K4Fi9o+fJl5hseEGN+P8Rr+FMLUlaNR1FLXPmbJw==}
-
-  '@expo-google-fonts/geist@0.4.2':
-    resolution: {integrity: sha512-cTsqJRQrvK5EniTVwH7UDK18RFf9Bc6yxciAuM936aViQ+eR6j3mLEI2rQkJXz5JP9kwtn8tHJviDyZ0ulH6oA==}
+  '@expo-google-fonts/dm-serif-text@0.4.1':
+    resolution: {integrity: sha512-5xTiEdGral2A5DkgOfnWfSsS5+e92n66g8y7KRVB3pEsrzPjo1Teik7pKm0hwZDS5KjrJyp/yJQLtCACMxHiug==}
 
   '@expo-google-fonts/inclusive-sans@0.4.2':
     resolution: {integrity: sha512-kLMRtCaTJnReDBXeC63iEBtgtXOc6KaGJri9DQkl3eT5P4FUB5SAMGvemKMH4Sf8QycZlajjQDOaYpZYv38FHw==}
@@ -4726,9 +4720,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@expo-google-fonts/abril-fatface@0.4.1': {}
-
-  '@expo-google-fonts/geist@0.4.2': {}
+  '@expo-google-fonts/dm-serif-text@0.4.1': {}
 
   '@expo-google-fonts/inclusive-sans@0.4.2': {}
 

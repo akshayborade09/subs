@@ -28,7 +28,8 @@ import { PrimaryShimmerButton } from './primaryButton';
 import { SheetBackdrop } from './sheetOverlay';
 import { themePalette } from './themeColors';
 import { hapticPress } from './haptics';
-import { addressLabelDisplay, formatSavedAddressLines } from './addressTypes';
+import { addressLabelDisplay, formatSavedAddressLines, type AddressLabelType } from './addressTypes';
+import { AddressLabelIcon } from './deliveryAddressComponents';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
 import { SubscriptionPreferencePickerModal, type PickerAnchor } from './subscriptionPreferencePickerModal';
 import { type SubscriptionPreferenceKind } from './subscriptionPreferenceOptions';
@@ -68,6 +69,7 @@ const subscriptionDeliveryDays = [
 type SubscriptionMealConfig = {
   deliveryAddress: string;
   addressLabel: string;
+  labelType: AddressLabelType;
   selectedDays: number[];
   food: string;
   bread: string;
@@ -118,12 +120,14 @@ function buildInitialMealConfig(
     ? formatSavedAddressLines({ ...delivery.address, deliveryLocation: delivery.deliveryLocation, pincode: delivery.address.pincode })
     : fallbackAddress;
   const addressLabel = delivery ? addressLabelDisplay(delivery.address) : 'Home';
+  const labelType = delivery?.address.labelType ?? 'home';
   const slotFood = food === 'Mix of both'
     ? (slot === 'lunch' ? dailyMeals[0]?.lunch || 'Vegetarian' : dailyMeals[0]?.dinner || 'Vegetarian')
     : food;
   return {
     deliveryAddress,
     addressLabel,
+    labelType,
     selectedDays: [1, 2, 3, 4, 5],
     food: slotFood || 'Vegetarian',
     bread: bread || 'Chapati',
@@ -219,11 +223,15 @@ function MealConfigSectionHeading({ children, carousel = false }: { children: st
   return <SectionHeading>{children}</SectionHeading>;
 }
 
-function SubscriptionLocationRow({ addressLabel, address, onEdit, carouselSectionHeadings = false }: { addressLabel: string; address: string; onEdit: () => void; carouselSectionHeadings?: boolean }) {
+/** Matches the `leading-5` on the address text — keeps both carousel cards the same height. */
+const ADDRESS_LINE_HEIGHT = 20;
+
+function SubscriptionLocationRow({ addressLabel, labelType, address, onEdit, carouselSectionHeadings = false, reserveAddressLines = false }: { addressLabel: string; labelType: AddressLabelType; address: string; onEdit: () => void; carouselSectionHeadings?: boolean; reserveAddressLines?: boolean }) {
   return (
     <View className="gap-2">
       <MealConfigSectionHeading carousel={carouselSectionHeadings}>Location</MealConfigSectionHeading>
-      <View className="self-start rounded-full border border-border bg-field px-2.5 py-1">
+      <View className="flex-row items-center gap-1.5 self-start rounded-full border border-control-border bg-ghost-on-field px-2.5 py-1">
+        <AddressLabelIcon labelType={labelType} size={14} />
         <Text className="font-body-medium text-body-xs text-foreground">{addressLabel}</Text>
       </View>
       <Pressable
@@ -232,7 +240,13 @@ function SubscriptionLocationRow({ addressLabel, address, onEdit, carouselSectio
         onPress={hapticPress(onEdit, 'light')}
         className="flex-row items-center gap-3"
       >
-        <Text numberOfLines={3} className="min-w-0 flex-1 font-body text-body-sm leading-5 text-foreground">{address}</Text>
+        <Text
+          numberOfLines={3}
+          style={reserveAddressLines ? { minHeight: ADDRESS_LINE_HEIGHT * 3 } : undefined}
+          className="min-w-0 flex-1 font-body text-body-sm leading-5 text-foreground"
+        >
+          {address}
+        </Text>
         <View className="size-8 shrink-0 items-center justify-center">
           <SheetGlyph icon={PencilSimpleIcon} size={20} weight="regular" />
         </View>
@@ -266,7 +280,7 @@ function SubscriptionDeliveryDaySelector({ value, onChange }: { value: number[];
             accessibilityState={{ checked: selected }}
             accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${label} delivery day`}
             onPress={hapticPress(() => toggleDay(weekday), 'selection')}
-            className={`size-8 items-center justify-center rounded-full border ${selected ? 'border-success bg-success' : 'border-border bg-transparent'}`}
+            className={`size-8 items-center justify-center rounded-full border ${selected ? 'border-success bg-success' : 'border-control-border bg-transparent'}`}
           >
             <Text className={`font-mono-semibold text-body-sm ${textClass}`}>{label}</Text>
           </Pressable>
@@ -290,7 +304,7 @@ function SubscriptionPreferenceRowCard({ caption, title, image, animate, index, 
       accessibilityRole="button"
       accessibilityLabel={`Edit ${caption.toLowerCase()} preference`}
       onPress={hapticPress(handleEditPress, 'light')}
-      className="min-w-0 flex-1 overflow-hidden rounded-field border border-border bg-canvas"
+      className="min-w-0 flex-1 overflow-hidden rounded-field border border-control-border bg-canvas"
     >
       <View className="h-[88px] w-full items-center overflow-hidden bg-field">
         {animate ? (
@@ -378,6 +392,7 @@ function SubscriptionMealConfigContent({
   onOpenPicker,
   scrollSignal,
   carouselSectionHeadings = false,
+  reserveAddressLines = false,
 }: {
   config: SubscriptionMealConfig;
   onChange: (patch: Partial<SubscriptionMealConfig>) => void;
@@ -385,14 +400,17 @@ function SubscriptionMealConfigContent({
   onOpenPicker: (kind: SubscriptionPreferenceKind, anchor: PickerAnchor) => void;
   scrollSignal: number;
   carouselSectionHeadings?: boolean;
+  reserveAddressLines?: boolean;
 }) {
   return (
     <View className={carouselSectionHeadings ? 'gap-4' : 'gap-sheet-gap'}>
       <SubscriptionLocationRow
         addressLabel={config.addressLabel}
+        labelType={config.labelType}
         address={config.deliveryAddress}
         onEdit={onEditAddress}
         carouselSectionHeadings={carouselSectionHeadings}
+        reserveAddressLines={reserveAddressLines}
       />
       <View className="gap-2">
         <MealConfigSectionHeading carousel={carouselSectionHeadings}>Select days</MealConfigSectionHeading>
@@ -420,7 +438,7 @@ function MealSlotCheckbox({ label, selected, onPress }: { label: string; selecte
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${label.toLowerCase()}`}
       onPress={hapticPress(onPress, 'selection')}
-      className={`h-field flex-row items-center gap-field-inline rounded-full border-2 px-4  ${selected ? 'border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
+      className={`h-10 flex-row items-center gap-field-inline rounded-full border-2 px-4 ${selected ? 'border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
     >
       <View className={`size-5 shrink-0 items-center justify-center rounded-sm border-2 ${selected ? 'border-accent bg-accent' : 'border-border bg-transparent'}`}>
         {selected ? <SheetGlyph icon={CheckIcon} size={16} weight="bold" tone="accent-foreground" /> : null}
@@ -463,15 +481,17 @@ function SubscriptionMealConfigCard({
   onEditAddress,
   onOpenPicker,
   scrollSignal,
+  fill = false,
 }: {
   config: SubscriptionMealConfig;
   onChange: (patch: Partial<SubscriptionMealConfig>) => void;
   onEditAddress: () => void;
   onOpenPicker: (kind: SubscriptionPreferenceKind, anchor: PickerAnchor) => void;
   scrollSignal: number;
+  fill?: boolean;
 }) {
   return (
-    <View className="rounded-field border border-border bg-canvas p-3">
+    <View className={`rounded-field border border-control-border bg-surface p-3 ${fill ? 'flex-1' : ''}`}>
       <SubscriptionMealConfigContent
         config={config}
         onChange={onChange}
@@ -479,6 +499,7 @@ function SubscriptionMealConfigCard({
         onOpenPicker={onOpenPicker}
         scrollSignal={scrollSignal}
         carouselSectionHeadings
+        reserveAddressLines={fill}
       />
     </View>
   );
@@ -536,6 +557,7 @@ function SubscriptionMealConfigCarousel({
               onEditAddress={() => onEditAddress('lunch')}
               onOpenPicker={(kind, anchor) => onOpenPicker('lunch', kind, anchor)}
               scrollSignal={scrollSignal}
+              fill
             />
           </View>
           <View style={{ width: cardWidth }}>
@@ -545,6 +567,7 @@ function SubscriptionMealConfigCarousel({
               onEditAddress={() => onEditAddress('dinner')}
               onOpenPicker={(kind, anchor) => onOpenPicker('dinner', kind, anchor)}
               scrollSignal={scrollSignal}
+              fill
             />
           </View>
         </ScrollView>
@@ -707,7 +730,7 @@ function SubscriptionPlanBenefitsCarousel({ scrollSignal }: { scrollSignal: numb
 
 function SubscriptionBenefitsSection() {
   return (
-    <View className="rounded-field bg-field p-sheet">
+    <View className="rounded-field border border-control-border bg-surface p-sheet">
       <FormHeader title="Unlock nutrition tools" subtitle="Personalised nutrition insights become available after you subscribe." size="sheet" />
       <View className="mt-3">
         {toolBenefits.map((item) => (
@@ -936,7 +959,7 @@ export function SubscriptionSheet({
       >
         <Animated.View entering={FadeInUp.delay(170).duration(280)} style={{ overflow: 'visible' }} className="mx-5 mt-4 gap-sheet-gap">
           <FormPageSection>
-            <View className="gap-page-section">
+            <View className="gap-sheet-gap">
               <SubscriptionMealSlotSelector
                 lunchSelected={lunchSelected}
                 dinnerSelected={dinnerSelected}
@@ -1026,10 +1049,11 @@ export function SubscriptionSheet({
           onConfirmed={(saved) => {
             const formatted = formatSavedAddressLines(saved);
             const label = addressLabelDisplay(saved);
+            const patch = { deliveryAddress: formatted, addressLabel: label, labelType: saved.labelType };
             if (addressFlowSlot === 'lunch') {
-              setLunchConfig((current) => ({ ...current, deliveryAddress: formatted, addressLabel: label }));
+              setLunchConfig((current) => ({ ...current, ...patch }));
             } else {
-              setDinnerConfig((current) => ({ ...current, deliveryAddress: formatted, addressLabel: label }));
+              setDinnerConfig((current) => ({ ...current, ...patch }));
             }
             setAddressFlowSlot(null);
           }}

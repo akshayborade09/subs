@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useUniwind } from 'uniwind';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
-import { geocodeLocationQuery } from './locationGeocoding';
+import { geocodeLocationQuery, geocodePincodeLocation } from './locationGeocoding';
 import { isSameLocationText, isWithinProximity, type MapCoordinate } from './locationProximity';
 import { submitCoverageRequest } from './coverageRequestStore';
 import type { TrialMealDeliveryState } from './trialOnboardingSummary';
@@ -96,6 +96,7 @@ export function DeliveryAddressFlow({
   const [referenceCoordinate, setReferenceCoordinate] = useState<MapCoordinate | null>(null);
   const [toastMessage, setToastMessage] = useState('');
   const [activeEditId, setActiveEditId] = useState<string | undefined>(editingAddressId);
+  const seededPincodeRef = useRef('');
   const addressRef = useRef<TextInput>(null);
   const societyRef = useRef<TextInput>(null);
   const landmarkRef = useRef<TextInput>(null);
@@ -110,6 +111,24 @@ export function DeliveryAddressFlow({
   useEffect(() => {
     send({ type: 'SET_PINCODE_AVAILABILITY', availability });
   }, [availability, send]);
+
+  // Seed the search field from the delivery-availability pincode. The ref guard keeps
+  // a manual clear cleared, and the deliveryLocation dep drops a stale resolve if the
+  // user picks a location while the lookup is in flight.
+  useEffect(() => {
+    if (!normalizedPreferredPincode || deliveryLocation.trim().length > 0) return;
+    if (seededPincodeRef.current === normalizedPreferredPincode) return;
+    seededPincodeRef.current = normalizedPreferredPincode;
+    let active = true;
+    void geocodePincodeLocation(normalizedPreferredPincode)
+      .then((resolved) => {
+        if (!active || !resolved) return;
+        send({ type: 'LOCATION_SELECTED', location: resolved.label });
+        setMapCoordinate({ latitude: resolved.latitude, longitude: resolved.longitude });
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [deliveryLocation, normalizedPreferredPincode, send]);
 
   useEffect(() => {
     if (!referenceMealDelivery) {

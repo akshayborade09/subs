@@ -69,6 +69,35 @@ export async function geocodeLocationQuery(query: string): Promise<{ latitude: n
   return { latitude: result.latitude, longitude: result.longitude, label };
 }
 
+function withPincode(label: string, pincode: string): string {
+  if (label.includes(pincode)) return label;
+  const withoutOtherPincode = label.replace(/,?\s*\b\d{6}\b/g, '').replace(/,\s*$/, '');
+  return withoutOtherPincode ? `${withoutOtherPincode}, ${pincode}` : pincode;
+}
+
+/**
+ * Resolves the delivery-availability pincode into a location label for the
+ * address screen. The entered pincode stays authoritative — reverse geocoding a
+ * centroid can land on a neighbouring code and flip the serviceability check.
+ */
+export async function geocodePincodeLocation(
+  pincode: string,
+): Promise<{ latitude: number; longitude: number; label: string } | null> {
+  const normalized = pincode.replace(/\D/g, '').slice(0, 6);
+  if (normalized.length !== 6) return null;
+  const known = pincodeCentroid(normalized);
+  const fallback = known
+    ? { latitude: known.latitude, longitude: known.longitude, label: `${known.area}, Mumbai, ${normalized}` }
+    : null;
+  try {
+    const resolved = await geocodeLocationQuery(normalized);
+    if (!resolved) return fallback;
+    return { ...resolved, label: withPincode(resolved.label, normalized) };
+  } catch {
+    return fallback;
+  }
+}
+
 export async function searchLocationSuggestions(query: string): Promise<string[]> {
   const trimmed = query.trim();
   if (trimmed.length < 3) return [];

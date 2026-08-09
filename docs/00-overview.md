@@ -39,7 +39,7 @@ The token *shape* (single accent driving derived states, role-paired font/size t
 
 ## Fonts
 
-- `font-heading` → Abril Fatface (display serif, headings only, single weight)
+- `font-heading` → DM Serif Text (display serif, headings only, single weight)
 - `font-body` → Inclusive Sans (everything else — labels, buttons, inputs, body copy)
 
 Neither is a system font; both must be registered via `expo-font` before first paint. See `03-usage.md` §0.

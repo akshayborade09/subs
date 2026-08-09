@@ -4,7 +4,7 @@ Rules for how tokens get consumed in actual component code. This is the file Cur
 
 ## 0. Font loading (required before anything below works)
 
-Abril Fatface and Inclusive Sans aren't on-device fonts — they must be bundled and registered before `font-heading`/`font-body` classes will render correctly. Load them with `@expo-google-fonts` at the app root and gate first paint on `fontsLoaded`:
+DM Serif Text and Inclusive Sans aren't on-device fonts — they must be bundled and registered before `font-heading`/`font-body` classes will render correctly. Load them with `@expo-google-fonts` at the app root and gate first paint on `fontsLoaded`:
 
 ```tsx
 import { useFonts } from '@expo-google-fonts/inclusive-sans/useFonts';
@@ -12,10 +12,10 @@ import { InclusiveSans_400Regular } from '@expo-google-fonts/inclusive-sans/400R
 import { InclusiveSans_500Medium } from '@expo-google-fonts/inclusive-sans/500Medium';
 import { InclusiveSans_600SemiBold } from '@expo-google-fonts/inclusive-sans/600SemiBold';
 import { InclusiveSans_700Bold } from '@expo-google-fonts/inclusive-sans/700Bold';
-import { AbrilFatface_400Regular } from '@expo-google-fonts/abril-fatface/400Regular';
+import { DMSerifText_400Regular } from '@expo-google-fonts/dm-serif-text/400Regular';
 
 const [fontsLoaded] = useFonts({
-  AbrilFatface_400Regular,
+  DMSerifText_400Regular,
   InclusiveSans_400Regular,
   InclusiveSans_500Medium,
   InclusiveSans_600SemiBold,
@@ -25,7 +25,7 @@ const [fontsLoaded] = useFonts({
 if (!fontsLoaded) return null; // or a splash screen
 ```
 
-`font-body` (the `weight-regular` default) maps to `InclusiveSans_400Regular`. Heavier body text (`font-body-medium`, `font-mono-semibold`, `font-mono-bold`) needs its matching static weight file registered under a distinct family name — Inclusive Sans ships as separate static files per weight, not one variable font by default, so those classes only render correctly once each weight is loaded and wired into the theme's weight-to-family mapping in `global.css`. Abril Fatface ships one weight only — never apply `font-medium`/`font-bold` etc. to a `font-heading` element.
+`font-body` (the `weight-regular` default) maps to `InclusiveSans_400Regular`. Heavier body text (`font-body-medium`, `font-mono-semibold`, `font-mono-bold`) needs its matching static weight file registered under a distinct family name — Inclusive Sans ships as separate static files per weight, not one variable font by default, so those classes only render correctly once each weight is loaded and wired into the theme's weight-to-family mapping in `global.css`. DM Serif Text ships one weight only — never apply `font-medium`/`font-bold` etc. to a `font-heading` element.
 
 ## 1. Golden rule
 

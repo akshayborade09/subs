@@ -31,7 +31,7 @@ The specification adapts patterns reviewed from:
 
 ### 2.1 Reference lock
 
-- Preserve the existing Healthy Tiffins visual system: Geist Sans, minimal surfaces, green accent, black/white gradient primary buttons, 16 px content spacing and Phosphor bold icons.
+- Preserve the existing Healthy Tiffins visual system: Inclusive Sans body text with DM Serif Text headings, minimal surfaces, green accent, black/white gradient primary buttons, 16 px content spacing and Phosphor bold icons.
 - Reuse existing page headers, cards, fields, selection borders, toasts, payment states and responsive behaviour.
 - Checkout is a full page, not a bottom sheet.
 - Profile and Settings use grouped rows with restrained icons; avoid a grid of decorative cards.

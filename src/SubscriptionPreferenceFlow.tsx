@@ -94,13 +94,16 @@ function DailyMealPlan({ meal, value, onChange }: { meal: string; value: DailyMe
                 <View className="flex-1 flex-row gap-2">
                   {(['Vegetarian', 'Non-vegetarian'] as const).map((choice) => {
                     const selected = day[mealKey] === choice;
+                    const selectedClass = choice === 'Vegetarian'
+                      ? 'border-2 border-success bg-success-soft'
+                      : 'border-2 border-destructive bg-destructive-soft';
                     return (
                       <Pressable
                         key={choice}
                         accessibilityRole="radio"
                         accessibilityState={{ checked: selected }}
                         onPress={hapticPress(() => update(dayIndex, mealKey, choice), 'selection')}
-                        className={`h-9 flex-1 items-center justify-center rounded-full border ${selected ? 'border-2 border-accent bg-accent-soft' : 'border-border bg-canvas'}`}
+                        className={`h-9 flex-1 items-center justify-center rounded-full border ${selected ? selectedClass : 'border-border bg-canvas'}`}
                       >
                         <Text className={`font-mono-semibold text-body-sm ${selected ? 'text-foreground' : 'text-muted'}`}>{choice === 'Vegetarian' ? 'Veg' : 'Non-veg'}</Text>
                       </Pressable>

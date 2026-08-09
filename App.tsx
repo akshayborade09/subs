@@ -18,12 +18,8 @@ import type { ImageSourcePropType } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { BlurView } from 'expo-blur';
-import { useFonts } from '@expo-google-fonts/geist/useFonts';
-import { Geist_400Regular } from '@expo-google-fonts/geist/400Regular';
-import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
-import { Geist_600SemiBold } from '@expo-google-fonts/geist/600SemiBold';
-import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
-import { AbrilFatface_400Regular } from '@expo-google-fonts/abril-fatface/400Regular';
+import { useFonts } from '@expo-google-fonts/inclusive-sans/useFonts';
+import { DMSerifText_400Regular } from '@expo-google-fonts/dm-serif-text/400Regular';
 import { InclusiveSans_400Regular } from '@expo-google-fonts/inclusive-sans/400Regular';
 import { InclusiveSans_500Medium } from '@expo-google-fonts/inclusive-sans/500Medium';
 import { InclusiveSans_600SemiBold } from '@expo-google-fonts/inclusive-sans/600SemiBold';
@@ -147,9 +143,10 @@ function useForegroundColor() {
 }
 
 const onboardingTitleStyle = {
-  fontFamily: 'AbrilFatface_400Regular',
-  fontSize: 48,
-  lineHeight: 52,
+  fontFamily: 'DMSerifText_400Regular',
+  fontSize: 44,
+  lineHeight: 48,
+  letterSpacing: -0.44,
   color: '#ffffff',
   textAlign: 'left' as const,
   textShadowColor: 'rgba(0,0,0,0.25)',
@@ -188,7 +185,7 @@ function ActionButton({ label, onPress, enabled = true, loading = false }: { lab
         className={`h-14 items-center justify-center overflow-hidden rounded-xl ${enabled ? 'opacity-100' : 'opacity-40'}`}
       >
         {width > 0 ? <Svg pointerEvents="none" width={width} height={56} preserveAspectRatio="none" style={StyleSheet.absoluteFill}><Defs><LinearGradient id="actionButtonGradient" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={dark ? '#FFFFFF' : '#4D4D4D'} /><Stop offset="1" stopColor={dark ? '#888888' : '#000000'} /></LinearGradient></Defs><Rect width={width} height={56} fill="url(#actionButtonGradient)" /></Svg> : null}
-        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.76} style={{ zIndex: 1, paddingHorizontal: 16 }} className={`w-full text-center font-bold text-base ${dark ? 'text-black' : 'text-white'}`}>{loading ? 'Please wait…' : label}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.76} style={{ zIndex: 1, paddingHorizontal: 16 }} className={`w-full text-center font-mono-bold text-base ${dark ? 'text-black' : 'text-white'}`}>{loading ? 'Please wait…' : label}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -710,9 +707,9 @@ function OnboardingPlaceholder() {
     <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-canvas" contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}>
       <Animated.View entering={FadeInUp.duration(420)} className="flex-1 items-center justify-center px-7">
         <View className="h-24 w-24 items-center justify-center rounded-full bg-success-soft"><AppGlyph icon={CheckIcon} size={40} weight="bold" tone="success" /></View>
-        <Text className="mt-7 font-semibold text-center text-[24px] leading-8 tracking-[-0.5px] text-foreground">Your account is ready</Text>
-        <Text className="mt-3 max-w-[310px] font-sans text-center text-base leading-6 text-muted">Meal preference onboarding will continue here in the next step.</Text>
-        <View className="mt-8 w-full rounded-[18px] border border-border bg-surface-raised p-6"><Text className="font-semibold text-center text-xs tracking-[1.3px] text-muted">ONBOARDING PLACEHOLDER</Text></View>
+        <Text className="mt-7 font-mono-semibold text-center text-[24px] leading-8 tracking-[-0.5px] text-foreground">Your account is ready</Text>
+        <Text className="mt-3 max-w-[310px] font-body text-center text-base leading-6 text-muted">Meal preference onboarding will continue here in the next step.</Text>
+        <View className="mt-8 w-full rounded-[18px] border border-border bg-surface-raised p-6"><Text className="font-mono-semibold text-center text-xs tracking-[1.3px] text-muted">ONBOARDING PLACEHOLDER</Text></View>
       </Animated.View>
     </ScrollView>
   );
@@ -785,18 +782,14 @@ function AppFlow() {
       {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} onExploreMyPlanPress={definition.primaryAction === 'Explore My Plan' ? openMyPlanFromHome : undefined} /> : null}
       {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={`${machine.selectedState}-${commerceProfileLaunch.initialRoute ?? 'profile'}-${commerceProfileLaunch.myPlanShowManageActions}`} stateId={machine.selectedState} initialRoute={commerceProfileLaunch.initialRoute} myPlanShowManageActions={commerceProfileLaunch.myPlanShowManageActions} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
-      {screen !== 'selector' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-semibold text-xs text-foreground">States</Text></Pressable> : null}
+      {screen !== 'selector' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-mono-semibold text-xs text-foreground">States</Text></Pressable> : null}
     </View>
   );
 }
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    Geist_400Regular,
-    Geist_500Medium,
-    Geist_600SemiBold,
-    Geist_700Bold,
-    AbrilFatface_400Regular,
+    DMSerifText_400Regular,
     InclusiveSans_400Regular,
     InclusiveSans_500Medium,
     InclusiveSans_600SemiBold,

@@ -20,8 +20,7 @@
     "update:production": "./node_modules/.bin/eas update --channel production --non-interactive"
   },
   "dependencies": {
-    "@expo-google-fonts/abril-fatface": "^0.4.1",
-    "@expo-google-fonts/geist": "^0.4.2",
+    "@expo-google-fonts/dm-serif-text": "^0.4.1",
     "@expo-google-fonts/inclusive-sans": "^0.4.2",
     "expo": "~54.0.36",
     "expo-blur": "~15.0.8",

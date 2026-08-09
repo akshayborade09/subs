@@ -93,6 +93,7 @@ export function deliveryEligibilityReducer(
         pincode: event.data.pincode,
         serviceability: 'serviceable',
         serviceabilityResponse: event.data,
+        mealSelection: state.mealSelection ?? 'lunch',
       };
     case 'PINCODE_NOT_SERVICEABLE':
       return {

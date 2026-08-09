@@ -147,7 +147,7 @@ See `qa/STATE_MACHINE_COVERAGE.md` for transitions and guards.
 | JS mirrors | `src/themeColors.ts` |
 | Rules | `.cursor/rules/design-system-core.mdc` |
 
-Fonts: Abril Fatface (`font-heading`), Inclusive Sans (`font-body`).
+Fonts: DM Serif Text (`font-heading`), Inclusive Sans (`font-body`).
 
 ---
 
