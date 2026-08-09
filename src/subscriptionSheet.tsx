@@ -38,7 +38,7 @@ type PlanId = 'weekly' | 'monthly' | 'quarterly';
 type MealChoice = 'Lunch' | 'Dinner' | 'Both';
 type SubscriptionMealSlot = 'lunch' | 'dinner';
 
-const plans = [
+export const plans = [
   { id: 'weekly' as const, name: 'Weekly', duration: '1 week', meals: 5, price: 1499, discount: 100, badge: 'Try more' as const, badgeGhost: true },
   { id: 'monthly' as const, name: 'Monthly', duration: '4 weeks', meals: 20, price: 5499, discount: 500, badge: 'Recommended' as const, badgeGhost: false },
   { id: 'quarterly' as const, name: 'Quarterly', duration: '12 weeks', meals: 60, price: 14999, discount: 2000, badge: 'Best value' as const, badgeGhost: false },
@@ -166,7 +166,7 @@ function SheetGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregr
     muted: dark ? '#ababab' : '#5e5e5e',
     accent: dark ? '#60a5fa' : '#2563eb',
     'accent-foreground': themePalette[dark ? 'dark' : 'light'].accentForeground,
-    success: dark ? '#4ade80' : '#16a34a',
+    success: themePalette[dark ? 'dark' : 'light'].success,
     canvas: dark ? '#0e0e0e' : '#ffffff',
   };
   return <Glyph size={Math.max(8, size - 4)} weight={weight === 'fill' ? 'fill' : 'bold'} color={colors[tone]} />;

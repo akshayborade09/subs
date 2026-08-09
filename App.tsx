@@ -785,7 +785,7 @@ function AppFlow() {
       {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} onExploreMyPlanPress={definition.primaryAction === 'Explore My Plan' ? openMyPlanFromHome : undefined} /> : null}
       {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={`${machine.selectedState}-${commerceProfileLaunch.initialRoute ?? 'profile'}-${commerceProfileLaunch.myPlanShowManageActions}`} stateId={machine.selectedState} initialRoute={commerceProfileLaunch.initialRoute} myPlanShowManageActions={commerceProfileLaunch.myPlanShowManageActions} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
-      {screen !== 'selector' && screen !== 'preview' && screen !== 'stories' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-semibold text-xs text-foreground">States</Text></Pressable> : null}
+      {screen !== 'selector' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-semibold text-xs text-foreground">States</Text></Pressable> : null}
     </View>
   );
 }

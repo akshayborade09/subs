@@ -6,23 +6,23 @@ export const demoSavedAddresses: SavedAddress[] = [
   {
     id: 'demo-home',
     labelType: 'home',
-    deliveryLocation: 'Baner Road, Pune',
+    deliveryLocation: 'Dahisar East, Mumbai',
     number: 'B-704',
     society: 'Green View Apartments',
     landmark: '',
     instructions: 'Leave with security if unavailable.',
-    pincode: '411045',
+    pincode: '400068',
     isDefault: true,
   },
   {
     id: 'demo-office',
     labelType: 'office',
-    deliveryLocation: 'Baner Road, Pune',
+    deliveryLocation: 'Dahisar East, Mumbai',
     number: '402',
     society: 'Sky Vista',
-    landmark: 'Near Balewadi High Street',
+    landmark: 'Near station',
     instructions: '',
-    pincode: '411045',
+    pincode: '400068',
   },
 ];
 

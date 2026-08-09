@@ -1031,7 +1031,8 @@ export function useFocusScrollField(
   const positionFocusedField = useCallback((input: TextInput | null, keyboardTop?: number) => {
     const scroll = scrollRef.current;
     if (!scroll || !input) return;
-    const resolvedKeyboardTop = keyboardTop ?? Keyboard.metrics()?.screenY;
+    const metrics = typeof Keyboard.metrics === 'function' ? Keyboard.metrics() : undefined;
+    const resolvedKeyboardTop = keyboardTop ?? metrics?.screenY;
     if (!resolvedKeyboardTop) return;
 
     input.measureInWindow((_x, inputY, _w, inputHeight) => {

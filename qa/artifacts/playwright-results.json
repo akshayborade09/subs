@@ -1,0 +1,95 @@
+{
+  "results": [
+    {
+      "id": "BOOT-001",
+      "status": "PASS",
+      "detail": "STATE MACHINE | Choose an application state | Launch the app in any lifecycle state to review its routing, content and available actions. | Entry and onboarding | A | New"
+    },
+    {
+      "id": "LIFE-001",
+      "status": "PASS",
+      "detail": "Selector present"
+    },
+    {
+      "id": "LIFE-002",
+      "status": "PASS",
+      "detail": "opened=true; Delivery availability | Enter your pincode | Order at this location | Lunch | Dinner | Both | Next | Check here for serviceable areas | States"
+    },
+    {
+      "id": "ONB-001",
+      "status": "PASS",
+      "detail": "Delivery availability screen"
+    },
+    {
+      "id": "ONB-002",
+      "status": "PASS",
+      "detail": "inputs=1"
+    },
+    {
+      "id": "ONB-PIN-UNSVC",
+      "status": "PASS",
+      "detail": "Delivery availability | Enter your pincode | We're sorry! We don't deliver to this pincode yet. | Order at this location | Lunch | Dinner | Both | Next | Check here for serviceable areas | States"
+    },
+    {
+      "id": "ONB-PIN-SVC",
+      "status": "PASS",
+      "detail": "Delivery availability | Enter your pincode | Yay! We deliver to this pincode. | Order at this location | Lunch | Dinner | Both | Next | Check here for serviceable areas | States"
+    },
+    {
+      "id": "ONB-MEAL-CHIPS",
+      "status": "PASS",
+      "detail": "Lunch count=1"
+    },
+    {
+      "id": "ONB-NEG-NO-MEAL",
+      "status": "PASS",
+      "detail": "should remain on eligibility without meal"
+    },
+    {
+      "id": "ONB-PERSONAL",
+      "status": "PASS",
+      "detail": "Tell us about you | A few details help us personalise your trial. | Full name | Date of birth | DD-MM-YYYY | Gender | Male | Female | Others | Continue | States"
+    },
+    {
+      "id": "RUNTIME",
+      "status": "FAIL",
+      "detail": "locator.click: Timeout 4000ms exceeded.\nCall log:\n  - waiting for getByText(/^Continue$/i).first()\n    - locator resolved to <div dir=\"auto\" class=\"css-text-146c3p1 font-mono-semibold text-body-md text-canvas\">Continue</div>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n      - waiting 100ms\n    8 × waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n      - waiting 500ms\n\n    at clickText (/Users/akshay/Documents/subs/[stdin]:18:14)\n    at /Users/akshay/Documents/subs/async [stdin]:116:11"
+    }
+  ],
+  "consoleErrors": [
+    {
+      "type": "pageerror",
+      "text": "TypeError: Keyboard.default.metrics is not a function"
+    },
+    {
+      "type": "pageerror",
+      "text": "TypeError: Keyboard.default.metrics is not a function"
+    }
+  ],
+  "consoleLogs": [
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "log",
+      "text": "Running application \"main\" with appParams:\n {rootTag: #root, hydrate: undefined} \nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."
+    },
+    {
+      "type": "pageerror",
+      "text": "TypeError: Keyboard.default.metrics is not a function"
+    },
+    {
+      "type": "warning",
+      "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+    },
+    {
+      "type": "warning",
+      "text": "Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"
+    },
+    {
+      "type": "pageerror",
+      "text": "TypeError: Keyboard.default.metrics is not a function"
+    }
+  ]
+}

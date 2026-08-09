@@ -810,7 +810,31 @@ export default function TrialFlow() {
   const patchWeekdayAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, address: { ...current.address, ...patch } }));
   const patchWeekendAddress = (patch: Partial<AddressDetails>) => setData((current) => ({ ...current, weekendAddressDetails: { ...current.weekendAddressDetails, ...patch } }));
   const patchActiveAddress = (patch: Partial<AddressDetails>) => { if (addressMode === 'weekday') patchWeekdayAddress(patch); else patchWeekendAddress(patch); };
-const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } let nextIndex = Math.min(order.length - 1, index + 1); if (step === 'food' && data.meal && order[nextIndex] === 'meal') nextIndex = Math.min(order.length - 1, nextIndex + 1); setStep(order[nextIndex]!); }; const back = () => { if (returnToSummary) { setReturnToSummary(false); setStep('summary'); return; } setStep(order[Math.max(0, index - 1)]!); };
+const index = order.indexOf(step); const next = () => { if (returnToSummary && ['food', 'meal', 'mixMeals', 'bread', 'rice', 'addressFlow'].includes(step)) { setReturnToSummary(false); setStep('summary'); return; } let nextIndex = Math.min(order.length - 1, index + 1); if (step === 'food' && data.meal && order[nextIndex] === 'meal') nextIndex = Math.min(order.length - 1, nextIndex + 1); setStep(order[nextIndex]!); }; const back = () => {
+    if (returnToSummary) {
+      setReturnToSummary(false);
+      setStep('summary');
+      return;
+    }
+    if (step === 'summary') {
+      const slots = addressSlotsForMeal(data.meal);
+      const lastSlot = slots[slots.length - 1];
+      if (lastSlot === 'lunch' && data.lunchDelivery) {
+        setAddressFlowSlot('lunch');
+        setStep('addressFlow');
+        return;
+      }
+      if (lastSlot === 'dinner' && data.dinnerDelivery) {
+        setAddressFlowSlot('dinner');
+        setStep('addressFlow');
+        return;
+      }
+      setAddressFlowSlot(null);
+      setStep('rice');
+      return;
+    }
+    setStep(order[Math.max(0, index - 1)]!);
+  };
   const meals = data.meal === 'Both' ? TRIAL_DAY_COUNT * 2 : TRIAL_DAY_COUNT;
   const dailyMealsComplete = data.dailyMeals.every((day) => (data.meal === 'Dinner' || !!day.lunch) && (data.meal === 'Lunch' || !!day.dinner));
   const total = trialPricingBreakup(data.meal).total;
@@ -873,6 +897,16 @@ const index = order.indexOf(step); const next = () => { if (returnToSummary && [
       else setStep('bread');
     }
   }, [step, data.meal, data.food, returnToSummary]);
+
+  useEffect(() => {
+    if (step !== 'addressFlow' || addressFlowSlot) return;
+    const pending = nextPendingAddressSlot(data.meal, data);
+    if (pending) {
+      setAddressFlowSlot(pending);
+      return;
+    }
+    setStep('summary');
+  }, [step, addressFlowSlot, data]);
 
   if (step === 'deliveryEligibility') return <View className="absolute inset-0 bg-canvas"><DeliveryEligibilityScreen shell={(content, footer) => <Shell title="Delivery availability" onBack={undefined} footer={footer}>{content}</Shell>} initialPincode={data.deliveryPincode} initialMealLabel={data.meal} initialTrusted={!!data.deliveryPincode && !!data.meal} onContinue={({ pincode, meal }) => { setData((current) => ({ ...current, deliveryPincode: pincode, meal: mealSelectionToMealLabel(meal) })); if (backendEnabled && isSignedIn()) { void completeOnboardingStep('deliveryEligibility', { deliveryPincode: pincode, mealPreference: meal }).catch(() => {}); } next(); }} /></View>;
   if (step === 'personal') return <><Shell title="Tell us about you" onBack={back} footer={<TrialAuthButton label="Continue" enabled={data.name.trim().length > 1 && !!data.dob && !!data.gender} onPress={next} />}><FormPageSection subheading="A few details help us personalise your trial."><View className="gap-sheet-gap"><PersonalFormField label="Full name" autoFocus value={data.name} onChangeText={(value) => set('name', value)} placeholder="Your full name" onSubmitEditing={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><PersonalDateField value={data.dob} onPress={() => { Keyboard.dismiss(); setTimeout(() => setDateOpen(true), 120); }} /><View className="gap-2"><Text className="font-body text-body-sm tracking-body-sm text-foreground">Gender</Text><View className="flex-row gap-otp">{genderOptions.map((option) => <PersonalGenderCard key={option.label} label={option.label} icon={option.icon} selected={data.gender === option.label} onPress={() => set('gender', option.label)} />)}</View></View></View></FormPageSection></Shell>{dateOpen ? <DateSheet value={data.dob} onClose={() => setDateOpen(false)} onConfirm={(value) => { set('dob', value); setDateOpen(false); }} /> : null}</>;

@@ -1,0 +1,157 @@
+{
+  "results": [
+    {
+      "id": "AUTH-001",
+      "status": "PASS",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to securely continue. | +91 | "
+    },
+    {
+      "id": "STORIES-001",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to securely continue. | +91 | "
+    },
+    {
+      "id": "ONB-C",
+      "status": "FAIL",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your"
+    },
+    {
+      "id": "HOME-F",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "HOME-G",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "HOME-I",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "HOME-K",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "HOME-AO",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "HOME-M",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "HOME-O",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "HOME-S",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp number to sec"
+    },
+    {
+      "id": "MEAL-DETAIL-SUB",
+      "status": "BLOCKED",
+      "detail": "skip=false addr=false pref=false report=false :: meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your Wh"
+    },
+    {
+      "id": "MEAL-DETAIL-TRIAL",
+      "status": "PASS",
+      "detail": "trial actions leaked? skip=false :: meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your Wh"
+    },
+    {
+      "id": "COM-V",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp num"
+    },
+    {
+      "id": "COM-AB",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp num"
+    },
+    {
+      "id": "COM-AD",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp num"
+    },
+    {
+      "id": "COM-AJ",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp num"
+    },
+    {
+      "id": "COM-AM",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your WhatsApp num"
+    },
+    {
+      "id": "PAY-E",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your Wh"
+    },
+    {
+      "id": "PAY-Z",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your Wh"
+    },
+    {
+      "id": "ONB-AREAS",
+      "status": "BLOCKED",
+      "detail": "Not on eligibility"
+    },
+    {
+      "id": "ONB-COVERAGE",
+      "status": "NOT TESTABLE",
+      "detail": "Prerequisite failed"
+    },
+    {
+      "id": "DARK-001",
+      "status": "BLOCKED",
+      "detail": "meals that | feel like home | Get started | By continuing, you agree to our | Terms | and | Privacy Policy. | sora kitchen | Create your account | Use your Wh"
+    },
+    {
+      "id": "RESP-001",
+      "status": "PASS",
+      "detail": "small viewport"
+    },
+    {
+      "id": "RESP-002",
+      "status": "PASS",
+      "detail": "large viewport"
+    },
+    {
+      "id": "CONSOLE-001",
+      "status": "PASS",
+      "detail": "no page errors"
+    }
+  ],
+  "consoleErrors": [],
+  "consoleSample": [
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "log",
+      "text": "Running application \"main\" with appParams:\n {rootTag: #root, hydrate: undefined} \nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."
+    },
+    {
+      "type": "warning",
+      "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+    },
+    {
+      "type": "warning",
+      "text": "\"textShadow*\" style props are deprecated. Use \"textShadow\"."
+    },
+    {
+      "type": "warning",
+      "text": "[Reanimated] useAnimatedKeyboard is not available on web yet."
+    }
+  ]
+}

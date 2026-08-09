@@ -45,7 +45,7 @@ import {
   buildMealDetailActions,
   buildSkipMetadata,
   calculateExtendedSubscriptionEndDate,
-  calculateRestoredSubscriptionEndDate,
+  calculateShortenedSubscriptionEndDate,
   canUndoSkip,
   cutoffHelperMessage,
   preferenceCutoffNotice,
@@ -75,7 +75,7 @@ import { DeliveryAddressFlow } from './DeliveryAddressFlow';
 import { useSavedAddresses } from './savedAddressesStore';
 import { SubscriptionPreferencePickerModal, type PickerAnchor } from './subscriptionPreferencePickerModal';
 import { subscriptionFoodOptions } from './subscriptionPreferenceOptions';
-import { SubscriptionSheet } from './subscriptionSheet';
+import { SubscriptionSheet, calculateSubscriptionPricing, plans } from './subscriptionSheet';
 import type { TrialMealDeliveryState } from './trialOnboardingSummary';
 import { MealPreferenceImage } from './MealPreferenceImage';
 import { PlanRestartDateSheet, nextWeekdayDateKey, restartDateFromKey, restartDateLabel, restartDateShortLabel } from './planRestartDateSheet';
@@ -113,7 +113,13 @@ function HomeGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregro
 }
 
 export type MealStatus = 'delivered' | 'upcoming' | 'paused' | 'inactive' | 'issue' | 'delayed' | 'delivery_failed' | 'skipped';
-type MealMarker = { foodPreference: string; status: MealStatus; slot?: MealSlot; skipMetadata?: SkipMetadata };
+type MealMarker = {
+  foodPreference: string;
+  status: MealStatus;
+  slot?: MealSlot;
+  skipMetadata?: SkipMetadata;
+  deliveryAddressOverride?: MealAddressOverride;
+};
 type Nutrition = { calories: string; protein: string; carbohydrates: string; fat: string; fibre: string; sodium: string };
 type MealItem = { name: string; serving: string; calories: string; protein: string };
 type TrialMeal = {
@@ -1180,9 +1186,8 @@ function MealDetailSheet({
   const { width: screenWidth, height: windowHeight } = useWindowDimensions();
   const { theme } = useUniwind();
   const iconColor = theme === 'dark' ? '#ffffff' : '#101010';
-  const effectiveFoodPreference = getEffectiveFoodPreference(meal);
-  const slotMarkerForImage = meal.mealMarkers?.[markerIndexForSlot(meal, mealSlot)];
-  const heroFoodPreference = slotMarkerForImage?.foodPreference ?? effectiveFoodPreference;
+  const effectiveFoodPreference = getEffectiveFoodPreference(meal, mealSlot);
+  const heroFoodPreference = effectiveFoodPreference;
   const mealImage = foodImageForPreference(heroFoodPreference);
   const { phase, send, closeFlow } = useMealDetailMachine();
   const sheets = phaseToSheetFlags(phase);
@@ -1226,7 +1231,7 @@ function MealDetailSheet({
   const isSkipped = slotSkipped;
   const displayMealType = planBoth ? slotLabel(mealSlot) : meal.mealType;
   const slotMarker = meal.mealMarkers?.[markerIndexForSlot(meal, mealSlot)];
-  const displayFoodPreference = slotMarker?.foodPreference ?? effectiveFoodPreference;
+  const displayFoodPreference = effectiveFoodPreference;
   const slotStatus = slotMarker?.status ?? meal.status;
   const isDelivered = slotStatus === 'delivered';
   const isUpcoming = !isSkipped && !isDelivered && !deliveryCancelled;
@@ -1470,7 +1475,7 @@ function MealDetailSheet({
                   {isSkipped ? (
                     <SkippedStatusGroup
                       onUndo={undoAvailable && activeSkipMetadata ? () => {
-                        onUndoSkip(meal.id, mealSlot, calculateRestoredSubscriptionEndDate(activeSkipMetadata));
+                        onUndoSkip(meal.id, mealSlot, calculateShortenedSubscriptionEndDate(subscriptionEndDate));
                         send({ type: 'MEAL_SKIP_UNDONE' });
                         onToast(`${slotLabel(mealSlot)} restored`);
                       } : undefined}
@@ -1525,6 +1530,7 @@ function MealDetailSheet({
                 <View className="my-5 h-px bg-border" />
                 {showModificationDetails && cutoffMessage ? <Text className="font-body text-body-sm leading-5 text-muted">{cutoffMessage}</Text> : null}
                 <Text className={`${showModificationDetails && cutoffMessage ? 'mt-4' : ''} font-body text-body-sm leading-6 text-muted`}>Nutrition details will be available after the meal is prepared.</Text>
+                <MealDetailActionList actions={reportIssueActions} onAction={handleAction} />
               </>
             )}
             {isDelivered || deliveryCancelled ? (
@@ -1554,10 +1560,21 @@ function MealDetailSheet({
             setAddressFlowOpen(true);
           }}
           onSelect={(address) => {
-            onUpdate({
-              ...meal,
-              deliveryAddressOverride: mealOverrideFromSavedAddress(address),
-            });
+            const override = mealOverrideFromSavedAddress(address);
+            const slotIndex = markerIndexForSlot(meal, mealSlot);
+            onUpdate(
+              meal.mealMarkers?.length
+                ? {
+                    ...meal,
+                    mealMarkers: meal.mealMarkers.map((marker, index) => (
+                      index === slotIndex ? { ...marker, deliveryAddressOverride: override } : marker
+                    )),
+                  }
+                : {
+                    ...meal,
+                    deliveryAddressOverride: override,
+                  },
+            );
             setSavedAddressSheetOpen(false);
             onToast('Delivery address updated for this meal');
           }}
@@ -1573,23 +1590,33 @@ function MealDetailSheet({
           mealSlot={mealSlot}
           editingAddressId={editingAddress?.id}
           headerTitleOverride={editingAddress ? editAddressHeaderTitle() : undefined}
-          initialLocation={editingAddress?.deliveryLocation ?? getEffectiveMealAddress(meal)}
+          initialLocation={editingAddress?.deliveryLocation ?? getEffectiveMealAddress(meal, mealSlot)}
           initialDetails={editingAddress ? {
             ...detailsFromSavedAddress(editingAddress),
             number: addressDetailLine(editingAddress),
             society: '',
             landmark: '',
-          } : emptyAddressDetails(getEffectiveMealAddress(meal))}
+          } : emptyAddressDetails(getEffectiveMealAddress(meal, mealSlot))}
           onClose={() => {
             setAddressFlowOpen(false);
             setEditingAddress(null);
           }}
           onConfirmed={(_saved, override) => {
             const wasEditing = !!editingAddress;
-            onUpdate({
-              ...meal,
-              deliveryAddressOverride: override,
-            });
+            const slotIndex = markerIndexForSlot(meal, mealSlot);
+            onUpdate(
+              meal.mealMarkers?.length
+                ? {
+                    ...meal,
+                    mealMarkers: meal.mealMarkers.map((marker, index) => (
+                      index === slotIndex ? { ...marker, deliveryAddressOverride: override } : marker
+                    )),
+                  }
+                : {
+                    ...meal,
+                    deliveryAddressOverride: override,
+                  },
+            );
             setAddressFlowOpen(false);
             setEditingAddress(null);
             onToast(wasEditing ? 'Address updated' : 'Delivery address updated for this meal');
@@ -1599,12 +1626,27 @@ function MealDetailSheet({
       {pickerAnchor ? (
         <SubscriptionPreferencePickerModal
           kind="food"
-          value={(meal.mealPreferenceOverride ?? getEffectiveFoodPreference(meal)) as MealPreferenceValue}
+          value={getEffectiveFoodPreference(meal, mealSlot) as MealPreferenceValue}
           anchor={pickerAnchor}
           options={subscriptionFoodOptions}
           onClose={() => setPickerAnchor(null)}
           onSelect={(preference) => {
-            onUpdate({ ...meal, mealPreferenceOverride: preference as MealPreferenceValue });
+            const nextPreference = preference as MealPreferenceValue;
+            const slotIndex = markerIndexForSlot(meal, mealSlot);
+            onUpdate(
+              meal.mealMarkers?.length
+                ? {
+                    ...meal,
+                    mealMarkers: meal.mealMarkers.map((marker, index) => (
+                      index === slotIndex ? { ...marker, foodPreference: nextPreference } : marker
+                    )),
+                  }
+                : {
+                    ...meal,
+                    mealPreferenceOverride: nextPreference,
+                    foodPreference: nextPreference,
+                  },
+            );
             onToast('Meal preference updated for this meal');
           }}
         />
@@ -1948,8 +1990,13 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   const [subscriptionOpen, setSubscriptionOpen] = useState(openSubscriptionOnLoad);
   const [planDetailsOpen, setPlanDetailsOpen] = useState(false);
   const [restartCalendarOpen, setRestartCalendarOpen] = useState(false);
+  const seededSubscriptionMeal = meal === 'Dinner' || meal === 'Both' || meal === 'Lunch' ? meal : 'Lunch';
+  const seededSubscriptionTotal = calculateSubscriptionPricing(
+    plans.find((plan) => plan.id === 'monthly') ?? plans[1]!,
+    seededSubscriptionMeal === 'Dinner' ? 'Dinner' : seededSubscriptionMeal === 'Both' ? 'Both' : 'Lunch',
+  ).total;
   const [subscription, setSubscription] = useState<{ plan: string; meal: string; total: number; startDate: string; endDate: Date } | null>(
-    initiallySubscribed ? { plan: 'Monthly', meal, total: 5299, startDate: '26 July', endDate: demoAddDays(demoStartOfDay(), 14) } : null,
+    initiallySubscribed ? { plan: 'Monthly', meal, total: seededSubscriptionTotal, startDate: '26 July', endDate: demoAddDays(demoStartOfDay(), 14) } : null,
   );
   const eligibleMeals = meals.filter((item) => item.isPlanDay !== false);
   const trackerMeals = useMemo(() => planMealsFrom(meals), [meals]);
@@ -2023,18 +2070,10 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
           date: markerMeta.date,
           dayLabel: markerMeta.dayLabel,
           shortDate: markerMeta.shortDate,
-          mealPreferenceOverride: markerMeta.mealPreferenceOverride,
-          deliveryAddressOverride: markerMeta.deliveryAddressOverride,
         };
       });
     });
-    setSubscription((current) => {
-      const target = meals.find((item) => item.id === mealId);
-      const slotIndex = target ? markerIndexForSlot(target, slot) : 0;
-      const markerMeta = target?.mealMarkers?.[slotIndex]?.skipMetadata;
-      if (!target || !markerMeta || !canUndoSkip({ meal: target, isSubscriptionMeal: isSubscriptionHome, isTrialMeal: !isSubscriptionHome, mealSlot: slot, planBoth })) return current;
-      return current ? { ...current, endDate: restoredEndDate } : current;
-    });
+    setSubscription((current) => (current ? { ...current, endDate: restoredEndDate } : current));
   };
   const subscriptionSheetTitle = effectiveLifecycleVariant === 'subscription_expired' ? 'Renew subscription' : 'Choose your subscription';
   const planButtonLabel = planCard?.buttonLabel ?? ((subscription || initiallySubscribed) ? 'Explore My Plan' : 'Avail Subscription');
@@ -2054,7 +2093,7 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
     }
     setSubscriptionOpen(true);
   };
-  const activePlan = subscription ?? (initiallySubscribed ? { plan: 'Monthly', meal, total: 5299, startDate: '26 July', endDate: demoAddDays(demoStartOfDay(), 14) } : null);
+  const activePlan = subscription ?? (initiallySubscribed ? { plan: 'Monthly', meal, total: seededSubscriptionTotal, startDate: '26 July', endDate: demoAddDays(demoStartOfDay(), 14) } : null);
   const planStatusLabel = effectiveLifecycleVariant === 'subscription_restarted' || effectiveLifecycleVariant === 'subscription_scheduled'
     ? 'Scheduled'
     : effectiveLifecycleVariant === 'subscription_paused'

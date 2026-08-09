@@ -67,6 +67,7 @@ export type MealMarkerState = {
   status: string;
   slot?: MealSlot;
   skipMetadata?: SkipMetadata;
+  deliveryAddressOverride?: MealAddressOverride;
 };
 
 type MealDetailState = {
@@ -372,12 +373,28 @@ export function canReportIssue(ctx: MealDetailGuardContext): boolean {
   return ctx.meal.status !== 'inactive';
 }
 
-export function getEffectiveMealAddress(meal: MealDetailGuardMeal): string {
+export function getEffectiveMealAddress(meal: MealDetailGuardMeal, slot?: MealSlot): string {
+  if (slot && meal.mealMarkers?.length) {
+    const marker = meal.mealMarkers[markerIndexForSlot(meal, slot)];
+    if (marker?.deliveryAddressOverride?.text) return marker.deliveryAddressOverride.text;
+  }
   return meal.deliveryAddressOverride?.text ?? meal.address;
 }
 
-export function getEffectiveFoodPreference(meal: MealDetailGuardMeal): string {
+export function getEffectiveFoodPreference(meal: MealDetailGuardMeal, slot?: MealSlot): string {
+  if (slot && meal.mealMarkers?.length) {
+    const marker = meal.mealMarkers[markerIndexForSlot(meal, slot)];
+    if (marker?.foodPreference) return marker.foodPreference;
+  }
   return meal.mealPreferenceOverride ?? meal.foodPreference;
+}
+
+/** Undo removes one weekday extension from the current end date (order-independent). */
+export function calculateShortenedSubscriptionEndDate(currentEndDate: Date): Date {
+  const prev = new Date(currentEndDate);
+  prev.setDate(prev.getDate() - 1);
+  while (!isEligibleMealDay(prev)) prev.setDate(prev.getDate() - 1);
+  return prev;
 }
 
 export function formatFoodPreferenceShort(preference: string): string {
@@ -490,8 +507,8 @@ export function buildMealDetailActions(ctx: MealDetailGuardContext): MealDetailA
     .filter((id) => actionGuard[id](ctx))
     .map((id) => {
       const row: MealDetailActionRow = { id, title: actionLabels[id] };
-      if (id === 'changeAddress') row.subtitle = getEffectiveMealAddress(ctx.meal);
-      if (id === 'changeMealPreference') row.subtitle = formatFoodPreferenceShort(getEffectiveFoodPreference(ctx.meal));
+      if (id === 'changeAddress') row.subtitle = getEffectiveMealAddress(ctx.meal, ctx.mealSlot);
+      if (id === 'changeMealPreference') row.subtitle = formatFoodPreferenceShort(getEffectiveFoodPreference(ctx.meal, ctx.mealSlot));
       return row;
     });
 }

@@ -1,0 +1,247 @@
+{
+  "results": [
+    {
+      "id": "HOME-F",
+      "status": "PASS",
+      "detail": "Trial scheduled | Your trial starts soon | Your three selected trial dates are ready. Tap a meal-status circle to review details. | 7 | FRI | 10 | MON | 11 | TUE | Trial starts 2"
+    },
+    {
+      "id": "HOME-G",
+      "status": "PASS",
+      "detail": "Active trial | Your three-day trial | Tap a meal-status circle to view that meal’s details. | 7 | FRI | 10 | MON | 11 | TUE | 1 day left of trial | Continue your healthy meal routi"
+    },
+    {
+      "id": "HOME-H",
+      "status": "PASS",
+      "detail": "Active trial | Your three-day trial | Your subscription is ready and will begin after the final trial meal. | 7 | FRI | 10 | MON | 11 | TUE | Subscription starts after trial | Your"
+    },
+    {
+      "id": "HOME-I",
+      "status": "PASS",
+      "detail": "Trial complete | Your three-day trial is complete | Review your delivered meals or continue with a subscription. | 7 | FRI | 10 | MON | 11 | TUE | Trial completed | Continue your h"
+    },
+    {
+      "id": "HOME-J",
+      "status": "PASS",
+      "detail": "Subscription scheduled | Your meals start soon | Your selected delivery days are ready for the coming week. | 27 | MON | 28 | TUE | 29 | WED | 30 | THU | 31 | FRI | 3 | MON | 4 | TUE | 5 | WED | 6 | T"
+    },
+    {
+      "id": "HOME-K",
+      "status": "PASS",
+      "detail": "Active subscription | Your meals this week | Tap a selected delivery day to view or update that meal. | 5 | WED | 6 | THU | 7 | FRI | 10 | MON | 11 | TUE | 12 | WED | 13 | THU | 14 | FRI | 17 | MON | 18"
+    },
+    {
+      "id": "HOME-AO",
+      "status": "PASS",
+      "detail": "Active subscription | Your meals this week | Tap a selected delivery day to view or update that meal. | 5 | WED | 6 | THU | 7 | FRI | 10 | MON | 11 | TUE | 12 | WED | 13 | THU | 14 | FRI | 17 | MON | 18"
+    },
+    {
+      "id": "HOME-L",
+      "status": "PASS",
+      "detail": "Active subscription | Your meals this week | There is no meal selected today. Your next selected delivery remains available below. | 5 | WED | 6 | THU | 10 | MON | 11 | TUE | 12 | WED | "
+    },
+    {
+      "id": "HOME-M",
+      "status": "PASS",
+      "detail": "Subscription paused | Your meals are paused | The same weekly schedule is preserved and resumes on 2 August. | 5 | WED | 6 | THU | 7 | FRI | 10 | MON | 11 | TUE | 12 | WED | 13 | THU | 14 | FRI | 17"
+    },
+    {
+      "id": "HOME-AP",
+      "status": "PASS",
+      "detail": "Subscription restarted | Your meal restarts soon | Your selected delivery days are ready for the coming week. | 10 | MON | 11 | TUE | 12 | WED | 13 | THU | 14 | FRI | 17 | MON | 18 | TUE | 19 | WE"
+    },
+    {
+      "id": "HOME-N",
+      "status": "PASS",
+      "detail": "Subscription ending | Your meals this week | Your paid deliveries remain active until 20 August. | Plan active until 20 August | Meals already included in your plan con"
+    },
+    {
+      "id": "HOME-O",
+      "status": "PASS",
+      "detail": "Subscription ended | Your saved meal schedule | Your plan has ended. Previous meals and nutrition history remain available. | 5 | WED | 6 | THU | 7 | FRI | 10 | MON | 11 | TUE | 12 | WED | 1"
+    },
+    {
+      "id": "HOME-P",
+      "status": "PASS",
+      "detail": "Payment action needed | Your meals this week | Paid meals remain confirmed. Update payment to keep future weeks active. | 5 | WED | 6 | THU | 7 | FRI | 10 | MON | 11 | TUE | 12 | WED | 13 | TH"
+    },
+    {
+      "id": "HOME-Q",
+      "status": "PASS",
+      "detail": "Delivery update | Your meals this week | One selected delivery is delayed. Your weekly schedule has not changed. | Delivery delayed | The 23 July delivery is delayed. T"
+    },
+    {
+      "id": "HOME-R",
+      "status": "PASS",
+      "detail": "Delivery issue | Your meals this week | One delivery needs an address or support resolution. | Delivery needs attention | Check the 23 July delivery address or contact "
+    },
+    {
+      "id": "HOME-S",
+      "status": "PASS",
+      "detail": "Offline | Your saved meals this week | Showing the latest saved schedule. Changes are unavailable until you reconnect. | You are offline | This is your last saved weekl"
+    },
+    {
+      "id": "PAY-D",
+      "status": "PASS",
+      "detail": "All states | STATE D | Trial payment pending | Payment was initiated but is not confirmed. | We are confirming your payment | Your bank has received the request. Your tri"
+    },
+    {
+      "id": "PAY-E",
+      "status": "PASS",
+      "detail": "All states | STATE E | Trial payment failed | Payment failed and the trial has not started. | Payment could not be completed | No amount has been applied to your trial. R"
+    },
+    {
+      "id": "PAY-T",
+      "status": "PASS",
+      "detail": "All states | STATE T | Trial payment pending + success | Preview the pending payment loader resolving into confirmation. | We are confirming your payment | Your bank has "
+    },
+    {
+      "id": "PAY-U",
+      "status": "FAIL",
+      "detail": "Trial scheduled | Your trial starts soon | Your three selected trial dates are ready. Tap a meal-status circle to review details. | States"
+    },
+    {
+      "id": "PAY-Y",
+      "status": "PASS",
+      "detail": "All states | STATE Y | Subscription payment pending | Payment is being confirmed without allowing duplicate submission. | We are confirming your payment | Your bank has r"
+    },
+    {
+      "id": "PAY-Z",
+      "status": "PASS",
+      "detail": "All states | STATE Z | Subscription payment success | The paid subscription is active or scheduled and ready to explore. | Your subscription is active | Your subscription"
+    },
+    {
+      "id": "PAY-AA",
+      "status": "PASS",
+      "detail": "All states | STATE AA | Subscription payment failed | The selection is preserved so payment can be retried safely. | Payment could not be completed | Your plan and prefer"
+    },
+    {
+      "id": "COM-V",
+      "status": "PASS",
+      "detail": "Review your subscription | Confirm your plan, meals, delivery and payment before subscribing. | Plan | Monthly | 4 weeks · 40 meals | Meals | Lunch & dinner | Starts | 26 July "
+    },
+    {
+      "id": "COM-W",
+      "status": "PASS",
+      "detail": "Apply coupon | Choose an eligible offer or enter a coupon code. | Apply | Available for you | Save ₹300 | Valid on your first monthly subscription. | HEALTHY300 | Apply | Save "
+    },
+    {
+      "id": "COM-X",
+      "status": "PASS",
+      "detail": "Review your subscription | Confirm your plan, meals, delivery and payment before subscribing. | Plan | Monthly | 4 weeks · 40 meals | Meals | Lunch & dinner | Starts | 26 July "
+    },
+    {
+      "id": "COM-AB",
+      "status": "PASS",
+      "detail": "ACTIVE SUBSCRIPTION | Profile | AB | Akshay Borade | +91 ••••••9919 | My plan | Monthly · Active | Loyalty & rewards | 18 of 28 days completed | Saved addresses | 2 addresses | Trans"
+    },
+    {
+      "id": "COM-AC",
+      "status": "PASS",
+      "detail": "Personal information | Keep your profile details accurate for a more personalised experience. | Full name | Date of birth | 18 Jul 1992 | Gender | Woman | Man | Non-binary | What"
+    },
+    {
+      "id": "COM-AD",
+      "status": "PASS",
+      "detail": "Saved addresses | Manage delivery locations and choose your default address. | Home | B-704, Green View Apartments, Baner Road, Pune, 411045 | Default | Edit | Office | 402, "
+    },
+    {
+      "id": "COM-AE",
+      "status": "PASS",
+      "detail": "Transactions | Payments, refunds, credits and rewards in one place. | All | Payments | Rewards | July 2026 | Monthly subscription | 22 Jul 2026 · 10:42 AM · Succeeded | ₹2,499 | "
+    },
+    {
+      "id": "COM-AF",
+      "status": "PASS",
+      "detail": "Settings | Manage your account, app preferences, privacy and support. | Account | Personal information | Privacy and data | Saved addresses | App | Notifications | App permissi"
+    },
+    {
+      "id": "COM-AG",
+      "status": "PASS",
+      "detail": "Notifications | Choose which updates you receive. Essential service messages remain enabled. | Operational | Delivery and meal status | Required while you have active d"
+    },
+    {
+      "id": "COM-AH",
+      "status": "PASS",
+      "detail": "App permissions | Review access used to improve delivery and account updates. | Location | Allowed · Used to find and validate addresses | Notifications | Allowed · Used "
+    },
+    {
+      "id": "COM-AI",
+      "status": "PASS",
+      "detail": "REFER & EARN | Share healthy meals | Your friend gets a welcome offer. Your reward unlocks after their first successful payment. | YOUR CODE | AKSHAY250 | Copy | Share invi"
+    },
+    {
+      "id": "COM-AJ",
+      "status": "PASS",
+      "detail": "HEALTHY STREAK | Your loyalty progress | Complete one continuous paid subscription month to earn one free meal day. | 18 of 28 | active days completed | Expected reward: "
+    },
+    {
+      "id": "COM-AN",
+      "status": "PASS",
+      "detail": "HEALTHY STREAK | Your loyalty progress | You completed a qualifying paid month. Claim your free meal day before it expires. | STREAK COMPLETED | 28 of 28 | active days co"
+    },
+    {
+      "id": "COM-AK",
+      "status": "PASS",
+      "detail": "JULY 2026 | Healthy Streak leaderboard | Friendly monthly points and recognition. Your guaranteed free meal does not depend on rank. | YOUR RANK | #18 | YOUR POINTS | 285 | 9"
+    },
+    {
+      "id": "COM-AL",
+      "status": "PASS",
+      "detail": "REWARD EARNED | Your free meal day is ready | You completed one qualifying paid month. Choose an eligible delivery day within 60 days. | Veg | Non-veg | Mix of both | Rewar"
+    },
+    {
+      "id": "COM-AM",
+      "status": "PASS",
+      "detail": "Choose your free meal day | Select an eligible date. Your current meal and address settings will be used. | Eligible dates | 27 | Mon | 28 | Tue | 29 | Wed | 30 | Thu | 31 | Fri | Reward"
+    },
+    {
+      "id": "ONB-RELOAD",
+      "status": "PASS",
+      "detail": "Delivery availability | Enter your pincode | Order at this location | Lunch | Dinner | Both | Next | Check here fo"
+    },
+    {
+      "id": "ONB-AREAS",
+      "status": "PASS",
+      "detail": "Delivery availability | Enter your pincode | Yay! We deliver to this pincode. | Order at this location | Lunch | Dinner | Both | Next | Check here for serviceable areas | Serviceable areas | 400051 | Ai"
+    },
+    {
+      "id": "ONB-COVERAGE",
+      "status": "PASS",
+      "detail": "Delivery availability | Enter your pincode | Yay! We deliver to this pincode. | Order at this location | Lunch | Dinner | Both | Next | Check here for servi"
+    },
+    {
+      "id": "HARNESS-FAB-HOME",
+      "status": "PASS",
+      "detail": "FAB should show on trial_home"
+    },
+    {
+      "id": "HARNESS-FAB-STORIES",
+      "status": "PASS",
+      "detail": "FAB on stories visible=false (code hides it; no return path)"
+    },
+    {
+      "id": "HARNESS-FAB-PREVIEW",
+      "status": "PASS",
+      "detail": "FAB on preview visible=false (code hides it; no return path)"
+    },
+    {
+      "id": "MEAL-AO-ACTIONS",
+      "status": "PASS",
+      "detail": "hasSkip=false hasAddr=false hasPref=false hasReport=true :: Active subscription | Your meals this week | Tap a selected delivery day to view or update that meal. | 5 | WED | 6 | THU | 7 | FRI | 10 | M"
+    },
+    {
+      "id": "MEAL-TRIAL-PERMS",
+      "status": "PASS",
+      "detail": "leaked=false report=false :: Active trial | Your three-day trial | Tap a meal-status circle to view that meal’s details. | 7 | FRI | 10 | MON | 11 | TUE | 1 day left of trial | Continue you"
+    },
+    {
+      "id": "CONSOLE",
+      "status": "FAIL",
+      "detail": "TypeError: Keyboard.default.metrics is not a function"
+    }
+  ],
+  "consoleErrors": [
+    "TypeError: Keyboard.default.metrics is not a function"
+  ]
+}
