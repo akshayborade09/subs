@@ -43,6 +43,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { SavedAddressesProvider } from './src/savedAddressesStore';
+import { NutritionProvider } from './src/nutrition/nutritionStore';
+import { SubscriberShell, type SubscriberShellLaunch } from './src/SubscriberShell';
+import { NAV_OVERLAY_HEIGHT, isActiveSubscriber } from './src/subscriberNavigation';
 import { useUniwind } from 'uniwind';
 import * as Location from 'expo-location';
 import { type Icon, type IconWeight } from 'phosphor-react-native';
@@ -717,6 +720,42 @@ function OnboardingPlaceholder() {
 
 type Screen = 'selector' | 'stories' | 'complete' | 'trial_home' | 'preview' | 'commerce_profile';
 
+type HomeLifecycleVariant = Parameters<typeof TrialHome>[0]['lifecycleVariant'];
+
+const homeLifecycleVariantByState: Partial<Record<LifecycleStateId, HomeLifecycleVariant>> = {
+  D: 'trial_payment_pending',
+  F: 'trial_scheduled',
+  G: 'trial_active',
+  H: 'trial_subscription_purchased',
+  I: 'trial_completed',
+  J: 'subscription_scheduled',
+  K: 'subscription_active',
+  AO: 'subscription_active',
+  L: 'subscription_no_meal',
+  M: 'subscription_paused',
+  AP: 'subscription_restarted',
+  N: 'subscription_ending',
+  O: 'subscription_expired',
+  P: 'subscription_renewal_failed',
+  Q: 'subscription_delivery_delayed',
+  R: 'subscription_delivery_failed',
+  S: 'subscription_offline',
+  AQ: 'subscription_active',
+  AR: 'subscription_active',
+  AS: 'subscription_active',
+  AT: 'subscription_active',
+  AU: 'subscription_active',
+};
+
+/** Nutrition states open a specific subscriber tab with setup forced to match. */
+const nutritionLaunchByState: Partial<Record<LifecycleStateId, SubscriberShellLaunch>> = {
+  AQ: { tab: 'nutrition', setup: 'reset' },
+  AR: { tab: 'nutrition', setup: 'complete', periodMode: 'daily' },
+  AS: { tab: 'nutrition', setup: 'complete', periodMode: 'weekly' },
+  AT: { tab: 'diet_plan', setup: 'complete' },
+  AU: { tab: 'insights', setup: 'complete' },
+};
+
 function AppFlow() {
   const insets = useSafeAreaInsets();
   const [machine, dispatch] = useReducer(lifecycleMachineReducer, initialLifecycleMachineState);
@@ -770,6 +809,25 @@ function AppFlow() {
     }
     openSelector();
   };
+  const homeLifecycleVariant = homeLifecycleVariantByState[machine.selectedState ?? 'G'] ?? 'trial_active';
+  const subscriberTabsEnabled = isActiveSubscriber(homeLifecycleVariant);
+  const nutritionLaunch = machine.selectedState ? nutritionLaunchByState[machine.selectedState] : undefined;
+  const homeElement = (
+    <TrialHome
+      key={machine.selectedState ?? 'trial'}
+      food="Mix of both"
+      meal="Both"
+      bread="Chapati"
+      rice="Jeera rice"
+      address="B-704, Green View Apartments, Baner Road, Pune 411045"
+      openMealDetailOnLoad={machine.selectedState === 'AO'}
+      lifecycleVariant={homeLifecycleVariant}
+      bottomInset={subscriberTabsEnabled ? NAV_OVERLAY_HEIGHT : 0}
+      onPaymentStatusPress={() => setScreen('preview')}
+      onProfilePress={openProfileFromHome}
+      onExploreMyPlanPress={openMyPlanFromHome}
+    />
+  );
   return (
     <View className="flex-1 bg-canvas">
       <StatusBar style={statusStyle} translucent backgroundColor="transparent" />
@@ -778,7 +836,7 @@ function AppFlow() {
       </View>
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
       {screen === 'complete' ? <TrialFlow /> : null}
-      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" openMealDetailOnLoad={machine.selectedState === 'AO'} lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', AO: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', AP: 'subscription_restarted', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')}  onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} onExploreMyPlanPress={openMyPlanFromHome} /> : null}
+      {screen === 'trial_home' ? (subscriberTabsEnabled ? <SubscriberShell key={machine.selectedState ?? 'subscriber'} home={homeElement} launch={nutritionLaunch} /> : homeElement) : null}
       {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} onExploreMyPlanPress={definition.primaryAction === 'Explore My Plan' ? openMyPlanFromHome : undefined} /> : null}
       {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={`${machine.selectedState}-${commerceProfileLaunch.initialRoute ?? 'profile'}-${commerceProfileLaunch.myPlanShowManageActions}`} stateId={machine.selectedState} initialRoute={commerceProfileLaunch.initialRoute} myPlanShowManageActions={commerceProfileLaunch.myPlanShowManageActions} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
@@ -796,5 +854,5 @@ export default function App() {
     InclusiveSans_700Bold,
   });
   if (!fontsLoaded) return <View className="flex-1 bg-canvas" />;
-  return <SafeAreaProvider className="bg-canvas"><SavedAddressesProvider><AppFlow /></SavedAddressesProvider></SafeAreaProvider>;
+  return <SafeAreaProvider className="bg-canvas"><SavedAddressesProvider><NutritionProvider><AppFlow /></NutritionProvider></SavedAddressesProvider></SafeAreaProvider>;
 }

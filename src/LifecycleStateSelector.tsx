@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lifecycleDefinitions, type LifecycleDefinition, type LifecycleGroup, type LifecycleStateId } from './lifecycleStateMachine';
 import { headingDescriptionClass } from './typographyClasses';
 
-const groups: LifecycleGroup[] = ['Entry and onboarding', 'Trial', 'Subscription', 'Recovery and delivery', 'Checkout and coupons', 'Profile and settings', 'Loyalty and referrals'];
+const groups: LifecycleGroup[] = ['Entry and onboarding', 'Trial', 'Subscription', 'Nutrition', 'Recovery and delivery', 'Checkout and coupons', 'Profile and settings', 'Loyalty and referrals'];
 
 const toneClass: Record<LifecycleDefinition['tone'], string> = {
   neutral: 'bg-surface-raised text-muted',

@@ -2,9 +2,10 @@ export type LifecycleStateId =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
   | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U'
   | 'V' | 'W' | 'X' | 'Y' | 'Z' | 'AA' | 'AB' | 'AC' | 'AD' | 'AE'
-  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN' | 'AO' | 'AP';
+  | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN' | 'AO' | 'AP'
+  | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU';
 
-export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
+export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Nutrition' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
 export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview' | 'commerce_profile';
 
 export type LifecycleDefinition = {
@@ -34,6 +35,11 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'J', group: 'Subscription', title: 'Subscription scheduled', summary: 'Subscription is paid and begins on a future date.', entry: 'Pre-subscription Home', primaryAction: 'Explore My Plan', destination: 'trial_home', tone: 'success' },
   { id: 'K', group: 'Subscription', title: 'Subscription active', summary: 'Normal subscriber experience with this week’s selected meals.', entry: 'Subscriber Home', primaryAction: 'View Meal Details', destination: 'trial_home', tone: 'success' },
   { id: 'AO', group: 'Subscription', title: 'Future meal detail', summary: 'Upcoming subscription meal with address, preference, date, skip and report actions.', entry: 'Future Meal Detail', primaryAction: 'Open meal detail', destination: 'trial_home', tone: 'success' },
+  { id: 'AQ', group: 'Nutrition', title: 'Nutrition onboarding', summary: 'Dynamic nutrition setup for an active subscriber, skipping data the subscription already knows.', entry: 'Nutrition onboarding', primaryAction: 'Start setup', destination: 'trial_home', tone: 'neutral' },
+  { id: 'AR', group: 'Nutrition', title: 'Nutrition today', summary: 'Daily calories, macros, water, one actionable and auto-populated subscription meals.', entry: 'Nutrition Today', primaryAction: 'Open Nutrition', destination: 'trial_home', tone: 'success' },
+  { id: 'AS', group: 'Nutrition', title: 'Nutrition weekly view', summary: 'Aggregated week with meals tracked, subscription contribution and daily averages.', entry: 'Nutrition weekly', primaryAction: 'Open weekly view', destination: 'trial_home', tone: 'success' },
+  { id: 'AT', group: 'Nutrition', title: 'Diet Plan', summary: 'Nutrition goal, daily targets, subscription contribution and water preferences.', entry: 'Diet Plan', primaryAction: 'Open Diet Plan', destination: 'trial_home', tone: 'success' },
+  { id: 'AU', group: 'Nutrition', title: 'Insights', summary: 'Placeholder for nutrition trends and consistency insights.', entry: 'Insights', primaryAction: 'Open Insights', destination: 'trial_home', tone: 'neutral' },
   { id: 'L', group: 'Subscription', title: 'No meal today', summary: 'Subscription is active without a delivery today.', entry: 'Subscriber Home', primaryAction: 'View Next Delivery', destination: 'trial_home', tone: 'neutral' },
   { id: 'M', group: 'Subscription', title: 'Subscription paused', summary: 'Deliveries are paused until the saved resume date.', entry: 'Paused Home', primaryAction: 'Resume Subscription', destination: 'trial_home', tone: 'warning' },
   { id: 'AP', group: 'Subscription', title: 'Subscription restarted', summary: 'A restart date is confirmed and upcoming deliveries are scheduled.', entry: 'Restarted Home', primaryAction: 'Explore My Plan', destination: 'trial_home', tone: 'success' },

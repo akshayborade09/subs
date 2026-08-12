@@ -47,6 +47,8 @@ textarea:focus {
   --radius-field: 14px;
   --radius-button-outer: 18px;
   --radius-button-inner: 12px;
+  --radius-nav: 28px;
+  --spacing-nav: 72px;
   --spacing-sheet: 16px;
   --spacing-sheet-gap: 24px;
   --spacing-page-section: 40px;
@@ -99,6 +101,10 @@ textarea:focus {
       --color-overlay: rgb(0 0 0 / 0.25);
       --color-toast: #101010;
       --color-toast-foreground: #ffffff;
+      --color-glass-nav: rgba(238, 238, 238, 0.45);
+      --color-glass-nav-border: rgba(255, 255, 255, 0.5);
+      --color-glass-capsule: rgba(255, 255, 255, 0.7);
+      --color-glass-capsule-border: rgba(255, 255, 255, 0.75);
     }
 
     @variant dark {
@@ -135,6 +141,10 @@ textarea:focus {
       --color-overlay: rgb(115 115 115 / 0.3);
       --color-toast: #ffffff;
       --color-toast-foreground: #101010;
+      --color-glass-nav: rgba(32, 32, 32, 0.35);
+      --color-glass-nav-border: rgba(255, 255, 255, 0.1);
+      --color-glass-capsule: rgba(255, 255, 255, 0.15);
+      --color-glass-capsule-border: rgba(255, 255, 255, 0.18);
     }
   }
 }

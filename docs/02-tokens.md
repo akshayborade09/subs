@@ -130,9 +130,10 @@ Classes: `text-heading-sm` … `text-heading-xl`, `text-body-xs` … `text-body-
 --radius-field: 14px;           /* phone input, OTP cells */
 --radius-button-outer: 18px;    /* primary CTA outer ring */
 --radius-button-inner: 12px;    /* primary CTA fill */
+--radius-nav: 28px;             /* floating subscriber glass navigation */
 ```
 
-Classes: `rounded-sm` … `rounded-full`, plus `rounded-sheet`, `rounded-field`, `rounded-button-outer`, `rounded-button-inner`.
+Classes: `rounded-sm` … `rounded-full`, plus `rounded-sheet`, `rounded-field`, `rounded-button-outer`, `rounded-button-inner`, `rounded-nav`.
 
 ## 4b. Auth / onboarding spacing tokens
 
@@ -147,7 +148,19 @@ Classes: `rounded-sm` … `rounded-full`, plus `rounded-sheet`, `rounded-field`,
 --spacing-field: 52px;            /* h-field, min-h-field */
 --spacing-otp-cell: 50px;         /* h-otp-cell */
 --spacing-icon-button: 36px;      /* size-icon-button — back/close circles */
+--spacing-nav: 72px;              /* h-nav — floating subscriber navigation height */
 ```
+
+### Liquid Glass navigation surface
+
+The floating subscriber navigation is translucent, so its fill and border are alpha values rather than solid steps on the gray ladder. Reduce Transparency swaps these for `bg-surface-raised` + `border-border`.
+
+| Token | Light | Dark | Class |
+|---|---|---|---|
+| `--color-glass-nav` | `rgba(238,238,238,0.45)` | `rgba(32,32,32,0.35)` | `bg-glass-nav` — nav container tint over the blur |
+| `--color-glass-nav-border` | `rgba(255,255,255,0.5)` | `rgba(255,255,255,0.1)` | `border-glass-nav-border` — soft internal highlight |
+| `--color-glass-capsule` | `rgba(255,255,255,0.7)` | `rgba(255,255,255,0.15)` | `bg-glass-capsule` — active destination capsule |
+| `--color-glass-capsule-border` | `rgba(255,255,255,0.75)` | `rgba(255,255,255,0.18)` | `border-glass-capsule-border` — capsule inner reflection |
 
 ## 4c. Letter-spacing tokens
 
