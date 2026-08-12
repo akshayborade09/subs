@@ -70,6 +70,14 @@ export async function checkPincodeServiceability({ pincode }: { pincode: string 
   if (!isValidIndianPincodeFormat(normalized)) {
     throw new Error('Invalid pincode format');
   }
+  // Frontend override: if this pincode exists in the local mock list, treat it
+  // as serviceable on the frontend even when backend mode is enabled. This
+  // lets QA and local flows proceed without changing the backend.
+  const localArea = mockServiceableAreas.find((item) => item.pincode === normalized);
+  if (localArea) {
+    return { serviceable: true, pincode: normalized, areaName: localArea.areaName };
+  }
+
   if (backendEnabled) {
     const result = await apiCheckServiceability(normalized);
     return {
@@ -82,7 +90,16 @@ export async function checkPincodeServiceability({ pincode }: { pincode: string 
 }
 
 export async function getServiceableAreas(): Promise<ServiceableArea[]> {
-  if (backendEnabled) return fetchServiceableAreas();
+  if (backendEnabled) {
+    // Merge remote areas with local mock areas so FE-only pincodes remain visible
+    const remote = await fetchServiceableAreas();
+    const map = new Map<string, ServiceableArea>();
+    remote.forEach((a) => map.set(a.pincode, a));
+    mockServiceableAreas.forEach((a) => {
+      if (!map.has(a.pincode)) map.set(a.pincode, a);
+    });
+    return Array.from(map.values()).sort((a, b) => a.pincode.localeCompare(b.pincode));
+  }
   return mockGetServiceableAreas();
 }
 

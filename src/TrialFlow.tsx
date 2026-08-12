@@ -567,7 +567,7 @@ function TrialIntro({ onBack, onProceed, onSkipToSubscribe }: { onBack: () => vo
   }, []);
 
   return (
-    <View className="flex-1 bg-surface">
+    <View className="flex-1 bg-canvas">
       <View style={{ paddingTop: insets.top + 8 }} className="flex-row items-center justify-between px-5 pb-4">
         <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} hitSlop={8} className="size-icon-button items-center justify-center">
           <CaretLeftIcon size={24} weight="regular" color={iconColor} />
@@ -575,13 +575,13 @@ function TrialIntro({ onBack, onProceed, onSkipToSubscribe }: { onBack: () => vo
         <Text className="font-body text-body-sm tracking-body-sm text-foreground">sora kitchen</Text>
       </View>
 
-      <View className="h-[186px] w-full items-center overflow-hidden">
+      <View className="h-auto w-full items-center overflow-hidden">
         <View className="size-[314px] overflow-hidden rounded-full">
           <Image source={foodImages['Mix of both']} accessibilityLabel="Home-style tiffin meal" resizeMode="cover" className="size-full" />
         </View>
       </View>
 
-      <View className="flex-1 rounded-t-sheet bg-canvas px-5 pt-5">
+      <View className="flex-1 px-5 pt-5 pb-4">
         <View className="flex-1 gap-auth-block">
           <Animated.View entering={FadeInUp.delay(30).duration(260)}>
             <FormHeader size="page" title="Let's start your 3 day trial" />
@@ -598,7 +598,7 @@ function TrialIntro({ onBack, onProceed, onSkipToSubscribe }: { onBack: () => vo
           </Animated.View>
         </View>
 
-        <Animated.View entering={FadeInUp.delay(170).duration(260)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="gap-4 pt-6">
+        <Animated.View entering={FadeInUp.delay(170).duration(260)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(16, insets.bottom + 8) }} className="gap-3 pt-6">
           <TrialAuthButton label={ready ? 'Choose my trial' : 'Preparing your trial…'} enabled={ready} onPress={onProceed} />
           <GhostFieldButton label="Skip to subscribe" onPress={onSkipToSubscribe} />
         </Animated.View>
