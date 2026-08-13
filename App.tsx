@@ -745,15 +745,22 @@ const homeLifecycleVariantByState: Partial<Record<LifecycleStateId, HomeLifecycl
   AS: 'subscription_active',
   AT: 'subscription_active',
   AU: 'subscription_active',
+  AV: 'subscription_active',
+  AW: 'subscription_active',
 };
 
-/** Nutrition states open a specific subscriber tab with setup forced to match. */
+/**
+ * Nutrition states open a specific subscriber tab with setup and logged data
+ * forced to match, so each screen is reachable in a predictable condition.
+ */
 const nutritionLaunchByState: Partial<Record<LifecycleStateId, SubscriberShellLaunch>> = {
   AQ: { tab: 'nutrition', setup: 'reset' },
-  AR: { tab: 'nutrition', setup: 'complete', periodMode: 'daily' },
-  AS: { tab: 'nutrition', setup: 'complete', periodMode: 'weekly' },
-  AT: { tab: 'diet_plan', setup: 'complete' },
-  AU: { tab: 'insights', setup: 'complete' },
+  AV: { tab: 'nutrition', setup: 'complete', data: 'first_time', periodMode: 'daily' },
+  AW: { tab: 'nutrition', setup: 'complete', data: 'returning', periodMode: 'daily' },
+  AR: { tab: 'nutrition', setup: 'complete', data: 'history_only', periodMode: 'daily' },
+  AS: { tab: 'nutrition', setup: 'complete', data: 'returning', periodMode: 'weekly' },
+  AT: { tab: 'diet_plan', setup: 'complete', data: 'returning' },
+  AU: { tab: 'insights', setup: 'complete', data: 'returning' },
 };
 
 function AppFlow() {

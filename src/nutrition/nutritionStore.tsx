@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { pullNutritionDay, pushMealItems, pushNutritionSetup, pushWaterTotal } from './nutritionApi';
-import { demoSourceProfile, seededHistory, subscriptionMenuFor } from './nutritionMockData';
+import { demoSourceProfile, seededHistory, seededTodayLog, subscriptionMenuFor } from './nutritionMockData';
 import { pickActionable } from './nutritionActionable';
 import { ageFromDob, mealTotals, targetsFromSetup } from './nutritionTargets';
 import { dateKey, dayRelation, periodDayKeys, periodLabel } from './periodModel';
@@ -88,6 +88,9 @@ export function mealIdFor(date: string, slot: string) {
 
 type SyncFailure = { kind: 'water' | 'meal'; message: string };
 
+/** Demo data shapes the lifecycle selector can launch into. */
+export type NutritionDemoDataMode = 'first_time' | 'history_only' | 'returning';
+
 type NutritionContextValue = {
   hydrated: boolean;
   setup: NutritionOnboardingState;
@@ -109,6 +112,7 @@ type NutritionContextValue = {
   resetSetup: () => void;
   /** Marks setup complete with demo values when it isn't already. */
   seedCompletedSetup: () => void;
+  applyDemoLogs: (mode: NutritionDemoDataMode) => void;
   retryDayLoad: (date: string) => void;
 };
 
@@ -195,6 +199,25 @@ export function NutritionProvider({
     setSetup(defaultNutritionSetup);
     persistSetup(defaultNutritionSetup);
   }, [persistSetup]);
+
+  /**
+   * Replaces logged data so the lifecycle selector can show a genuinely empty
+   * first run, a day not yet logged, or a day already filled in.
+   */
+  const applyDemoLogs = useCallback(
+    (mode: NutritionDemoDataMode) => {
+      const today = dateKey(new Date());
+      const next =
+        mode === 'first_time'
+          ? {}
+          : mode === 'history_only'
+            ? seededHistory()
+            : { ...seededHistory(), [today]: seededTodayLog(today) };
+      setLogs(next);
+      persistLogs(next);
+    },
+    [persistLogs],
+  );
 
   const seedCompletedSetup = useCallback(() => {
     setSetup((current) => {
@@ -463,6 +486,7 @@ export function NutritionProvider({
       clearSyncFailure,
       resetSetup,
       seedCompletedSetup,
+      applyDemoLogs,
       retryDayLoad,
     }),
     [
@@ -484,6 +508,7 @@ export function NutritionProvider({
       clearSyncFailure,
       resetSetup,
       seedCompletedSetup,
+      applyDemoLogs,
       retryDayLoad,
     ],
   );

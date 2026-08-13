@@ -91,6 +91,23 @@ function foodEntry(name: string): Omit<NutritionFoodItem, 'id'> {
 }
 
 /**
+ * A day that has already been logged by hand: breakfast, a snack and part of the
+ * water goal. Subscription meals are not included because those auto-populate.
+ */
+export function seededTodayLog(date: string): NutritionDayLog {
+  const breakfast = [foodEntry('Poha'), foodEntry('Boiled eggs'), foodEntry('Milk tea')];
+  const snack = [foodEntry('Banana'), foodEntry('Roasted chana')];
+  return {
+    date,
+    waterMl: 1250,
+    mealItems: {
+      [`${date}-breakfast`]: breakfast.map((entry, index) => ({ ...entry, id: `${date}-breakfast-${index}` })),
+      [`${date}-snack`]: snack.map((entry, index) => ({ ...entry, id: `${date}-snack-${index}` })),
+    },
+  };
+}
+
+/**
  * Past-day history so weekly and monthly aggregates are not empty on first run.
  * Deterministic per date, so the same day always renders the same numbers.
  */

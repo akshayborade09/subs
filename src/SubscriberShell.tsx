@@ -8,7 +8,7 @@ import { DietPlanScreen } from './nutrition/DietPlanScreen';
 import { InsightsScreen } from './nutrition/InsightsScreen';
 import { NutritionOnboarding } from './nutrition/NutritionOnboarding';
 import { NutritionScreen } from './nutrition/NutritionScreen';
-import { useNutrition } from './nutrition/nutritionStore';
+import { useNutrition, type NutritionDemoDataMode } from './nutrition/nutritionStore';
 import type { NutritionPeriodMode, SubscriberTab } from './nutrition/types';
 
 function NutritionLoadingState() {
@@ -31,11 +31,13 @@ export type SubscriberShellLaunch = {
   tab: SubscriberTab;
   /** reset replays onboarding; complete jumps straight to the tracking screens. */
   setup: 'reset' | 'complete';
+  /** Replaces logged data, so first-run and returning days can both be shown. */
+  data?: NutritionDemoDataMode;
   periodMode?: NutritionPeriodMode;
 };
 
 export function SubscriberShell({ home, launch }: { home: ReactNode; launch?: SubscriberShellLaunch }) {
-  const { hydrated, setup, resetSetup, seedCompletedSetup, period, setPeriod } = useNutrition();
+  const { hydrated, setup, resetSetup, seedCompletedSetup, applyDemoLogs, period, setPeriod } = useNutrition();
   const [tab, setTab] = useState<SubscriberTab>(launch?.tab ?? 'home');
   const [fullScreenEditorOpen, setFullScreenEditorOpen] = useState(false);
   const keyboardVisible = useKeyboardVisible();
@@ -48,8 +50,9 @@ export function SubscriberShell({ home, launch }: { home: ReactNode; launch?: Su
     launchApplied.current = true;
     if (launch.setup === 'reset') resetSetup();
     else seedCompletedSetup();
+    if (launch.data) applyDemoLogs(launch.data);
     if (launch.periodMode) setPeriod({ ...period, mode: launch.periodMode });
-  }, [hydrated, launch, period, resetSetup, seedCompletedSetup, setPeriod]);
+  }, [applyDemoLogs, hydrated, launch, period, resetSetup, seedCompletedSetup, setPeriod]);
 
   // Entry logic: every nutrition destination depends on setup, so an incomplete
   // setup routes to onboarding rather than showing empty targets. Setup status

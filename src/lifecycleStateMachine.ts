@@ -3,7 +3,7 @@ export type LifecycleStateId =
   | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U'
   | 'V' | 'W' | 'X' | 'Y' | 'Z' | 'AA' | 'AB' | 'AC' | 'AD' | 'AE'
   | 'AF' | 'AG' | 'AH' | 'AI' | 'AJ' | 'AK' | 'AL' | 'AM' | 'AN' | 'AO' | 'AP'
-  | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU';
+  | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AV' | 'AW';
 
 export type LifecycleGroup = 'Entry and onboarding' | 'Trial' | 'Subscription' | 'Nutrition' | 'Recovery and delivery' | 'Checkout and coupons' | 'Profile and settings' | 'Loyalty and referrals';
 export type LifecycleDestination = 'stories' | 'auth' | 'onboarding' | 'trial_home' | 'state_preview' | 'commerce_profile';
@@ -36,6 +36,8 @@ export const lifecycleDefinitions: LifecycleDefinition[] = [
   { id: 'K', group: 'Subscription', title: 'Subscription active', summary: 'Normal subscriber experience with this week’s selected meals.', entry: 'Subscriber Home', primaryAction: 'View Meal Details', destination: 'trial_home', tone: 'success' },
   { id: 'AO', group: 'Subscription', title: 'Future meal detail', summary: 'Upcoming subscription meal with address, preference, date, skip and report actions.', entry: 'Future Meal Detail', primaryAction: 'Open meal detail', destination: 'trial_home', tone: 'success' },
   { id: 'AQ', group: 'Nutrition', title: 'Nutrition onboarding', summary: 'Dynamic nutrition setup for an active subscriber, skipping data the subscription already knows.', entry: 'Nutrition onboarding', primaryAction: 'Start setup', destination: 'trial_home', tone: 'neutral' },
+  { id: 'AV', group: 'Nutrition', title: 'Nutrition first-time user', summary: 'Setup just finished with nothing tracked yet: empty manual meals, zero water and no history.', entry: 'Nutrition Today, first run', primaryAction: 'Open Nutrition', destination: 'trial_home', tone: 'neutral' },
+  { id: 'AW', group: 'Nutrition', title: 'Nutrition returning user', summary: 'A lived-in day with breakfast and a snack logged, water part-way and weeks of history behind it.', entry: 'Nutrition Today, returning', primaryAction: 'Open Nutrition', destination: 'trial_home', tone: 'success' },
   { id: 'AR', group: 'Nutrition', title: 'Nutrition today', summary: 'Daily calories, macros, water, one actionable and auto-populated subscription meals.', entry: 'Nutrition Today', primaryAction: 'Open Nutrition', destination: 'trial_home', tone: 'success' },
   { id: 'AS', group: 'Nutrition', title: 'Nutrition weekly view', summary: 'Aggregated week with meals tracked, subscription contribution and daily averages.', entry: 'Nutrition weekly', primaryAction: 'Open weekly view', destination: 'trial_home', tone: 'success' },
   { id: 'AT', group: 'Nutrition', title: 'Diet Plan', summary: 'Nutrition goal, daily targets, subscription contribution and water preferences.', entry: 'Diet Plan', primaryAction: 'Open Diet Plan', destination: 'trial_home', tone: 'success' },
