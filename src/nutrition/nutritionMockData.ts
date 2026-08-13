@@ -69,6 +69,7 @@ export function subscriptionMenuFor(mealType: 'lunch' | 'dinner', date: string):
 export const demoSourceProfile: NutritionSourceProfile = {
   name: 'Akshay',
   dob: '1992-07-18',
+  gender: 'Male',
   foodPreference: 'Mix of both',
   subscribedMeals: ['lunch', 'dinner'],
   lunchMenuLabel: 'Maharashtrian Veg',

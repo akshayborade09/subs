@@ -38,7 +38,6 @@ export type NutritionOnboardingStep =
   | 'height'
   | 'weight'
   | 'activity'
-  | 'calculationSex'
   | 'meals'
   | 'water'
   | 'summary';
@@ -173,6 +172,8 @@ export type NutritionSourceProfile = {
   name?: string;
   dob?: string;
   ageYears?: number;
+  /** Label collected during app onboarding: Male, Female or Others. */
+  gender?: string;
   foodPreference?: string;
   subscribedMeals: Array<'lunch' | 'dinner'>;
   lunchMenuLabel?: string;

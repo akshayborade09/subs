@@ -214,7 +214,6 @@ export function NutritionOnboarding({ onComplete }: { onComplete: () => void }) 
   const canAdvance = (() => {
     if (step === 'primaryGoal') return Boolean(draft.primaryGoal);
     if (step === 'activity') return Boolean(draft.activityLevel);
-    if (step === 'calculationSex') return Boolean(draft.calculationSex);
     return true;
   })();
 
@@ -335,24 +334,6 @@ export function NutritionOnboarding({ onComplete }: { onComplete: () => void }) 
                   }}
                 />
               ))}
-            </View>
-          ) : null}
-
-          {step === 'calculationSex' ? (
-            <View className="gap-3">
-              <Text className="font-body text-body-sm text-subtle">
-                Which should we use when estimating your daily energy needs?
-              </Text>
-              <SelectionCard
-                title="Female"
-                selected={draft.calculationSex === 'female'}
-                onPress={() => patch({ calculationSex: 'female' })}
-              />
-              <SelectionCard
-                title="Male"
-                selected={draft.calculationSex === 'male'}
-                onPress={() => patch({ calculationSex: 'male' })}
-              />
             </View>
           ) : null}
 

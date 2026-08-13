@@ -3,6 +3,9 @@ import type { NutritionOnboardingStep, NutritionSourceProfile } from './types';
 /**
  * Steps are generated per user: anything the subscription product already knows
  * is skipped, so the progress bar reflects the questions actually asked.
+ *
+ * Gender is deliberately absent — app onboarding already collects it, and the
+ * energy estimate derives from that rather than asking a second time.
  */
 export function buildNutritionSteps(profile: NutritionSourceProfile): NutritionOnboardingStep[] {
   return [
@@ -11,7 +14,6 @@ export function buildNutritionSteps(profile: NutritionSourceProfile): NutritionO
     profile.heightCm ? null : 'height',
     profile.weightKg ? null : 'weight',
     profile.activityLevel ? null : 'activity',
-    profile.calculationSex ? null : 'calculationSex',
     'meals',
     'water',
     'summary',
@@ -24,7 +26,6 @@ export const stepTitles: Record<NutritionOnboardingStep, string> = {
   height: 'How tall are you?',
   weight: "What's your current weight?",
   activity: "What's a typical week like?",
-  calculationSex: 'For your nutrition estimate',
   meals: 'What would you like to track?',
   water: "What's your daily water goal?",
   summary: 'Your nutrition plan is ready',

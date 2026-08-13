@@ -104,6 +104,18 @@ export function targetsFromSetup(
   });
 }
 
+/**
+ * Maps the gender collected during app onboarding onto the energy formula.
+ * Nutrition never asks for this again; anything other than male or female has no
+ * distinct Mifflin-St Jeor constant, so the estimate falls back to the default.
+ */
+export function calculationSexFromGender(gender: string | undefined): NutritionCalculationSex | undefined {
+  const normalized = gender?.trim().toLowerCase();
+  if (normalized === 'male') return 'male';
+  if (normalized === 'female') return 'female';
+  return undefined;
+}
+
 export function ageFromDob(dob: string | undefined, now = new Date()): number | undefined {
   if (!dob) return undefined;
   const parsed = new Date(dob);

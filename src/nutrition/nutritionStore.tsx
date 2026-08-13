@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { pullNutritionDay, pushMealItems, pushNutritionSetup, pushWaterTotal } from './nutritionApi';
 import { demoSourceProfile, seededHistory, seededTodayLog, subscriptionMenuFor } from './nutritionMockData';
 import { pickActionable } from './nutritionActionable';
-import { ageFromDob, mealTotals, targetsFromSetup } from './nutritionTargets';
+import { ageFromDob, calculationSexFromGender, mealTotals, targetsFromSetup } from './nutritionTargets';
 import { dateKey, dayRelation, periodDayKeys, periodLabel } from './periodModel';
 import type {
   CustomMealSlot,
@@ -120,11 +120,20 @@ const NutritionContext = createContext<NutritionContextValue | null>(null);
 
 export function NutritionProvider({
   children,
-  profile = demoSourceProfile,
+  profile: sourceProfile = demoSourceProfile,
 }: {
   children: ReactNode;
   profile?: NutritionSourceProfile;
 }) {
+  // Energy estimates reuse the gender captured during app onboarding, so
+  // Nutrition never asks for it again.
+  const profile = useMemo<NutritionSourceProfile>(
+    () => ({
+      ...sourceProfile,
+      calculationSex: sourceProfile.calculationSex ?? calculationSexFromGender(sourceProfile.gender),
+    }),
+    [sourceProfile],
+  );
   const [hydrated, setHydrated] = useState(false);
   const [setup, setSetup] = useState<NutritionOnboardingState>(defaultNutritionSetup);
   const [logs, setLogs] = useState<Record<string, NutritionDayLog>>(() => seededHistory());
