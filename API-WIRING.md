@@ -51,10 +51,15 @@ EXPO_PUBLIC_API_URL=http://192.168.1.5:4000 pnpm start    # phone on open Wi-Fi
   strip, header copy, notice and plan card all render from it — trial and
   subscription states alike. The local generators remain the mock/QA path.
 
+- **Meal actions**: skip / undo-skip mirror the optimistic local update to
+  the real endpoints (both sides share the same delta model), the per-meal
+  food preference PATCHes, and report-issue submits the category. Meals from
+  the QA selector carry local ids and never reach the API (UUID guard).
+
 ## Still mock — next slices in order
 
-1. Meal actions (skip / undo-skip / changes / report-issue)
-2. Subscription management (pause / restart / cancel) and per-slot configs at
+1. Subscription management (pause / restart / cancel) and per-slot configs at
    checkout (needs the saved-address sync)
+2. Per-meal address change (also needs the saved-address sync)
 3. Profile, transactions, loyalty, referrals, leaderboard
 4. Native token persistence (web only today — native is still in-memory)
