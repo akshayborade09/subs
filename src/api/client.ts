@@ -23,6 +23,14 @@ function readStoredToken(): string | null {
 
 let accessToken: string | null = readStoredToken();
 
+const authListeners = new Set<(signedIn: boolean) => void>();
+
+/** Fires on sign-in/out so stores can hydrate from the server. */
+export function onAuthChange(listener: (signedIn: boolean) => void): () => void {
+  authListeners.add(listener);
+  return () => authListeners.delete(listener);
+}
+
 export function setAccessToken(token: string | null): void {
   accessToken = token;
   try {
@@ -31,6 +39,7 @@ export function setAccessToken(token: string | null): void {
   } catch {
     // No storage available (native without a persistence module) — memory only.
   }
+  authListeners.forEach((listener) => listener(token !== null));
 }
 
 export function isSignedIn(): boolean {
@@ -258,6 +267,63 @@ export function updateMealFoodType(mealOrderId: string, foodType: string): Promi
 
 export function reportMealIssue(mealOrderId: string, category: string): Promise<void> {
   return apiFetch(`/me/meals/${mealOrderId}/report-issue`, { body: { category } }).then(() => undefined);
+}
+
+export type ServerAddress = {
+  id: string;
+  label: string;
+  customLabel: string | null;
+  flatOrHouse: string | null;
+  buildingOrSociety: string | null;
+  line1: string;
+  landmark: string | null;
+  deliveryInstructions: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  latitude: number | null;
+  longitude: number | null;
+  isDefault: boolean;
+  isServiceable: boolean;
+};
+
+export async function listSavedAddresses(): Promise<ServerAddress[]> {
+  const response = await apiFetch<{ addresses: ServerAddress[] }>('/me/addresses');
+  return response.addresses;
+}
+
+export function setDefaultAddressOnServer(addressId: string): Promise<void> {
+  return apiFetch(`/me/addresses/${addressId}/default`, { method: 'POST', body: {} }).then(() => undefined);
+}
+
+export function deleteAddressOnServer(addressId: string): Promise<void> {
+  return apiFetch(`/me/addresses/${addressId}`, { method: 'DELETE' }).then(() => undefined);
+}
+
+export function updateMealAddress(mealOrderId: string, addressId: string): Promise<void> {
+  return apiFetch(`/me/meals/${mealOrderId}/address`, {
+    method: 'PATCH',
+    body: { addressId },
+  }).then(() => undefined);
+}
+
+/** Subscription management. Dates are YYYY-MM-DD in the delivery timezone. */
+export function pauseSubscription(from: string, to?: string): Promise<void> {
+  return apiFetch('/me/subscriptions/pause', { body: { from, ...(to ? { to } : {}) } }).then(() => undefined);
+}
+
+export function resumeSubscription(): Promise<void> {
+  return apiFetch('/me/subscriptions/resume', { body: {} }).then(() => undefined);
+}
+
+export function restartSubscription(resumeOn: string): Promise<{ resumesOn: string; message: string }> {
+  return apiFetch<{ resumesOn: string; message: string }>('/me/subscriptions/restart', {
+    body: { resumeOn },
+  });
+}
+
+export function cancelSubscription(): Promise<void> {
+  return apiFetch('/me/subscriptions/cancel', { body: {} }).then(() => undefined);
 }
 
 export function fetchPaymentStatus(

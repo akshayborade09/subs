@@ -56,10 +56,20 @@ EXPO_PUBLIC_API_URL=http://192.168.1.5:4000 pnpm start    # phone on open Wi-Fi
   food preference PATCHes, and report-issue submits the category. Meals from
   the QA selector carry local ids and never reach the API (UUID guard).
 
+- **Saved addresses sync with the server**: the store hydrates on sign-in and
+  after every mutation; creates, deletes and default changes mirror to the
+  API (edits become create-plus-delete — the server has no update endpoint).
+  Demo seed rows only exist while signed out.
+- **Per-meal address change** PATCHes the real endpoint when a server-backed
+  address is picked for a server-backed meal.
+- **Subscription management**: pause (open-ended, from tomorrow), cancel
+  (at period end) and the restart sheet all hit the real endpoints; restart
+  refreshes Home from app-state so the AP variant renders.
+
 ## Still mock — next slices in order
 
-1. Subscription management (pause / restart / cancel) and per-slot configs at
-   checkout (needs the saved-address sync)
-2. Per-meal address change (also needs the saved-address sync)
-3. Profile, transactions, loyalty, referrals, leaderboard
-4. Native token persistence (web only today — native is still in-memory)
+1. Profile, transactions, loyalty, referrals, leaderboard screens (data is
+   inline fixtures in CommerceProfileExperience — needs its own pass)
+2. Per-slot configs at subscription checkout (the sheet keeps only formatted
+   address strings; it needs to retain server address ids)
+3. Native token persistence (web only today — needs expo-secure-store)

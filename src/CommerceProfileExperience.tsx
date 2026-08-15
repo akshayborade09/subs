@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { backendEnabled, cancelSubscription, isSignedIn, pauseSubscription } from './api/client';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -291,6 +292,34 @@ function BottomSheetOverlay({ children, onClose }: { children: ReactNode; onClos
       </Animated.View>
     </KeyboardAvoidingView>
   );
+}
+
+/** Tomorrow on the IST calendar — the server refuses same-day pauses. */
+function tomorrowIst(): string {
+  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  now.setUTCDate(now.getUTCDate() + 1);
+  return now.toISOString().slice(0, 10);
+}
+
+/** Open-ended pause (state M); the restart sheet on Home confirms the resume date later. */
+function pauseOnServer(toast: (text: string) => void): void {
+  if (!backendEnabled || !isSignedIn()) {
+    toast('Pause subscription selected');
+    return;
+  }
+  pauseSubscription(tomorrowIst())
+    .then(() => toast('Subscription paused from tomorrow'))
+    .catch((error: Error) => toast(error.message));
+}
+
+function cancelOnServer(toast: (text: string) => void): void {
+  if (!backendEnabled || !isSignedIn()) {
+    toast('Subscription cancelled');
+    return;
+  }
+  cancelSubscription()
+    .then(() => toast('Subscription cancelled — meals continue until your end date'))
+    .catch((error: Error) => toast(error.message));
 }
 
 function CancelSubscriptionSheet({ onPause, onCancel }: { onPause: () => void; onCancel: () => void }) {
@@ -870,7 +899,7 @@ export default function CommerceProfileExperience({ stateId, onBack, onTransitio
           : route === 'my_plan' && myPlanShowManageActions
             ? (
               <View className="gap-3">
-                <PrimaryShimmerButton label="Pause subscription" onPress={() => toast('Pause subscription selected')} />
+                <PrimaryShimmerButton label="Pause subscription" onPress={() => pauseOnServer(toast)} />
                 <Pressable accessibilityRole="button" onPress={() => setCancelSubscriptionOpen(true)} className="h-12 items-center justify-center">
                   <Text className="font-mono-semibold text-body-sm text-muted">Cancel subscription</Text>
                 </Pressable>
@@ -896,11 +925,11 @@ export default function CommerceProfileExperience({ stateId, onBack, onTransitio
           <CancelSubscriptionSheet
             onPause={() => {
               setCancelSubscriptionOpen(false);
-              toast('Pause subscription selected');
+              pauseOnServer(toast);
             }}
             onCancel={() => {
               setCancelSubscriptionOpen(false);
-              toast('Subscription cancelled');
+              cancelOnServer(toast);
             }}
           />
         </BottomSheetOverlay>

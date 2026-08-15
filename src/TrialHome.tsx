@@ -112,7 +112,7 @@ function HomeGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregro
   return <Glyph size={Math.max(8, size - 4)} weight={weight === 'fill' ? 'fill' : 'bold'} color={colors[tone]} />;
 }
 
-import { backendEnabled, isSignedIn, reportMealIssue, skipMealOrder, undoSkipMealOrder, updateMealFoodType } from './api/client';
+import { backendEnabled, isSignedIn, reportMealIssue, restartSubscription, skipMealOrder, undoSkipMealOrder, updateMealAddress, updateMealFoodType } from './api/client';
 import type { AppStateHome } from './api/client';
 
 export type MealStatus = 'delivered' | 'upcoming' | 'paused' | 'inactive' | 'issue' | 'delayed' | 'delivery_failed' | 'skipped';
@@ -1608,6 +1608,13 @@ function MealDetailSheet({
             setAddressFlowOpen(true);
           }}
           onSelect={(address) => {
+            if (backendEnabled && isSignedIn() && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(address.id)) {
+              const orderIndex = markerIndexForSlot(meal, mealSlot);
+              const orderId = meal.mealMarkers?.[orderIndex]?.mealOrderId ?? meal.id;
+              if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(orderId)) {
+                void updateMealAddress(orderId, address.id).catch((error: Error) => onToast(error.message));
+              }
+            }
             const override = mealOverrideFromSavedAddress(address);
             const slotIndex = markerIndexForSlot(meal, mealSlot);
             onUpdate(
@@ -2265,6 +2272,11 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
         initialDate={planResumeDateKey ?? undefined}
         onClose={() => setRestartCalendarOpen(false)}
         onConfirm={(dateKey) => {
+          if (backendEnabled && isSignedIn()) {
+            void restartSubscription(dateKey)
+              .then(() => onServerStateRefresh?.())
+              .catch((error: Error) => { showToast(error.message); onServerStateRefresh?.(); });
+          }
           setPlanResumeDateKey(dateKey);
           setMeals(subscriptionWeekMeals(
             food || 'Vegetarian',
