@@ -112,7 +112,7 @@ function HomeGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregro
   return <Glyph size={Math.max(8, size - 4)} weight={weight === 'fill' ? 'fill' : 'bold'} color={colors[tone]} />;
 }
 
-import { backendEnabled, isSignedIn } from './api/client';
+import { backendEnabled, isSignedIn, reportMealIssue, skipMealOrder, undoSkipMealOrder, updateMealFoodType } from './api/client';
 import type { AppStateHome } from './api/client';
 
 export type MealStatus = 'delivered' | 'upcoming' | 'paused' | 'inactive' | 'issue' | 'delayed' | 'delivery_failed' | 'skipped';
@@ -120,6 +120,8 @@ type MealMarker = {
   foodPreference: string;
   status: MealStatus;
   slot?: MealSlot;
+  /** Server meal-order id in backend mode; actions target this, not the day id. */
+  mealOrderId?: string;
   skipMetadata?: SkipMetadata;
   deliveryAddressOverride?: MealAddressOverride;
 };
@@ -397,6 +399,7 @@ const serverHomeMeals = (
               foodPreference: foodLabel(marker.foodType),
               status: marker.status as MealStatus,
               slot: marker.slot,
+              mealOrderId: marker.mealOrderId,
             }))
           : undefined,
     };
@@ -998,7 +1001,7 @@ function Feedback({ meal, onSave, onFocusTellMore }: { meal: TrialMeal; onSave: 
 }
 
 const issueCategories = ['Meal missing', 'Wrong meal', 'Bread preference not followed', 'Rice preference not followed', 'Food quality issue', 'Packaging issue', 'Delivery issue', 'Other'];
-function IssueSheet({ mealDate, onClose, onSubmit }: { mealDate: string; onClose: () => void; onSubmit: () => void }) {
+function IssueSheet({ mealDate, onClose, onSubmit }: { mealDate: string; onClose: () => void; onSubmit: (category: string) => void }) {
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState(issueCategories[0]!);
   const [description, setDescription] = useState('');
@@ -1044,7 +1047,7 @@ function IssueSheet({ mealDate, onClose, onSubmit }: { mealDate: string; onClose
         </View>
       </ScrollView>
       <View style={{ paddingBottom: Math.max(16, insets.bottom + 8) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-3">
-        <Primary label="Submit issue" onPress={onSubmit} />
+        <Primary label="Submit issue" onPress={() => onSubmit(category)} />
       </View>
     </Animated.View>
   );
@@ -1588,7 +1591,7 @@ function MealDetailSheet({
           </Animated.View>
         </Animated.ScrollView>
       </Animated.View>
-      {sheets.issueOpen ? <IssueSheet mealDate={meal.date} onClose={() => closeFlow()} onSubmit={() => { closeFlow(); onToast('Issue submitted'); }} /> : null}
+      {sheets.issueOpen ? <IssueSheet mealDate={meal.date} onClose={() => closeFlow()} onSubmit={(category) => { closeFlow(); const slotIndex = markerIndexForSlot(meal, mealSlot); const orderId = meal.mealMarkers?.[slotIndex]?.mealOrderId ?? meal.id; if (backendEnabled && isSignedIn() && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(orderId)) { reportMealIssue(orderId, category).then(() => onToast('Issue submitted')).catch((error: Error) => onToast(error.message)); } else { onToast('Issue submitted'); } }} /> : null}
       {savedAddressSheetOpen ? (
         <SavedAddressesSheet
           addresses={savedAddresses}
@@ -1693,6 +1696,14 @@ function MealDetailSheet({
                   },
             );
             onToast('Meal preference updated for this meal');
+            if (backendEnabled && isSignedIn() && nextPreference !== 'Mix of both') {
+              const slotIndex = markerIndexForSlot(meal, mealSlot);
+              const orderId = meal.mealMarkers?.[slotIndex]?.mealOrderId ?? meal.id;
+              if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(orderId)) {
+                void updateMealFoodType(orderId, nextPreference === 'Non-vegetarian' ? 'non_vegetarian' : 'vegetarian')
+                  .catch((error: Error) => onToast(error.message));
+              }
+            }
           }}
         />
       ) : null}
@@ -2086,7 +2097,27 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   const defaultMealSlot = (target: TrialMeal): MealSlot => (
     planBoth ? firstPendingSlotForMeal(target) : target.mealType === 'Dinner' ? 'dinner' : 'lunch'
   );
+  // The local mutation and the server share the same delta model (one
+  // delivery-day extension per skip, undo is its inverse), so the optimistic
+  // update is exact; a failure resyncs from app-state and explains itself.
+  const isServerOrderId = (value: string) => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value);
+  const serverOrderIdFor = (mealId: string, slot: MealSlot): string | null => {
+    if (!backendEnabled || !isSignedIn()) return null;
+    const target = meals.find((item) => item.id === mealId);
+    const marker = target?.mealMarkers?.[target ? markerIndexForSlot(target, slot) : 0];
+    const candidate = marker?.mealOrderId ?? mealId;
+    // QA-selector demo meals carry local ids; never mirror those to the API.
+    return isServerOrderId(candidate) ? candidate : null;
+  };
+  const mirrorToServer = (call: Promise<void>) => {
+    call.catch((error: Error) => {
+      showToast(error.message);
+      onServerStateRefresh?.();
+    });
+  };
   const skipMeal = (mealId: string, slot: MealSlot, newEndDate: Date, metadata: SkipMetadata) => {
+    const orderId = serverOrderIdFor(mealId, slot);
+    if (orderId) mirrorToServer(skipMealOrder(orderId));
     setMeals((current) => current.map((item) => {
       if (item.id !== mealId) return item;
       const slotIndex = markerIndexForSlot(item, slot);
@@ -2108,6 +2139,8 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
     setSubscription((current) => current ? { ...current, endDate: newEndDate } : current);
   };
   const undoSkipMeal = (mealId: string, slot: MealSlot, restoredEndDate: Date) => {
+    const orderId = serverOrderIdFor(mealId, slot);
+    if (orderId) mirrorToServer(undoSkipMealOrder(orderId));
     setMeals((current) => {
       const target = current.find((item) => item.id === mealId);
       const slotIndex = target ? markerIndexForSlot(target, slot) : 0;

@@ -240,6 +240,26 @@ export function createSubscriptionCheckout(payload: {
   });
 }
 
+/** Meal actions. The ids are server meal-order ids from the Home payload. */
+export function skipMealOrder(mealOrderId: string): Promise<void> {
+  return apiFetch(`/me/meals/${mealOrderId}/skip`, { method: 'POST', body: {} }).then(() => undefined);
+}
+
+export function undoSkipMealOrder(mealOrderId: string): Promise<void> {
+  return apiFetch(`/me/meals/${mealOrderId}/undo-skip`, { method: 'POST', body: {} }).then(() => undefined);
+}
+
+export function updateMealFoodType(mealOrderId: string, foodType: string): Promise<void> {
+  return apiFetch(`/me/meals/${mealOrderId}/preferences`, {
+    method: 'PATCH',
+    body: { foodType },
+  }).then(() => undefined);
+}
+
+export function reportMealIssue(mealOrderId: string, category: string): Promise<void> {
+  return apiFetch(`/me/meals/${mealOrderId}/report-issue`, { body: { category } }).then(() => undefined);
+}
+
 export function fetchPaymentStatus(
   checkoutSessionId: string,
 ): Promise<{ step: string; paymentStatus: string; failureReason: string | null }> {
