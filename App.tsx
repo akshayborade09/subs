@@ -65,7 +65,7 @@ import { BlurInText } from './src/BlurInText';
 import { getLifecycleDefinition, initialLifecycleMachineState, lifecycleMachineReducer, type LifecycleStateId } from './src/lifecycleStateMachine';
 import { themePalette } from './src/themeColors';
 import { PrimaryShimmerButton } from './src/primaryButton';
-import { backendEnabled, startOtp, verifyOtp } from './src/api/client';
+import { backendEnabled, fetchAppState, startOtp, verifyOtp, type AppState } from './src/api/client';
 
 const onboardingImages = {
   everydayMeals: require('./assets/onboarding/everyday-meals.webp'),
@@ -723,6 +723,19 @@ function AppFlow() {
   const [screen, setScreen] = useState<Screen>('selector');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [homeReturnState, setHomeReturnState] = useState<LifecycleStateId | null>(null);
+  const [serverState, setServerState] = useState<AppState | null>(null);
+  // Backend mode: the server is the router. Its route decides onboarding vs
+  // home, its letter picks the Home variant, and its payload feeds the week
+  // strip. Any failure falls back to the local flow so the demo never bricks.
+  const routeFromServer = () => {
+    fetchAppState()
+      .then((state) => {
+        setServerState(state);
+        if (state.route === 'home' && state.home) setScreen('trial_home');
+        else setScreen('complete');
+      })
+      .catch(() => setScreen('complete'));
+  };
   const [commerceProfileLaunch, setCommerceProfileLaunch] = useState<{ initialRoute?: 'my_plan'; myPlanShowManageActions: boolean }>({ myPlanShowManageActions: true });
   const { theme } = useUniwind();
   useEffect(() => {
@@ -777,11 +790,11 @@ function AppFlow() {
         <LifecycleStateSelector onSelect={chooseState} />
       </View>
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
-      {screen === 'complete' ? <TrialFlow /> : null}
-      {screen === 'trial_home' ? <TrialHome key={machine.selectedState ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" openMealDetailOnLoad={machine.selectedState === 'AO'} lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', AO: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', AP: 'subscription_restarted', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[machine.selectedState ?? 'G'] ?? 'trial_active')}  onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} onExploreMyPlanPress={openMyPlanFromHome} /> : null}
+      {screen === 'complete' ? <TrialFlow onPurchaseComplete={backendEnabled ? routeFromServer : undefined} /> : null}
+      {screen === 'trial_home' ? <TrialHome key={(serverState?.legacyStateId ?? machine.selectedState) ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" openMealDetailOnLoad={machine.selectedState === 'AO'} serverHome={serverState?.home ?? null} lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', AO: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', AP: 'subscription_restarted', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId | string, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[(serverState?.legacyStateId ?? machine.selectedState) ?? 'G'] ?? 'trial_active')}  onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} onExploreMyPlanPress={openMyPlanFromHome} /> : null}
       {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} onExploreMyPlanPress={definition.primaryAction === 'Explore My Plan' ? openMyPlanFromHome : undefined} /> : null}
       {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={`${machine.selectedState}-${commerceProfileLaunch.initialRoute ?? 'profile'}-${commerceProfileLaunch.myPlanShowManageActions}`} stateId={machine.selectedState} initialRoute={commerceProfileLaunch.initialRoute} myPlanShowManageActions={commerceProfileLaunch.myPlanShowManageActions} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
-      {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); setScreen('complete'); }} /> : null}
+      {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); if (backendEnabled) routeFromServer(); else setScreen('complete'); }} /> : null}
       {screen !== 'selector' ? <Pressable accessibilityRole="button" accessibilityLabel="Open lifecycle state selector" onPress={openSelector} style={{ top: insets.top + 8 }} className="absolute right-4 z-[100] h-9 justify-center rounded-full border border-border bg-sheet px-4"><Text className="font-mono-semibold text-xs text-foreground">States</Text></Pressable> : null}
     </View>
   );

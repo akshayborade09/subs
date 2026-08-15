@@ -26,18 +26,28 @@ EXPO_PUBLIC_API_URL=http://127.0.0.1:4000 pnpm web        # browser (most reliab
 EXPO_PUBLIC_API_URL=http://192.168.1.5:4000 pnpm start    # phone on open Wi-Fi
 ```
 
-## Wired today (this branch)
+## Wired today
 
 - `src/api/client.ts` — the API client. Add every new endpoint call here.
 - Sign-in: real OTP (`/v1/auth/otp/*`); dev code shows on the verify sheet.
 - Delivery eligibility: serviceability check, serviceable-areas sheet and
   notify-me all hit the real endpoints; continuing records the
   `deliveryEligibility` onboarding step (the server enforces the same gate).
+- **App-state routing**: after sign-in (and after a purchase) the app calls
+  `GET /v1/me/app-state`; the server's `route` decides onboarding vs home and
+  its `legacyStateId` picks the Home variant.
+- **Trial purchase**: the payment step runs the real sequence
+  (`src/api/trialPurchase.ts`): draft → preferences → dates → address created
+  server-side → checkout → mock pay → webhook poll. Errors surface on the
+  payment screen; retries are safe (idempotency keys, upserting draft).
+- **Trial Home week strip**: for trial variants, `TrialHome` renders the
+  server's Home payload (real meal orders) instead of the demo seed.
 
 ## Still mock — next slices in order
 
-1. App state / Home (`GET /v1/me/app-state` — server already renders all 21 states)
-2. Trial purchase (draft → dates → address → review → checkout → mock pay)
-3. Meal actions (skip / undo-skip / changes / report-issue)
-4. Subscription purchase & management (incl. pause/restart)
-5. Profile, transactions, loyalty, referrals, leaderboard
+1. Subscription-variant Home (server payload exists; `TrialHome` still uses its
+   local scaffolding for subscription states)
+2. Meal actions (skip / undo-skip / changes / report-issue)
+3. Subscription purchase & management (incl. pause/restart)
+4. Profile, transactions, loyalty, referrals, leaderboard
+5. Token persistence (in-memory only — an app restart signs you out)

@@ -53,6 +53,7 @@ import { useSavedAddresses } from './savedAddressesStore';
 import { DeliveryAddressFlow } from './DeliveryAddressFlow';
 import { DeliveryEligibilityScreen, mealSelectionToMealLabel } from './deliveryEligibilityScreen';
 import { backendEnabled, completeOnboardingStep, isSignedIn } from './api/client';
+import { purchaseTrialOnServer } from './api/trialPurchase';
 import { detailsFromSavedAddress, savedAddressFromDetails, type MealDeliverySlot, type SavedAddress } from './addressTypes';
 import { TrialSummaryScreen, trialPricingBreakup, type TrialMealDeliveryState } from './trialOnboardingSummary';
 const genderOptions = [
@@ -795,10 +796,33 @@ function TrialCalendarSheet({ initialDays, initialWeekendDelivery, initialWeeken
   );
 }
 
-export default function TrialFlow() {
+export default function TrialFlow({ onPurchaseComplete }: { onPurchaseComplete?: () => void } = {}) {
   const { upsertAddress, setDefaultAddress } = useSavedAddresses();
   const [step, setStep] = useState<Step>('deliveryEligibility'); const [data, setData] = useState<State>(initialState); const [dateOpen, setDateOpen] = useState(false); const [calendarOpen, setCalendarOpen] = useState(false); const [paused, setPaused] = useState(false); const [pauseOpen, setPauseOpen] = useState(false); const [toast, setToast] = useState(false); const [returnToSummary, setReturnToSummary] = useState(false); const [openSubscriptionOnHome, setOpenSubscriptionOnHome] = useState(false);
   const [addressMode, setAddressMode] = useState<AddressMode>('weekday');
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  // In backend mode "Pay" runs the real purchase: draft, preferences, dates,
+  // addresses, checkout, mock pay and the webhook poll. Mock mode keeps the
+  // instant fake success it always had.
+  const confirmPayment = () => {
+    if (!backendEnabled || !isSignedIn()) { next(); return; }
+    setPurchasing(true);
+    setPurchaseError(null);
+    purchaseTrialOnServer({
+      food: data.food,
+      meal: data.meal,
+      bread: data.bread,
+      rice: data.rice,
+      dailyMeals: data.dailyMeals,
+      trialDays: data.trialDays,
+      lunchDelivery: data.lunchDelivery,
+      dinnerDelivery: data.dinnerDelivery,
+      paymentLabel: data.payment,
+    })
+      .then(() => { setPurchasing(false); next(); })
+      .catch((error: Error) => { setPurchasing(false); setPurchaseError(error.message); });
+  };
   const [locationSearchOpen, setLocationSearchOpen] = useState(false);
   const [coverageOpen, setCoverageOpen] = useState(false);
   const [coverageRequestPincode, setCoverageRequestPincode] = useState('');
@@ -978,8 +1002,8 @@ const index = order.indexOf(step); const next = () => { if (returnToSummary && [
       )}
     />
   );
-  if (step === 'payment') return <Shell title="Complete payment" onBack={back} footer={<TrialPaymentButton total={total} enabled={!!data.payment} onPress={next} />}><FormPageSection subheading="Choose a secure payment method for your three-day trial."><ChoiceCards options={['UPI', 'Credit or debit card', 'Net banking', 'Digital wallet'].map((title) => ({ title, description: title === 'UPI' ? 'Pay with any UPI app.' : `Pay securely using ${title.toLowerCase()}.` }))} value={data.payment} onChange={(v) => set('payment', v)} /><Text className="mt-4 text-center font-body text-body-xs text-muted">Your payment is protected by secure, encrypted processing.</Text></FormPageSection></Shell>;
-  if (step === 'success') return <TrialConfirmation data={data} total={total} onContinue={next} />;
+  if (step === 'payment') return <Shell title="Complete payment" onBack={back} footer={<TrialPaymentButton total={total} enabled={!!data.payment && !purchasing} onPress={confirmPayment} />}><FormPageSection subheading="Choose a secure payment method for your three-day trial."><ChoiceCards options={['UPI', 'Credit or debit card', 'Net banking', 'Digital wallet'].map((title) => ({ title, description: title === 'UPI' ? 'Pay with any UPI app.' : `Pay securely using ${title.toLowerCase()}.` }))} value={data.payment} onChange={(v) => { set('payment', v); setPurchaseError(null); }} />{purchasing ? <Text className="mt-4 text-center font-body text-body-xs text-muted">Confirming your payment…</Text> : null}{purchaseError ? <View className="mt-4"><FormValidationText>{purchaseError}</FormValidationText></View> : null}<Text className="mt-4 text-center font-body text-body-xs text-muted">Your payment is protected by secure, encrypted processing.</Text></FormPageSection></Shell>;
+  if (step === 'success') return <TrialConfirmation data={data} total={total} onContinue={() => { if (backendEnabled && onPurchaseComplete) { onPurchaseComplete(); return; } next(); }} />;
   return <TrialHome food={data.food} meal={data.meal} dailyMeals={data.dailyMeals} bread={data.bread} rice={data.rice} address={`${data.address.number || 'B-704'}, ${data.address.society || 'Green View Apartments'}, Baner Road, Pune 411045`} lunchDelivery={data.lunchDelivery} dinnerDelivery={data.dinnerDelivery} openSubscriptionOnLoad={openSubscriptionOnHome} />;
 }
 

@@ -112,6 +112,8 @@ function HomeGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregro
   return <Glyph size={Math.max(8, size - 4)} weight={weight === 'fill' ? 'fill' : 'bold'} color={colors[tone]} />;
 }
 
+import type { AppStateHome } from './api/client';
+
 export type MealStatus = 'delivered' | 'upcoming' | 'paused' | 'inactive' | 'issue' | 'delayed' | 'delivery_failed' | 'skipped';
 type MealMarker = {
   foodPreference: string;
@@ -354,6 +356,48 @@ const initialMeals = (food: string, bread: string, rice: string, meal: string, a
       deliveryNote: index === 0 ? 'Leave with security if unavailable.' : undefined,
       items: index < 2 ? menu : undefined,
       nutrition,
+    };
+  });
+};
+
+/**
+ * Backend mode: the server's Home payload is the week strip. Statuses map 1:1
+ * (the backend catalogue was synced to this file's MealStatus union), so this
+ * only reshapes — labels, per-slot markers and plan-day flags come as-is.
+ */
+const serverHomeMeals = (
+  home: AppStateHome,
+  bread: string,
+  rice: string,
+  fallbackAddress: string,
+): TrialMeal[] => {
+  const foodLabel = (type?: string) => (type === 'non_vegetarian' ? 'Non-vegetarian' : 'Vegetarian');
+  return home.week.map((day) => {
+    const first = day.markers[0];
+    const labels = demoMealDateLabels(new Date(`${day.date}T00:00:00`));
+    return {
+      id: first?.mealOrderId ?? `day-${day.date}`,
+      date: labels.date,
+      dayLabel: day.dayLabel,
+      shortDate: day.shortDate,
+      mealType: first?.slot === 'dinner' ? 'Dinner' : 'Lunch',
+      status: (first?.status as MealStatus | undefined) ?? 'inactive',
+      foodPreference: foodLabel(first?.foodType),
+      breadPreference: bread,
+      ricePreference: rice,
+      addressLabel: 'Home',
+      address: fallbackAddress,
+      nutrition,
+      isPlanDay: !day.isDisabled,
+      items: first?.status === 'delivered' ? menu : undefined,
+      mealMarkers:
+        day.markers.length > 1
+          ? day.markers.map((marker) => ({
+              foodPreference: foodLabel(marker.foodType),
+              status: marker.status as MealStatus,
+              slot: marker.slot,
+            }))
+          : undefined,
     };
   });
 };
@@ -1865,7 +1909,7 @@ function SubscriptionCard({ active, daysLeft, caption, title, description, butto
   return <View className="rounded-field border border-border bg-canvas p-sheet"><Text style={{ color: captionColor }} className="mb-2 font-body-medium text-body-sm">{captionText}</Text><FormHeader title={title ?? (active ? 'Your nutrition tools are ready' : 'Continue your healthy meal routine')} subtitle={description ?? (active ? 'Explore your subscribed meals and personalised nutrition tools.' : 'Subscribe for fresh everyday meals and unlock personalised nutrition tools designed around your goals.')} size="sheet" /><View className="mt-1">{features.map((feature) => <View key={feature} className="min-h-9 flex-row items-center"><View className="h-8 w-8 shrink-0 items-center justify-center">{active ? <HomeGlyph icon={CheckIcon} size={18} weight="bold" tone="success" /> : <HomeGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />}</View><Text className={`ml-3 flex-1 font-body text-body-sm ${active ? 'text-foreground' : 'text-muted'}`}>{feature}</Text></View>)}</View><View className="mt-4"><TrialAuthButton label={buttonLabel ?? (active ? 'Explore My Plan' : 'Avail Subscription')} onPress={onPress} /></View></View>;
 }
 
-export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, lunchDelivery = null, dinnerDelivery = null, openSubscriptionOnLoad = false, openMealDetailOnLoad = false, lifecycleVariant = 'trial_active', initialPlanResumeDateKey = null, onPaymentStatusPress, onProfilePress, onExploreMyPlanPress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; lunchDelivery?: TrialMealDeliveryState | null; dinnerDelivery?: TrialMealDeliveryState | null; openSubscriptionOnLoad?: boolean; openMealDetailOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; initialPlanResumeDateKey?: string | null; onPaymentStatusPress?: () => void; onProfilePress?: () => void; onExploreMyPlanPress?: () => void }) {
+export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, lunchDelivery = null, dinnerDelivery = null, openSubscriptionOnLoad = false, openMealDetailOnLoad = false, lifecycleVariant = 'trial_active', initialPlanResumeDateKey = null, serverHome = null, onPaymentStatusPress, onProfilePress, onExploreMyPlanPress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; lunchDelivery?: TrialMealDeliveryState | null; dinnerDelivery?: TrialMealDeliveryState | null; openSubscriptionOnLoad?: boolean; openMealDetailOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; initialPlanResumeDateKey?: string | null; serverHome?: AppStateHome | null; onPaymentStatusPress?: () => void; onProfilePress?: () => void; onExploreMyPlanPress?: () => void }) {
   const insets = useSafeAreaInsets();
   const { theme } = useUniwind();
   const dark = theme === 'dark';
@@ -1931,11 +1975,17 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
       }
       return week;
     }
+    // Server-rendered trial Home: real meal orders, not the demo seed. The
+    // subscription variants keep their richer local scaffolding until that
+    // slice is wired.
+    if (serverHome && serverHome.week.length > 0 && lifecycleVariant.startsWith('trial')) {
+      return serverHomeMeals(serverHome, bread || 'Bhakri', rice || 'Jeera rice', address);
+    }
     const trial = initialMeals(food || 'Vegetarian', bread || 'Bhakri', rice || 'Jeera rice', meal || 'Lunch', address, dailyMeals);
     if (lifecycleVariant === 'trial_payment_pending' || lifecycleVariant === 'trial_scheduled') return trial.map((item) => ({ ...item, status: 'upcoming' as MealStatus, items: undefined }));
     if (lifecycleVariant === 'trial_completed') return trial.map((item) => ({ ...item, status: 'delivered' as MealStatus, items: menu }));
     return trial;
-  }, [address, bread, dailyMeals, food, initialPlanResumeDateKey, lifecycleVariant, meal, rice]);
+  }, [address, bread, dailyMeals, food, initialPlanResumeDateKey, lifecycleVariant, meal, rice, serverHome]);
   const [planResumeDateKey, setPlanResumeDateKey] = useState<string | null>(
     () => initialPlanResumeDateKey ?? (lifecycleVariant === 'subscription_restarted' ? nextWeekdayDateKey() : null),
   );

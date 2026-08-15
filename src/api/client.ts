@@ -35,7 +35,7 @@ export class ApiError extends Error {
 
 export async function apiFetch<T>(
   path: string,
-  options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown } = {},
+  options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
   if (!backendEnabled) {
     throw new Error('EXPO_PUBLIC_API_URL is not set — backend mode is disabled.');
@@ -45,6 +45,7 @@ export async function apiFetch<T>(
     headers: {
       'content-type': 'application/json',
       ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+      ...(options.headers ?? {}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
@@ -108,4 +109,109 @@ export function completeOnboardingStep(
   payload: Record<string, unknown>,
 ): Promise<void> {
   return apiFetch('/me/onboarding/step', { body: { step, payload } }).then(() => undefined);
+}
+
+/**
+ * The server-side router: lifecycle condition, legacy letter and the full Home
+ * payload. In backend mode this replaces the app's local lifecycle machine as
+ * the source of truth for where the user is.
+ */
+export type AppStateMarker = {
+  mealOrderId: string;
+  slot: 'lunch' | 'dinner';
+  foodType: 'vegetarian' | 'non_vegetarian';
+  status: string;
+  showRipple: boolean;
+};
+
+export type AppStateWeekDay = {
+  date: string;
+  dayLabel: string;
+  shortDate: string;
+  isToday: boolean;
+  isSelected: boolean;
+  isDisabled: boolean;
+  markers: AppStateMarker[];
+};
+
+export type AppStateHome = {
+  variant: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  caption: string | null;
+  selectedLabel: string;
+  selectedDate: string | null;
+  week: AppStateWeekDay[];
+  notice: { title: string; body: string; tone: string; action?: string } | null;
+  planCard: { title: string; description: string; buttonLabel: string } | null;
+};
+
+export type AppState = {
+  lifecycleState: string;
+  legacyStateId: string | null;
+  route: string;
+  requiresAction: boolean;
+  resumeStep: string | null;
+  home: AppStateHome | null;
+};
+
+export function fetchAppState(): Promise<AppState> {
+  return apiFetch<AppState>('/me/app-state');
+}
+
+/** Trial purchase surface. Enums are the server's; map app labels before calling. */
+export function startTrialDraft(): Promise<void> {
+  return apiFetch('/me/trial/draft', { method: 'POST', body: {} }).then(() => undefined);
+}
+
+export function saveTrialPreferences(payload: {
+  foodPreference: string;
+  mealPreference: string;
+  breadPreference: string;
+  ricePreference: string;
+  dailyMeals?: Array<{ lunch: string | null; dinner: string | null }>;
+}): Promise<void> {
+  return apiFetch('/me/trial/preferences', { method: 'PATCH', body: payload }).then(() => undefined);
+}
+
+export function saveTrialDates(dates: string[]): Promise<void> {
+  return apiFetch('/me/trial/dates', { method: 'PATCH', body: { dates } }).then(() => undefined);
+}
+
+export function saveTrialAddress(payload: {
+  addressId?: string;
+  lunchAddressId?: string;
+  dinnerAddressId?: string;
+}): Promise<void> {
+  return apiFetch('/me/trial/address', { method: 'PATCH', body: payload }).then(() => undefined);
+}
+
+export function createSavedAddress(payload: Record<string, unknown>): Promise<{ id: string }> {
+  return apiFetch<{ id: string }>('/me/addresses', { body: payload });
+}
+
+function idempotencyKey(): string {
+  return `app-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function createTrialCheckout(paymentMethod: string): Promise<{ checkoutSessionId: string }> {
+  return apiFetch<{ checkoutSessionId: string }>('/me/trial/checkout', {
+    body: { paymentMethod },
+    headers: { 'idempotency-key': idempotencyKey() },
+  });
+}
+
+/** The mock provider settles via webhook moments later; poll fetchPaymentStatus. */
+export function payCheckout(checkoutSessionId: string): Promise<{ paymentId: string }> {
+  return apiFetch<{ paymentId: string }>(`/me/checkout/${checkoutSessionId}/pay`, {
+    body: { scenario: 'success_immediate' },
+    headers: { 'idempotency-key': idempotencyKey() },
+  });
+}
+
+export function fetchPaymentStatus(
+  checkoutSessionId: string,
+): Promise<{ step: string; paymentStatus: string; failureReason: string | null }> {
+  return apiFetch(`/me/checkout/${checkoutSessionId}/payment-status`);
 }
