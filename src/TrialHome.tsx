@@ -1976,10 +1976,9 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
       }
       return week;
     }
-    // Server-rendered trial Home: real meal orders, not the demo seed. The
-    // subscription variants keep their richer local scaffolding until that
-    // slice is wired.
-    if (serverHome && serverHome.week.length > 0 && lifecycleVariant.startsWith('trial')) {
+    // Server-rendered Home: real meal orders for every variant. The local
+    // generators below remain the mock-mode and QA-selector path.
+    if (serverHome && serverHome.week.length > 0) {
       return serverHomeMeals(serverHome, bread || 'Bhakri', rice || 'Jeera rice', address);
     }
     const trial = initialMeals(food || 'Vegetarian', bread || 'Bhakri', rice || 'Jeera rice', meal || 'Lunch', address, dailyMeals);
@@ -2016,15 +2015,29 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
     subscription_delivery_failed: { eyebrow: 'Delivery issue', title: 'Your meals this week', description: 'One delivery needs an address or support resolution.', caption: 'Action required', selectedLabel: 'Affected meal' },
     subscription_offline: { eyebrow: 'Offline', title: 'Your saved meals this week', description: 'Showing the latest saved schedule. Changes are unavailable until you reconnect.', caption: 'Last updated 10:42 AM', selectedLabel: 'Next saved meal' },
   };
-  const config = configs[effectiveLifecycleVariant];
-  const planCard = effectiveLifecycleVariant === 'subscription_expired'
+  const config = serverHome
+    ? {
+        eyebrow: serverHome.eyebrow,
+        title: serverHome.title,
+        description: serverHome.description,
+        ...(serverHome.caption ? { caption: serverHome.caption } : {}),
+        selectedLabel: serverHome.selectedLabel,
+      }
+    : configs[effectiveLifecycleVariant];
+  const planCard = serverHome
+    ? (serverHome.planCard ?? undefined)
+    : effectiveLifecycleVariant === 'subscription_expired'
     ? { title: 'Restart your healthy meal routine', description: 'Choose a new plan while keeping your saved preferences and nutrition history.', buttonLabel: 'Renew Subscription' }
     : effectiveLifecycleVariant === 'subscription_renewal_failed'
       ? { title: 'Payment needs attention', description: 'Update your payment method to keep future subscription weeks active.', buttonLabel: 'Update Payment' }
       : effectiveLifecycleVariant === 'subscription_paused'
         ? { title: 'Your plan is paused', description: 'Your preferences and selected weekly schedule are saved until deliveries resume.', buttonLabel: 'Manage My Plan' }
         : undefined;
-  const stateNotice = effectiveLifecycleVariant === 'trial_payment_pending'
+  const stateNotice: { title: string; body: string; tone?: 'orange' | 'red' | 'blue' | 'purple'; action?: string } | undefined = serverHome
+    ? (serverHome.notice
+        ? { title: serverHome.notice.title, body: serverHome.notice.body, tone: serverHome.notice.tone as 'orange' | 'red' | 'blue' | 'purple', ...(serverHome.notice.action ? { action: serverHome.notice.action } : {}) }
+        : undefined)
+    : effectiveLifecycleVariant === 'trial_payment_pending'
     ? { title: 'Check Payment Status', body: 'Return to payment status to see whether your ₹899 trial payment is confirmed.', action: 'Check Payment Status' }
     : effectiveLifecycleVariant === 'subscription_delivery_delayed'
     ? { title: 'Delivery delayed', body: 'The 23 July delivery is delayed. The remaining selected delivery days are unchanged.', tone: 'orange' as const }
