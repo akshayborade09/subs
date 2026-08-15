@@ -778,7 +778,9 @@ function TrialCalendarSheet({ initialDays, initialWeekendDelivery, initialWeeken
       <View className="mt-2 flex-row flex-wrap">{Array.from({ length: month.getDay() }, (_, index) => <View key={`blank-${index}`} className="w-[14.285%]" />)}{dates.map((date) => {
         const key = dateKey(date);
         const selected = selectedKeys.has(key);
-        const disabled = date < today || (!!anchor && (date < minDate || date > maxDate));
+        // Weekends are greyed: the kitchen runs Mon–Fri (decided 15 Aug 2026),
+        // and the server refuses weekend trial dates.
+        const disabled = date < today || isWeekend(date) || (!!anchor && (date < minDate || date > maxDate));
         return <View key={key} className="w-[14.285%] items-center py-1.5"><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={() => toggleDate(date)} className={`h-8 w-8 items-center justify-center rounded-full border ${selected ? 'border-2 border-accent bg-accent ring-2 ring-accent ring-offset-[3px] ring-offset-sheet' : 'border-border bg-canvas'} ${disabled ? 'opacity-30' : ''}`}><Text className={`font-mono-semibold text-body-sm ${selected ? 'text-accent-foreground' : 'text-foreground'}`}>{date.getDate()}</Text></Pressable></View>;
       })}</View>
     </View>;
@@ -1002,7 +1004,7 @@ const index = order.indexOf(step); const next = () => { if (returnToSummary && [
       )}
     />
   );
-  if (step === 'payment') return <Shell title="Complete payment" onBack={back} footer={<TrialPaymentButton total={total} enabled={!!data.payment && !purchasing} onPress={confirmPayment} />}><FormPageSection subheading="Choose a secure payment method for your three-day trial."><ChoiceCards options={['UPI', 'Credit or debit card', 'Net banking', 'Digital wallet'].map((title) => ({ title, description: title === 'UPI' ? 'Pay with any UPI app.' : `Pay securely using ${title.toLowerCase()}.` }))} value={data.payment} onChange={(v) => { set('payment', v); setPurchaseError(null); }} />{purchasing ? <Text className="mt-4 text-center font-body text-body-xs text-muted">Confirming your payment…</Text> : null}{purchaseError ? <View className="mt-4"><FormValidationText>{purchaseError}</FormValidationText></View> : null}<Text className="mt-4 text-center font-body text-body-xs text-muted">Your payment is protected by secure, encrypted processing.</Text></FormPageSection></Shell>;
+  if (step === 'payment') return <Shell title="Complete payment" onBack={back} footer={<TrialPaymentButton total={total} enabled={!!data.payment && !purchasing} onPress={confirmPayment} />}><FormPageSection subheading="Choose a secure payment method for your three-day trial."><ChoiceCards options={['UPI', 'Credit or debit card'].map((title) => ({ title, description: title === 'UPI' ? 'Pay with any UPI app.' : `Pay securely using ${title.toLowerCase()}.` }))} value={data.payment} onChange={(v) => { set('payment', v); setPurchaseError(null); }} />{purchasing ? <Text className="mt-4 text-center font-body text-body-xs text-muted">Confirming your payment…</Text> : null}{purchaseError ? <View className="mt-4"><FormValidationText>{purchaseError}</FormValidationText></View> : null}<Text className="mt-4 text-center font-body text-body-xs text-muted">Your payment is protected by secure, encrypted processing.</Text></FormPageSection></Shell>;
   if (step === 'success') return <TrialConfirmation data={data} total={total} onContinue={() => { if (backendEnabled && onPurchaseComplete) { onPurchaseComplete(); return; } next(); }} />;
   return <TrialHome food={data.food} meal={data.meal} dailyMeals={data.dailyMeals} bread={data.bread} rice={data.rice} address={`${data.address.number || 'B-704'}, ${data.address.society || 'Green View Apartments'}, Baner Road, Pune 411045`} lunchDelivery={data.lunchDelivery} dinnerDelivery={data.dinnerDelivery} openSubscriptionOnLoad={openSubscriptionOnHome} />;
 }

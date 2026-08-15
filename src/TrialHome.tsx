@@ -1683,7 +1683,9 @@ function MealDetailSheet({
           kind="food"
           value={getEffectiveFoodPreference(meal, mealSlot) as MealPreferenceValue}
           anchor={pickerAnchor}
-          options={subscriptionFoodOptions}
+          // A single meal is either veg or non-veg; 'Mix of both' only makes
+          // sense at plan level (decided 15 Aug 2026 — this was a copy bug).
+          options={subscriptionFoodOptions.filter((option) => option.title !== 'Mix of both')}
           onClose={() => setPickerAnchor(null)}
           onSelect={(preference) => {
             const nextPreference = preference as MealPreferenceValue;
