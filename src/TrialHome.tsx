@@ -1915,6 +1915,12 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
   const { theme } = useUniwind();
   const dark = theme === 'dark';
   const seed = useMemo(() => {
+    // Server-rendered Home: real meal orders for every variant. This must run
+    // before the subscription branch below, whose early return would otherwise
+    // keep those variants on the local demo schedule.
+    if (serverHome && serverHome.week.length > 0) {
+      return serverHomeMeals(serverHome, bread || 'Bhakri', rice || 'Jeera rice', address);
+    }
     if (lifecycleVariant.startsWith('subscription_')) {
       const restartStartDate = lifecycleVariant === 'subscription_scheduled'
         ? demoParseMonthDay('26 July')
@@ -1975,11 +1981,6 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
         });
       }
       return week;
-    }
-    // Server-rendered Home: real meal orders for every variant. The local
-    // generators below remain the mock-mode and QA-selector path.
-    if (serverHome && serverHome.week.length > 0) {
-      return serverHomeMeals(serverHome, bread || 'Bhakri', rice || 'Jeera rice', address);
     }
     const trial = initialMeals(food || 'Vegetarian', bread || 'Bhakri', rice || 'Jeera rice', meal || 'Lunch', address, dailyMeals);
     if (lifecycleVariant === 'trial_payment_pending' || lifecycleVariant === 'trial_scheduled') return trial.map((item) => ({ ...item, status: 'upcoming' as MealStatus, items: undefined }));
