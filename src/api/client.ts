@@ -10,10 +10,27 @@ const rawBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
 export const API_BASE_URL = rawBaseUrl.replace(/\/+$/, '');
 export const backendEnabled = API_BASE_URL.length > 0;
 
-let accessToken: string | null = null;
+const TOKEN_KEY = 'tiffins.accessToken';
+
+/** Web localStorage when present (Expo web / browser demo); memory otherwise. */
+function readStoredToken(): string | null {
+  try {
+    return globalThis.localStorage?.getItem(TOKEN_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+let accessToken: string | null = readStoredToken();
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
+  try {
+    if (token === null) globalThis.localStorage?.removeItem(TOKEN_KEY);
+    else globalThis.localStorage?.setItem(TOKEN_KEY, token);
+  } catch {
+    // No storage available (native without a persistence module) — memory only.
+  }
 }
 
 export function isSignedIn(): boolean {
@@ -206,6 +223,19 @@ export function createTrialCheckout(paymentMethod: string): Promise<{ checkoutSe
 export function payCheckout(checkoutSessionId: string): Promise<{ paymentId: string }> {
   return apiFetch<{ paymentId: string }>(`/me/checkout/${checkoutSessionId}/pay`, {
     body: { scenario: 'success_immediate' },
+    headers: { 'idempotency-key': idempotencyKey() },
+  });
+}
+
+export function createSubscriptionCheckout(payload: {
+  planCode: string;
+  mealPreference: string;
+  foodPreference: string;
+  breadPreference: string;
+  ricePreference: string;
+}): Promise<{ checkoutSessionId: string }> {
+  return apiFetch<{ checkoutSessionId: string }>('/me/subscriptions/checkout', {
+    body: payload,
     headers: { 'idempotency-key': idempotencyKey() },
   });
 }

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { backendEnabled, isSignedIn } from './api/client';
+import { purchaseSubscriptionOnServer } from './api/subscriptionPurchase';
 import {
   Animated as NativeAnimated,
   Easing,
@@ -824,6 +826,7 @@ export function SubscriptionSheet({
   dinnerDelivery,
   sheetTitle = 'Choose your subscription',
   onClose,
+  onToast,
   onActivated,
   onExploreMyPlanPress,
 }: {
@@ -868,6 +871,33 @@ export function SubscriptionSheet({
 
   const selectedPlan = plans.find((plan) => plan.id === planId)!;
   const pricing = calculateSubscriptionPricing(selectedPlan, mealChoice);
+  const [paying, setPaying] = useState(false);
+  // Backend mode charges the real checkout before showing success; mock mode
+  // keeps the instant fake activation. The single-slot config supplies the
+  // top-level preferences; per-slot addresses ride the server fallback until
+  // the saved-address sync is wired.
+  const confirmPurchase = () => {
+    if (paying) return;
+    const activate = () => {
+      onActivated(selectedPlan.name, mealChoice, pricing.total, '26 July');
+      setSuccess(true);
+    };
+    if (!backendEnabled || !isSignedIn()) {
+      activate();
+      return;
+    }
+    const config = mealChoice === 'Dinner' ? dinnerConfig : lunchConfig;
+    setPaying(true);
+    purchaseSubscriptionOnServer({
+      planName: selectedPlan.name,
+      mealChoice,
+      food: config.food,
+      bread: config.bread,
+      rice: config.rice,
+    })
+      .then(() => { setPaying(false); activate(); })
+      .catch((error: Error) => { setPaying(false); onToast(error.message); });
+  };
   const activeConfig = activeMealSlot === 'dinner' ? dinnerConfig : lunchConfig;
 
   const toggleMealSlot = (slot: SubscriptionMealSlot) => {
@@ -1019,10 +1049,7 @@ export function SubscriptionSheet({
       <Animated.View entering={FadeInUp.delay(280).duration(280)} style={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(8, insets.bottom) }} className="absolute inset-x-0 bottom-0 bg-canvas px-5 pt-2">
         <SubscriptionPaymentFooter
           total={pricing.total}
-          onContinue={() => {
-            onActivated(selectedPlan.name, mealChoice, pricing.total, '26 July');
-            setSuccess(true);
-          }}
+          onContinue={confirmPurchase}
           onViewBreakup={() => setBreakupOpen(true)}
         />
       </Animated.View>
@@ -1068,8 +1095,7 @@ export function SubscriptionSheet({
           onClose={() => setBreakupOpen(false)}
           onContinue={() => {
             setBreakupOpen(false);
-            onActivated(selectedPlan.name, mealChoice, pricing.total, '26 July');
-            setSuccess(true);
+            confirmPurchase();
           }}
         />
       ) : null}

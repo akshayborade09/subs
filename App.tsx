@@ -65,7 +65,7 @@ import { BlurInText } from './src/BlurInText';
 import { getLifecycleDefinition, initialLifecycleMachineState, lifecycleMachineReducer, type LifecycleStateId } from './src/lifecycleStateMachine';
 import { themePalette } from './src/themeColors';
 import { PrimaryShimmerButton } from './src/primaryButton';
-import { backendEnabled, fetchAppState, startOtp, verifyOtp, type AppState } from './src/api/client';
+import { backendEnabled, fetchAppState, isSignedIn, startOtp, verifyOtp, type AppState } from './src/api/client';
 
 const onboardingImages = {
   everydayMeals: require('./assets/onboarding/everyday-meals.webp'),
@@ -741,6 +741,11 @@ function AppFlow() {
   useEffect(() => {
     if (Platform.OS !== 'web') void Location.requestForegroundPermissionsAsync();
   }, []);
+  // A persisted session skips the stories: land where the server says.
+  useEffect(() => {
+    if (backendEnabled && isSignedIn()) routeFromServer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const statusStyle = screen === 'stories' ? 'light' : (theme === 'dark' ? 'light' : 'dark');
   const definition = getLifecycleDefinition(machine.selectedState);
   const chooseState = (stateId: LifecycleStateId, options?: { preserveCommerceLaunch?: boolean }) => {
@@ -791,7 +796,7 @@ function AppFlow() {
       </View>
       {screen === 'stories' ? <Animated.View style={{ transform: [{ scale: sheetOpen ? 0.985 : 1 }] }} className="flex-1"><OnboardingScreen sheetOpen={sheetOpen} onComplete={() => setSheetOpen(true)} /></Animated.View> : null}
       {screen === 'complete' ? <TrialFlow onPurchaseComplete={backendEnabled ? routeFromServer : undefined} /> : null}
-      {screen === 'trial_home' ? <TrialHome key={(serverState?.legacyStateId ?? machine.selectedState) ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" openMealDetailOnLoad={machine.selectedState === 'AO'} serverHome={serverState?.home ?? null} lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', AO: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', AP: 'subscription_restarted', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId | string, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[(serverState?.legacyStateId ?? machine.selectedState) ?? 'G'] ?? 'trial_active')}  onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} onExploreMyPlanPress={openMyPlanFromHome} /> : null}
+      {screen === 'trial_home' ? <TrialHome key={(serverState?.legacyStateId ?? machine.selectedState) ?? 'trial'} food="Mix of both" meal="Both" bread="Chapati" rice="Jeera rice" address="B-704, Green View Apartments, Baner Road, Pune 411045" openMealDetailOnLoad={machine.selectedState === 'AO'} serverHome={serverState?.home ?? null} onServerStateRefresh={backendEnabled ? routeFromServer : undefined} lifecycleVariant={(({ D: 'trial_payment_pending', F: 'trial_scheduled', G: 'trial_active', H: 'trial_subscription_purchased', I: 'trial_completed', J: 'subscription_scheduled', K: 'subscription_active', AO: 'subscription_active', L: 'subscription_no_meal', M: 'subscription_paused', AP: 'subscription_restarted', N: 'subscription_ending', O: 'subscription_expired', P: 'subscription_renewal_failed', Q: 'subscription_delivery_delayed', R: 'subscription_delivery_failed', S: 'subscription_offline' } as Partial<Record<LifecycleStateId | string, Parameters<typeof TrialHome>[0]['lifecycleVariant']>>)[(serverState?.legacyStateId ?? machine.selectedState) ?? 'G'] ?? 'trial_active')}  onPaymentStatusPress={() => setScreen('preview')} onProfilePress={openProfileFromHome} onExploreMyPlanPress={openMyPlanFromHome} /> : null}
       {screen === 'preview' && definition ? <LifecycleExperience definition={definition} onBack={openSelector} onTransition={chooseState} onPaymentCheck={() => setScreen('trial_home')} onExploreMyPlanPress={definition.primaryAction === 'Explore My Plan' ? openMyPlanFromHome : undefined} /> : null}
       {screen === 'commerce_profile' && machine.selectedState ? <CommerceProfileExperience key={`${machine.selectedState}-${commerceProfileLaunch.initialRoute ?? 'profile'}-${commerceProfileLaunch.myPlanShowManageActions}`} stateId={machine.selectedState} initialRoute={commerceProfileLaunch.initialRoute} myPlanShowManageActions={commerceProfileLaunch.myPlanShowManageActions} onBack={backFromCommerceProfile} onTransition={chooseState} /> : null}
       {screen === 'stories' && sheetOpen ? <LoginSheet onClose={() => setSheetOpen(false)} onVerified={() => { setSheetOpen(false); if (backendEnabled) routeFromServer(); else setScreen('complete'); }} /> : null}

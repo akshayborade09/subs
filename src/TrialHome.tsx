@@ -112,6 +112,7 @@ function HomeGlyph({ icon: Glyph, size = 20, weight = 'regular', tone = 'foregro
   return <Glyph size={Math.max(8, size - 4)} weight={weight === 'fill' ? 'fill' : 'bold'} color={colors[tone]} />;
 }
 
+import { backendEnabled, isSignedIn } from './api/client';
 import type { AppStateHome } from './api/client';
 
 export type MealStatus = 'delivered' | 'upcoming' | 'paused' | 'inactive' | 'issue' | 'delayed' | 'delivery_failed' | 'skipped';
@@ -1909,7 +1910,7 @@ function SubscriptionCard({ active, daysLeft, caption, title, description, butto
   return <View className="rounded-field border border-border bg-canvas p-sheet"><Text style={{ color: captionColor }} className="mb-2 font-body-medium text-body-sm">{captionText}</Text><FormHeader title={title ?? (active ? 'Your nutrition tools are ready' : 'Continue your healthy meal routine')} subtitle={description ?? (active ? 'Explore your subscribed meals and personalised nutrition tools.' : 'Subscribe for fresh everyday meals and unlock personalised nutrition tools designed around your goals.')} size="sheet" /><View className="mt-1">{features.map((feature) => <View key={feature} className="min-h-9 flex-row items-center"><View className="h-8 w-8 shrink-0 items-center justify-center">{active ? <HomeGlyph icon={CheckIcon} size={18} weight="bold" tone="success" /> : <HomeGlyph icon={LockKeyIcon} size={18} weight="regular" tone="muted" />}</View><Text className={`ml-3 flex-1 font-body text-body-sm ${active ? 'text-foreground' : 'text-muted'}`}>{feature}</Text></View>)}</View><View className="mt-4"><TrialAuthButton label={buttonLabel ?? (active ? 'Explore My Plan' : 'Avail Subscription')} onPress={onPress} /></View></View>;
 }
 
-export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, lunchDelivery = null, dinnerDelivery = null, openSubscriptionOnLoad = false, openMealDetailOnLoad = false, lifecycleVariant = 'trial_active', initialPlanResumeDateKey = null, serverHome = null, onPaymentStatusPress, onProfilePress, onExploreMyPlanPress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; lunchDelivery?: TrialMealDeliveryState | null; dinnerDelivery?: TrialMealDeliveryState | null; openSubscriptionOnLoad?: boolean; openMealDetailOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; initialPlanResumeDateKey?: string | null; serverHome?: AppStateHome | null; onPaymentStatusPress?: () => void; onProfilePress?: () => void; onExploreMyPlanPress?: () => void }) {
+export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, address, lunchDelivery = null, dinnerDelivery = null, openSubscriptionOnLoad = false, openMealDetailOnLoad = false, lifecycleVariant = 'trial_active', initialPlanResumeDateKey = null, serverHome = null, onServerStateRefresh, onPaymentStatusPress, onProfilePress, onExploreMyPlanPress }: { food: string; meal: string; dailyMeals?: Array<{ lunch: string; dinner: string }>; bread: string; rice: string; address: string; lunchDelivery?: TrialMealDeliveryState | null; dinnerDelivery?: TrialMealDeliveryState | null; openSubscriptionOnLoad?: boolean; openMealDetailOnLoad?: boolean; lifecycleVariant?: HomeLifecycleVariant; initialPlanResumeDateKey?: string | null; serverHome?: AppStateHome | null; onServerStateRefresh?: () => void; onPaymentStatusPress?: () => void; onProfilePress?: () => void; onExploreMyPlanPress?: () => void }) {
   const insets = useSafeAreaInsets();
   const { theme } = useUniwind();
   const dark = theme === 'dark';
@@ -1986,6 +1987,9 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
     if (lifecycleVariant === 'trial_completed') return trial.map((item) => ({ ...item, status: 'delivered' as MealStatus, items: menu }));
     return trial;
   }, [address, bread, dailyMeals, food, initialPlanResumeDateKey, lifecycleVariant, meal, rice, serverHome]);
+  // A subscription bought against the server: refetch app-state when the
+  // sheet closes so Home flips to the real subscription variant.
+  const serverPurchaseRef = useRef(false);
   const [planResumeDateKey, setPlanResumeDateKey] = useState<string | null>(
     () => initialPlanResumeDateKey ?? (lifecycleVariant === 'subscription_restarted' ? nextWeekdayDateKey() : null),
   );
@@ -2191,7 +2195,7 @@ export default function TrialHome({ food, meal, dailyMeals = [], bread, rice, ad
         onToast={showToast}
       />
     ) : null}
-    {subscriptionOpen ? <SubscriptionSheet food={food} bread={bread} rice={rice} address={address} initialMeal={meal} dailyMeals={dailyMeals} lunchDelivery={lunchDelivery} dinnerDelivery={dinnerDelivery} sheetTitle={subscriptionSheetTitle} onClose={() => setSubscriptionOpen(false)} onToast={showToast} onExploreMyPlanPress={openPlanDetails} onActivated={(plan, selectedMeal, total, startDate) => { setSubscription({ plan, meal: selectedMeal, total, startDate, endDate: demoAddDays(demoStartOfDay(), 14) }); showToast(`${plan} plan activated for ${selectedMeal}`); }} /> : null}
+    {subscriptionOpen ? <SubscriptionSheet food={food} bread={bread} rice={rice} address={address} initialMeal={meal} dailyMeals={dailyMeals} lunchDelivery={lunchDelivery} dinnerDelivery={dinnerDelivery} sheetTitle={subscriptionSheetTitle} onClose={() => { setSubscriptionOpen(false); if (serverPurchaseRef.current) { serverPurchaseRef.current = false; onServerStateRefresh?.(); } }} onToast={showToast} onExploreMyPlanPress={openPlanDetails} onActivated={(plan, selectedMeal, total, startDate) => { serverPurchaseRef.current = backendEnabled && isSignedIn(); setSubscription({ plan, meal: selectedMeal, total, startDate, endDate: demoAddDays(demoStartOfDay(), 14) }); showToast(`${plan} plan activated for ${selectedMeal}`); }} /> : null}
     {planDetailsOpen && activePlan ? (
       <PlanDetailsSheet
         onClose={() => setPlanDetailsOpen(false)}

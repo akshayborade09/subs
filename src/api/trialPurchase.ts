@@ -16,24 +16,24 @@ import {
   startTrialDraft,
 } from './client';
 
-const FOOD: Record<string, string> = {
+export const FOOD: Record<string, string> = {
   Vegetarian: 'vegetarian',
   'Non-vegetarian': 'non_vegetarian',
   'Mix of both': 'mix',
 };
 
-const MEAL: Record<string, string> = { Lunch: 'lunch', Dinner: 'dinner', Both: 'both' };
+export const MEAL: Record<string, string> = { Lunch: 'lunch', Dinner: 'dinner', Both: 'both' };
 
-const BREAD: Record<string, string> = { Chapati: 'chapati', Bhakri: 'bhakri', Any: 'any' };
+export const BREAD: Record<string, string> = { Chapati: 'chapati', Bhakri: 'bhakri', Any: 'any' };
 
-const RICE: Record<string, string> = {
+export const RICE: Record<string, string> = {
   'Plain Rice': 'plain_rice',
   'Jeera Rice': 'jeera_rice',
   'Jeera rice': 'jeera_rice',
   Any: 'any',
 };
 
-const PAYMENT: Record<string, string> = {
+export const PAYMENT: Record<string, string> = {
   UPI: 'upi',
   'Credit or debit card': 'card',
   'Net banking': 'net_banking',

@@ -42,12 +42,18 @@ EXPO_PUBLIC_API_URL=http://192.168.1.5:4000 pnpm start    # phone on open Wi-Fi
   payment screen; retries are safe (idempotency keys, upserting draft).
 - **Trial Home week strip**: for trial variants, `TrialHome` renders the
   server's Home payload (real meal orders) instead of the demo seed.
+- **Subscription purchase**: the sheet's pay button runs the real checkout
+  (`src/api/subscriptionPurchase.ts`) — server plan catalogue and pricing,
+  mock pay, webhook poll; Home refetches app-state when the sheet closes.
+- **Session persistence** (web): the token survives reloads via localStorage,
+  and the app boots straight to the server's route when signed in.
 
 ## Still mock — next slices in order
 
 1. Subscription-variant Home (server payload exists; `TrialHome` still uses its
    local scaffolding for subscription states)
 2. Meal actions (skip / undo-skip / changes / report-issue)
-3. Subscription purchase & management (incl. pause/restart)
+3. Subscription management (pause / restart / cancel) and per-slot configs at
+   checkout (needs the saved-address sync)
 4. Profile, transactions, loyalty, referrals, leaderboard
-5. Token persistence (in-memory only — an app restart signs you out)
+5. Native token persistence (web only today — native is still in-memory)
